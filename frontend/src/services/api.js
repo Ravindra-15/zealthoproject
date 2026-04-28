@@ -1,14 +1,13 @@
-// src/services/api.js
-
 import axios from "axios";
 
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
-// attach token automatically
 API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("token");
+  const token =
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token");
 
   if (token) {
     req.headers.Authorization = `Bearer ${token}`;
