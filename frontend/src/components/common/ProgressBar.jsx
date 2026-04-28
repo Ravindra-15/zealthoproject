@@ -3,27 +3,24 @@
 import React from "react";
 
 const ProgressBar = ({ step, total }) => {
-  const percentage = Math.round((step / total) * 100);
+  const percentage = (step / total) * 100;
 
   return (
-    <div className="w-full">
+    <div className="w-full mb-4">
       
-      {/* Top text */}
+      {/* Header */}
       <div className="flex justify-between text-xs text-gray-600 mb-1">
         <span>Step {step} of {total}: Your Profile</span>
-        <span>{percentage}%</span>
+        <span>{Math.round(percentage)}%</span>
       </div>
 
-      {/* Bar background */}
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        
-        {/* Progress fill */}
+      {/* Bar */}
+      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
-          className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+          className="h-full bg-orange-500 rounded-full transition-all duration-700 ease-in-out"
           style={{ width: `${percentage}%` }}
         />
       </div>
-
     </div>
   );
 };

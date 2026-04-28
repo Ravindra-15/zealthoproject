@@ -22,7 +22,7 @@ exports.verifyOtp = async (req, res) => {
       return errorResponse(res, "OTP expired or not found", 400);
     }
 
-    if (record.otp !== otp) {
+    if (record.otp.toString().trim() !== otp.toString().trim()) {
       return errorResponse(res, "Invalid OTP", 400);
     }
 

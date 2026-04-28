@@ -1,5 +1,3 @@
-// src/pages/Signup/ProfileStepTwo.jsx
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
@@ -24,20 +22,16 @@ const ProfileStepTwo = () => {
   };
 
   const handleSubmit = async () => {
+    if (!form.dob || !form.country || !form.city) {
+      return alert("All fields required");
+    }
+
     try {
-      if (!form.dob || !form.country || !form.city) {
-        return alert("All fields are required");
-      }
-
       setLoading(true);
-
       await profileStepTwo(form);
-
-      // 👉 Go to home after success
       navigate("/home");
-
     } catch (err) {
-      alert(err.response?.data?.message || "Error occurred");
+      alert(err.response?.data?.message || "Error");
     } finally {
       setLoading(false);
     }
@@ -45,35 +39,44 @@ const ProfileStepTwo = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-      
       <Navbar />
 
-      <div className="flex flex-col md:flex-row justify-between px-6 md:px-16 py-10 gap-10">
+      <div className="flex flex-col md:flex-row justify-between px-6 md:px-20 py-12 gap-12">
 
-        {/* LEFT */}
+        {/* LEFT SECTION */}
         <div className="max-w-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">
-            Stories of Transformation
+          <h2 className="text-3xl font-bold text-gray-800 mb-8 leading-snug">
+            Stories of <br /> Transformation
           </h2>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm text-sm text-gray-600">
-            <p className="mb-4">
-              "I was struggling with stress and anxiety, but the mindfulness programs helped me regain balance. I finally feel like I'm prioritizing my well-being."
+          {/* Testimonial Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative">
+            
+            {/* Quote icon */}
+            <div className="text-orange-500 text-3xl absolute top-4 left-4">
+              “
+            </div>
+
+            <p className="text-sm text-gray-600 mt-6 leading-relaxed">
+              I was struggling with stress and anxiety, but the mindfulness programs helped me regain balance. I finally feel like I'm prioritizing my well-being.
             </p>
-            <p className="text-xs text-gray-500">
+
+            <p className="mt-4 text-xs text-gray-500">
               — Anna R., 32 <br />
               (Diabmukt Member)
             </p>
           </div>
         </div>
 
-        {/* RIGHT CARD */}
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6">
+        {/* RIGHT SECTION */}
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
 
-          {/* Progress */}
-          <ProgressBar step={2} total={3} />
+          {/* Progress INSIDE CARD */}
+          <div className="mb-6">
+            <ProgressBar step={2} total={3} />
+          </div>
 
-          <h2 className="text-2xl font-semibold text-center text-teal-800 mt-6 mb-6">
+          <h2 className="text-2xl font-semibold text-center text-teal-800 mb-6">
             Build Your Profile
           </h2>
 
@@ -107,7 +110,6 @@ const ProfileStepTwo = () => {
               text={loading ? "Saving..." : "Next"}
               onClick={handleSubmit}
             />
-
           </div>
         </div>
       </div>

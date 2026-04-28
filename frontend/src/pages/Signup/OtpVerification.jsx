@@ -1,6 +1,7 @@
 // src/pages/Signup/OtpVerification.jsx
 
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
 import Button from "../../components/common/Button";
@@ -9,14 +10,14 @@ import { verifyOtp, resendOtp } from "../../services/authService";
 const OtpVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
+  const { login } = useAuth();
   const email = location.state?.email;
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(30);
   const [loading, setLoading] = useState(false);
 
-  // ⏳ Timer logic
+  // ⏳ Timer
   useEffect(() => {
     if (timer <= 0) return;
 
@@ -27,7 +28,7 @@ const OtpVerification = () => {
     return () => clearInterval(interval);
   }, [timer]);
 
-  // Handle input change
+  // Handle OTP change
   const handleChange = (value, index) => {
     if (!/^\d?$/.test(value)) return;
 
@@ -35,36 +36,37 @@ const OtpVerification = () => {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Move to next input
     if (value && index < 5) {
       document.getElementById(`otp-${index + 1}`).focus();
     }
   };
 
-  // Handle submit
+  // Verify OTP
   const handleVerify = async () => {
-    try {
-      const otpCode = otp.join("");
+  const code = otp.join("");
 
-      if (otpCode.length !== 6) {
-        return alert("Enter complete OTP");
-      }
+  // ✅ Validate first
+  if (code.length !== 6) {
+    return alert("Enter full OTP");
+  }
 
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const res = await verifyOtp({ email, otp: otpCode });
+    // ✅ Single API call
+    const res = await verifyOtp({ email, otp: code });
 
-      // Save token
-      localStorage.setItem("token", res.data.data.token);
+    // ✅ Save token using context
+    login(res.data.data.token);
 
-      navigate("/profile-step-1");
+    navigate("/profile-step-1");
 
-    } catch (err) {
-      alert(err.response?.data?.message || "Verification failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    alert(err.response?.data?.message || "Invalid OTP");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Resend OTP
   const handleResend = async () => {
@@ -72,7 +74,7 @@ const OtpVerification = () => {
       await resendOtp({ email });
       setTimer(30);
     } catch (err) {
-      alert("Failed to resend OTP");
+      alert("Resend failed");
     }
   };
 
@@ -81,11 +83,11 @@ const OtpVerification = () => {
       
       <Navbar />
 
-      <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-16 py-10">
+      <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-16 py-12">
 
         {/* LEFT */}
         <div className="max-w-md text-center md:text-left">
-          <h1 className="text-3xl md:text-5xl font-bold text-teal-800">
+          <h1 className="text-4xl md:text-5xl font-bold text-teal-800 leading-tight">
             Your Wellness <br />
             <span className="text-orange-500">Journey Begins</span>
           </h1>
@@ -96,37 +98,37 @@ const OtpVerification = () => {
         </div>
 
         {/* RIGHT CARD */}
-        <div className="bg-white rounded-2xl shadow-md p-6 w-full max-w-md mt-8 md:mt-0">
+        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md mt-10 md:mt-0">
 
-          <h2 className="text-xl font-semibold text-center text-teal-800 mb-4">
+          <h2 className="text-xl font-semibold text-center text-teal-800 mb-3">
             Enter Verification Code
           </h2>
 
-          <p className="text-center text-sm text-gray-500 mb-4">
-            We've sent a secure code to {email}
+          <p className="text-center text-sm text-gray-500 mb-6">
+            We've sent a secure code to <br />
+            <span className="font-medium">{email}</span>
           </p>
 
-          {/* OTP BOXES */}
-          <div className="flex justify-between gap-2 mb-4">
+          {/* OTP INPUTS */}
+          <div className="flex justify-between gap-2 mb-5">
             {otp.map((digit, index) => (
               <input
                 key={index}
                 id={`otp-${index}`}
-                type="text"
-                maxLength="1"
                 value={digit}
+                maxLength="1"
                 onChange={(e) =>
                   handleChange(e.target.value, index)
                 }
-                className="w-10 h-12 text-center border rounded-md text-lg"
+                className="w-12 h-12 text-center border rounded-lg text-lg focus:border-orange-500 outline-none"
               />
             ))}
           </div>
 
           {/* Checkbox */}
-          <div className="flex items-center gap-2 mb-4 text-sm">
+          <div className="flex items-center gap-2 mb-5 text-sm">
             <input type="checkbox" />
-            <span>Keep me logged in</span>
+            <span>Keep me Logged in</span>
           </div>
 
           <Button
@@ -134,28 +136,27 @@ const OtpVerification = () => {
             onClick={handleVerify}
           />
 
-          {/* Resend */}
+          {/* TIMER */}
           <p className="text-center text-sm mt-4 text-gray-500">
             {timer > 0 ? (
-              `Resend Code in 00:${timer}`
+              `Resend Code in 00:${timer < 10 ? `0${timer}` : timer}`
             ) : (
               <span
-                className="text-orange-500 cursor-pointer"
                 onClick={handleResend}
+                className="text-orange-500 cursor-pointer"
               >
                 Resend OTP
               </span>
             )}
           </p>
 
-          {/* Back */}
+          {/* BACK */}
           <p
             onClick={() => navigate(-1)}
-            className="text-center text-sm mt-2 cursor-pointer text-gray-600"
+            className="text-center mt-3 text-sm cursor-pointer text-gray-600"
           >
             ← Back
           </p>
-
         </div>
       </div>
     </div>

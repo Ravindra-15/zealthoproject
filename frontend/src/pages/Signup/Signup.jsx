@@ -6,6 +6,7 @@ import Navbar from "../../components/layout/Navbar";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import { signupUser } from "../../services/authService";
+import { validateSignup } from "../../utils/validators";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ const Signup = () => {
   };
 
   const handleSignup = async () => {
+    const error = validateSignup(form);
+    if (error) return alert(error); // ✅ validation
     try {
       setLoading(true);
 
@@ -32,7 +35,6 @@ const Signup = () => {
 
       // Navigate to OTP page with email
       navigate("/verify-otp", { state: { email: form.email } });
-
     } catch (err) {
       console.log(err.response?.data);
       alert(err.response?.data?.message || "Something went wrong");
@@ -43,11 +45,9 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-      
       <Navbar />
 
       <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-16 py-10 gap-10">
-
         {/* LEFT SIDE */}
         <div className="max-w-md text-center md:text-left">
           <h1 className="text-3xl md:text-5xl font-bold text-teal-800 leading-tight">
@@ -56,19 +56,18 @@ const Signup = () => {
           </h1>
 
           <p className="mt-4 text-gray-600 text-sm">
-            Join thousands building sustainable health habits through expert-guided programs
+            Join thousands building sustainable health habits through
+            expert-guided programs
           </p>
         </div>
 
         {/* RIGHT CARD */}
         <div className="bg-white rounded-2xl shadow-md p-6 w-full max-w-md">
-
           <h2 className="text-2xl font-semibold text-center text-teal-800 mb-6">
             Sign Up
           </h2>
 
           <div className="flex flex-col gap-4">
-
             <Input
               placeholder="Email id"
               name="email"
@@ -114,9 +113,9 @@ const Signup = () => {
             </button>
 
             <p className="text-xs text-gray-500 text-center mt-2">
-              By continuing, you agree to Zealtho’s Terms of Service and Privacy Policy
+              By continuing, you agree to Zealtho’s Terms of Service and Privacy
+              Policy
             </p>
-
           </div>
         </div>
       </div>
