@@ -13,7 +13,7 @@ const { successResponse, errorResponse } = require("../utils/responseHandler");
 exports.signup = async (req, res) => {
   try {
     const { email, password, phone } = req.body;
-
+    
     // Basic validation
     if (!email || !password || !phone) {
       return errorResponse(res, "All fields are required", 400);
