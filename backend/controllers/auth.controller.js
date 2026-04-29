@@ -12,25 +12,19 @@ const { successResponse, errorResponse } = require("../utils/responseHandler");
 // 🔹 SIGNUP
 exports.signup = async (req, res) => {
   try {
-    const { email, password, phone } = req.body;
-    
-    // Basic validation
-    if (!email || !password || !phone) {
-      return errorResponse(res, "All fields are required", 400);
-    }
+    let { email, password, phone } = req.body;
 
-    if (password.length < 6) {
-      return errorResponse(res, "Password must be at least 6 characters", 400);
-    }
+    // 🔥 Normalize again (defensive coding)
+    email = email.toLowerCase().trim();
 
-    // Check existing user
+    // 🔍 Check existing user
     let user = await User.findOne({ email });
 
     if (user && user.isVerified) {
       return errorResponse(res, "User already exists", 400);
     }
 
-    // Hash password
+    // 🔐 Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     if (!user) {
@@ -40,34 +34,34 @@ exports.signup = async (req, res) => {
         phone,
       });
     } else {
+      // Update unverified user
       user.password = hashedPassword;
       user.phone = phone;
       await user.save();
     }
 
-    // Generate OTP
+    // 🔢 Generate OTP
     const otpCode = generateOtp();
 
-    // Remove old OTP
+    // 🧹 Remove old OTP
     await Otp.findOneAndDelete({ email });
 
-    // Save new OTP
+    // 💾 Save new OTP
     await Otp.create({
       email,
       otp: otpCode,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    // Send email
+    // 📩 Send email
     await sendEmail(email, otpCode);
 
     return successResponse(
       res,
-      {
-        email,
-      },
+      { email },
       "OTP sent successfully"
     );
+
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
@@ -77,7 +71,9 @@ exports.signup = async (req, res) => {
 
 exports.resendOtp = async (req, res) => {
   try {
-    const { email } = req.body;
+    let { email } = req.body;
+
+    email = email.toLowerCase().trim();
 
     if (!email) {
       return errorResponse(res, "Email is required", 400);
@@ -93,20 +89,20 @@ exports.resendOtp = async (req, res) => {
       return errorResponse(res, "User already verified", 400);
     }
 
-    // Generate new OTP
+    // 🔢 Generate OTP
     const otpCode = generateOtp();
 
-    // Delete old OTP
+    // 🧹 Remove old OTP
     await Otp.findOneAndDelete({ email });
 
-    // Save new OTP
+    // 💾 Save new OTP
     await Otp.create({
       email,
       otp: otpCode,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    // Send email
+    // 📩 Send email
     await sendEmail(email, otpCode);
 
     return successResponse(
@@ -114,6 +110,7 @@ exports.resendOtp = async (req, res) => {
       { email },
       "OTP resent successfully"
     );
+
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
