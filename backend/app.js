@@ -8,7 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-
+const path = require("path");
 const app = express();
 
 // 👤 CUSTOMER ROUTES (existing)
@@ -18,8 +18,8 @@ const userRoutes = require("./routes/user.routes");
 
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
-const adminDashboardRoutes = require("./routes/admin.dashboard.routes"); 
-
+const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
+const adminDoctorRoutes = require("./routes/admin.doctor.routes");
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
 
@@ -44,6 +44,15 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    maxAge: "7d",
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
+  })
+);
 // ============================================
 // 📝 LOGGER (dev only)
 // ============================================
@@ -78,7 +87,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 // TODO: Future admin routes
 // app.use("/api/admin/users", adminUserRoutes);
-// app.use("/api/admin/doctors", adminDoctorRoutes);
+app.use("/api/admin/doctors", adminDoctorRoutes);
 // app.use("/api/admin/activities", adminActivityRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 
