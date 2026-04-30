@@ -1,23 +1,7 @@
 /**
- * ============================================
  * ADMIN MODULE — Users Chart
- * ============================================
  * Line chart card showing total users trend over time.
- * Uses Recharts library for rendering.
- *
- * Features (matched to Figma):
- *  - Smooth indigo→blue gradient area chart
- *  - Y-axis ticks at 0, 350, 700, 1050, 1400
- *  - X-axis labels every 2 days (Mar 1, Mar 3, ... Mar 31)
- *  - Light dotted grid (horizontal lines only)
- *  - Card title "Total Users" + subtitle "Last 30 days"
- *  - Custom tooltip on hover
- *  - Fully responsive — adapts to container width
- *
- * Used by: Dashboard page
- * Data source: Currently static, will be replaced with
- *              GET /api/admin/dashboard/users-trend
- * ============================================
+ * Renders skeleton while loading, chart once data arrives.
  */
 
 import React from "react";
@@ -32,18 +16,15 @@ import {
 } from "recharts";
 
 import AdminCard from "../../../../components/admin/common/AdminCard";
+import { ChartSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 
-// 🎨 ADMIN: Custom tooltip rendered when hovering over chart points
+// 🎨 ADMIN: Custom tooltip rendered on hover
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
 
   return (
     <div
-      className="
-        bg-white border border-gray-200 rounded-lg
-        shadow-lg px-3 py-2
-        text-xs
-      "
+      className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs"
       role="tooltip"
     >
       <p className="font-semibold text-gray-900 mb-0.5">{label}</p>
@@ -54,8 +35,41 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const UsersChart = ({ data = [] }) => {
-  // 🚫 ADMIN: Defensive guard — render empty state if no data provided
+// 🎯 ADMIN: Compute Y-axis ticks dynamically based on max value
+// Returns rounded ticks like [0, 350, 700, 1050, 1400] matching Figma style
+const computeYTicks = (data) => {
+  if (!Array.isArray(data) || data.length === 0) {
+    return { ticks: [0, 350, 700, 1050, 1400], domain: [0, 1400] };
+  }
+
+  const maxValue = Math.max(...data.map((d) => d.users || 0));
+
+  if (maxValue === 0) {
+    return { ticks: [0, 25, 50, 75, 100], domain: [0, 100] };
+  }
+
+  // Round up to a "clean" ceiling
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+  const ceiling = Math.ceil(maxValue / magnitude) * magnitude;
+
+  const ticks = [
+    0,
+    Math.round(ceiling * 0.25),
+    Math.round(ceiling * 0.5),
+    Math.round(ceiling * 0.75),
+    ceiling,
+  ];
+
+  return { ticks, domain: [0, ceiling] };
+};
+
+const UsersChart = ({ data, loading = false }) => {
+  // ⏳ ADMIN: Show skeleton while loading
+  if (loading) {
+    return <ChartSkeleton />;
+  }
+
+  // 🚫 ADMIN: Empty state if no data
   if (!Array.isArray(data) || data.length === 0) {
     return (
       <AdminCard title="Total Users" subtitle="Last 30 days">
@@ -66,16 +80,18 @@ const UsersChart = ({ data = [] }) => {
     );
   }
 
+  // 🎯 ADMIN: Compute scale dynamically based on data
+  const { ticks, domain } = computeYTicks(data);
+
   return (
     <AdminCard title="Total Users" subtitle="Last 30 days">
-      {/* 📈 ADMIN: Chart container — fixed height, full responsive width */}
       <div className="w-full h-64 sm:h-80 -ml-2 sm:ml-0">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={data}
             margin={{ top: 10, right: 16, left: 0, bottom: 0 }}
           >
-            {/* 🎨 ADMIN: Gradient definition — indigo at top fading to transparent */}
+            {/* 🎨 ADMIN: Indigo gradient fill */}
             <defs>
               <linearGradient id="usersGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#6366f1" stopOpacity={0.5} />
@@ -84,14 +100,14 @@ const UsersChart = ({ data = [] }) => {
               </linearGradient>
             </defs>
 
-            {/* 📐 ADMIN: Subtle dotted grid — horizontal lines only */}
+            {/* 📐 ADMIN: Subtle horizontal grid */}
             <CartesianGrid
               strokeDasharray="2 4"
               stroke="#e5e7eb"
               vertical={false}
             />
 
-            {/* 📅 ADMIN: X-axis (date labels) */}
+            {/* 📅 ADMIN: X-axis (dates) */}
             <XAxis
               dataKey="date"
               stroke="#9ca3af"
@@ -103,18 +119,18 @@ const UsersChart = ({ data = [] }) => {
               padding={{ left: 10, right: 10 }}
             />
 
-            {/* 🔢 ADMIN: Y-axis (user counts) — fixed ticks matching Figma */}
+            {/* 🔢 ADMIN: Y-axis with dynamic ticks */}
             <YAxis
               stroke="#9ca3af"
               tick={{ fontSize: 11, fill: "#9ca3af" }}
               tickLine={false}
               axisLine={false}
               width={45}
-              ticks={[0, 350, 700, 1050, 1400]}
-              domain={[0, 1400]}
+              ticks={ticks}
+              domain={domain}
             />
 
-            {/* 💬 ADMIN: Hover tooltip with custom styling */}
+            {/* 💬 ADMIN: Hover tooltip */}
             <Tooltip
               content={<CustomTooltip />}
               cursor={{
@@ -124,7 +140,7 @@ const UsersChart = ({ data = [] }) => {
               }}
             />
 
-            {/* 📈 ADMIN: The actual area chart with smooth curve */}
+            {/* 📈 ADMIN: Smooth area chart */}
             <Area
               type="monotone"
               dataKey="users"

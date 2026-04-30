@@ -1,39 +1,28 @@
 /**
- * ============================================
  * ADMIN MODULE — Remind Users Table
- * ============================================
- * Displays users with subscriptions expiring soon.
- * Features:
- *  - "Expiring soon" filter dropdown in card header
- *  - Avatar, name, user ID, plan, subscription status
- *  - "Message" action button per user
- *  - Desktop view: full table layout
- *  - Mobile view: stacked cards (better UX on small screens)
- *  - Empty state when no users match filter
- *
- * Used by: Dashboard page
- * Data source: Currently static, will be replaced with
- *              GET /api/admin/users/expiring-subscriptions
- * ============================================
+ * Shows users with subscriptions expiring soon.
+ * Filter is controlled (managed by parent for backend refetching).
+ * Renders skeleton while loading.
  */
 
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown, User } from "lucide-react";
 import AdminCard from "../../../../components/admin/common/AdminCard";
+import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 
-// 🎨 ADMIN: Filter dropdown options (placeholder until backend filtering exists)
+// 🎨 ADMIN: Filter dropdown options
 const FILTER_OPTIONS = [
   { value: "expiring-soon", label: "Expiring soon" },
   { value: "expired", label: "Expired" },
   { value: "active", label: "Active" },
 ];
 
-// 🎯 ADMIN: Filter dropdown — controlled, accessible, click-outside-to-close
+// 🎯 ADMIN: Filter dropdown — accessible, click-outside-to-close
 const FilterDropdown = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // 🖱️ ADMIN: Close dropdown when clicking outside
+  // 🖱️ Close on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -44,7 +33,7 @@ const FilterDropdown = ({ value, onChange }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ⌨️ ADMIN: Allow closing dropdown with Escape key
+  // ⌨️ Close on Escape
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === "Escape") setIsOpen(false);
@@ -78,7 +67,6 @@ const FilterDropdown = ({ value, onChange }) => {
         />
       </button>
 
-      {/* 📋 ADMIN: Dropdown options */}
       {isOpen && (
         <ul
           role="listbox"
@@ -117,7 +105,7 @@ const FilterDropdown = ({ value, onChange }) => {
   );
 };
 
-// 👤 ADMIN: Avatar component — shows user image or fallback
+// 👤 ADMIN: Avatar component with fallback
 const UserAvatar = ({ user }) => {
   if (user.avatar) {
     return (
@@ -129,7 +117,6 @@ const UserAvatar = ({ user }) => {
     );
   }
 
-  // 🎨 ADMIN: Fallback avatar — gradient gray circle with user icon
   return (
     <div
       className="
@@ -144,14 +131,29 @@ const UserAvatar = ({ user }) => {
   );
 };
 
-const RemindUsersTable = ({ users = [], onMessageUser }) => {
-  // 🎯 ADMIN: Local filter state (will sync with backend later)
-  const [filterValue, setFilterValue] = useState("expiring-soon");
+const RemindUsersTable = ({
+  users = [],
+  loading = false,
+  filter = "expiring-soon",
+  onFilterChange,
+  onMessageUser,
+}) => {
+  // ⏳ ADMIN: Show skeleton while loading
+  if (loading) {
+    return <TableSkeleton rows={3} />;
+  }
 
-  // 💬 ADMIN: Handle message button click safely
+  // 💬 ADMIN: Safe message handler
   const handleMessage = (user) => {
     if (typeof onMessageUser === "function") {
       onMessageUser(user);
+    }
+  };
+
+  // 🎯 ADMIN: Safe filter change handler
+  const handleFilterChange = (value) => {
+    if (typeof onFilterChange === "function") {
+      onFilterChange(value);
     }
   };
 
@@ -159,7 +161,7 @@ const RemindUsersTable = ({ users = [], onMessageUser }) => {
     <AdminCard
       title="Remind Users"
       headerAction={
-        <FilterDropdown value={filterValue} onChange={setFilterValue} />
+        <FilterDropdown value={filter} onChange={handleFilterChange} />
       }
       noPadding
     >
@@ -170,9 +172,7 @@ const RemindUsersTable = ({ users = [], onMessageUser }) => {
         </div>
       ) : (
         <>
-          {/* ============================================ */}
-          {/* 💻 DESKTOP VIEW — Full table layout          */}
-          {/* ============================================ */}
+          {/* 💻 DESKTOP TABLE */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -209,10 +209,13 @@ const RemindUsersTable = ({ users = [], onMessageUser }) => {
                     key={user.id}
                     className={`
                       hover:bg-gray-50 transition-colors
-                      ${idx !== users.length - 1 ? "border-b border-gray-100" : ""}
+                      ${
+                        idx !== users.length - 1
+                          ? "border-b border-gray-100"
+                          : ""
+                      }
                     `}
                   >
-                    {/* 👤 Name + ID + Avatar */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <UserAvatar user={user} />
@@ -220,24 +223,23 @@ const RemindUsersTable = ({ users = [], onMessageUser }) => {
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {user.name}
                           </p>
-                          <p className="text-xs text-gray-500">{user.userId}</p>
+                          <p className="text-xs text-gray-500">
+                            {user.userId}
+                          </p>
                         </div>
                       </div>
                     </td>
 
-                    {/* 📦 Plan */}
                     <td className="px-6 py-4 text-center">
                       <span className="text-sm text-gray-700">{user.plan}</span>
                     </td>
 
-                    {/* ⏳ Subscription status */}
                     <td className="px-6 py-4 text-center">
                       <span className="text-sm font-medium text-red-500">
                         {user.subscription}
                       </span>
                     </td>
 
-                    {/* 💬 Action */}
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleMessage(user)}
@@ -257,13 +259,10 @@ const RemindUsersTable = ({ users = [], onMessageUser }) => {
             </table>
           </div>
 
-          {/* ============================================ */}
-          {/* 📱 MOBILE VIEW — Stacked cards               */}
-          {/* ============================================ */}
+          {/* 📱 MOBILE STACKED CARDS */}
           <div className="md:hidden divide-y divide-gray-100">
             {users.map((user) => (
               <div key={user.id} className="px-5 py-4">
-                {/* Top row: avatar + name + message button */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <UserAvatar user={user} />
@@ -288,8 +287,7 @@ const RemindUsersTable = ({ users = [], onMessageUser }) => {
                   </button>
                 </div>
 
-                {/* Details row: plan + subscription */}
-                <div className="flex items-center justify-between gap-3 pl-13">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-semibold tracking-wider text-gray-500 uppercase">
                       Plan

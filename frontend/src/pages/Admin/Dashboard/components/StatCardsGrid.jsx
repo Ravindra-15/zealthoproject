@@ -1,22 +1,31 @@
 /**
- * ============================================
  * ADMIN MODULE — Stat Cards Grid
- * ============================================
- * Responsive grid wrapper for displaying multiple stat cards.
- * Layout breakpoints (matching Figma desktop view):
- *  - Mobile (< 640px): 1 column (stacked)
- *  - Tablet (640px+): 2 columns
- *  - Desktop (1024px+): 3 columns
- *
- * Used by: Dashboard page
- * ============================================
+ * Responsive grid of stat cards with skeleton loading state.
  */
 
 import React from "react";
 import StatCard from "./StatCard";
+import { StatCardSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 
-const StatCardsGrid = ({ stats = [] }) => {
-  // 🚫 ADMIN: Defensive guard — render nothing if no stats provided
+const SKELETON_COUNT = 6;
+
+const StatCardsGrid = ({ stats = [], loading = false }) => {
+  // ⏳ ADMIN: Show skeletons while loading
+  if (loading) {
+    return (
+      <section
+        aria-label="Loading dashboard statistics"
+        aria-busy="true"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+      >
+        {[...Array(SKELETON_COUNT)].map((_, idx) => (
+          <StatCardSkeleton key={idx} />
+        ))}
+      </section>
+    );
+  }
+
+  // 🚫 ADMIN: Defensive — render nothing if no stats
   if (!Array.isArray(stats) || stats.length === 0) {
     return null;
   }
