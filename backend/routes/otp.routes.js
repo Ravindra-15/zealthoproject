@@ -4,8 +4,16 @@ const express = require("express");
 const router = express.Router();
 
 const { verifyOtp } = require("../controllers/otp.controller");
-const { otpLimiter } = require("../middleware/rateLimit.middleware");
+const { resendOtp } = require("../controllers/auth.controller");
 
-router.post("/verify-otp", otpLimiter, verifyOtp);
+const { otpLimiter } = require("../middleware/rateLimit.middleware");
+const {
+  validateVerifyOtp,
+  validateResendOtp,
+} = require("../validators/auth.validator");
+
+// ✅ WITH validation (correct)
+router.post("/verify-otp", otpLimiter, validateVerifyOtp, verifyOtp);
+router.post("/resend-otp", otpLimiter, validateResendOtp, resendOtp);
 
 module.exports = router;

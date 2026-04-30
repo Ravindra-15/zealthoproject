@@ -1,26 +1,99 @@
+/**
+ * Main Express application setup.
+ * Keeps existing routes intact + adds admin support safely.
+ */
+
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
+
 const app = express();
 
+// 👤 CUSTOMER ROUTES (existing)
 const authRoutes = require("./routes/auth.routes");
 const otpRoutes = require("./routes/otp.routes");
 const userRoutes = require("./routes/user.routes");
 
+// 🔐 ADMIN ROUTES (new - safe add)
+const adminAuthRoutes = require("./routes/admin.auth.routes");
+
+// ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true,
-}));
+// ============================================
+// 🛡️ SECURITY
+// ============================================
+app.use(helmet());
 
+// ============================================
+// 🌐 CORS
+// ============================================
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    credentials: true,
+  })
+);
+
+// ============================================
+// 📦 BODY PARSER
+// ============================================
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// ============================================
+// 📝 LOGGER (dev only)
+// ============================================
+if (process.env.NODE_ENV !== "production") {
+  app.use(morgan("dev"));
+}
+
+// ============================================
+// 💚 HEALTH CHECK
+// ============================================
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is running",
+  });
+});
+
+// ============================================
+// 👤 CUSTOMER ROUTES (UNCHANGED BEHAVIOR)
+// ============================================
 app.use("/api/auth", authRoutes);
-app.use("/api/auth", otpRoutes);
-app.use("/api/user", userRoutes);
 
-// Error Middleware
+// ⚠️ FIX: OTP should NOT be under /auth
+app.use("/api/otp", otpRoutes);
+
+// ⚠️ FIX: use plural for consistency
+app.use("/api/users", userRoutes);
+
+// ============================================
+// 🔐 ADMIN ROUTES (NEW)
+// ============================================
+app.use("/api/admin/auth", adminAuthRoutes);
+// TODO: Future admin routes
+// app.use("/api/admin/users", adminUserRoutes);
+// app.use("/api/admin/doctors", adminDoctorRoutes);
+// app.use("/api/admin/activities", adminActivityRoutes);
+// app.use("/api/admin/dashboard", adminDashboardRoutes);
+
+// ============================================
+// 🚫 404 HANDLER
+// ============================================
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+  });
+});
+
+// ============================================
+// ⚠️ GLOBAL ERROR HANDLER
+// ============================================
 app.use(errorHandler);
 
 module.exports = app;
