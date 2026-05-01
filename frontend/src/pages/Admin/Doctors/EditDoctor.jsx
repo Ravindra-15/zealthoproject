@@ -1,9 +1,13 @@
 /**
  * ADMIN MODULE — Edit Doctor Page
- * Allows admin to update an existing doctor's profile.
+ * Central hub for managing a doctor account.
  *
- * Note: This page DOES NOT regenerate credentials.
- * It only updates: fullName, domain, specializations, shortBio, photo.
+ * Sections:
+ *  1. Form — Update professional info (name, domain, specs, bio, photo)
+ *  2. Danger Zone — Reset Password + Activate/Deactivate
+ *
+ * Note: Editing form fields does NOT regenerate credentials.
+ * Use Danger Zone to reset password.
  *
  * Route: /admin/doctors/:id/edit
  * Access: Super Admin only (wrapped in ProtectedAdminRoute)
@@ -11,11 +15,12 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import DoctorForm from "./components/DoctorForm";
+import DoctorDangerZone from "./components/DoctorDangerZone";
 import {
   fetchDoctorById,
   updateDoctor,
@@ -32,6 +37,7 @@ const EditDoctor = () => {
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   // ============================================
   // 📥 LOAD DOCTOR ON MOUNT
@@ -41,6 +47,7 @@ const EditDoctor = () => {
 
     const loadDoctor = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const data = await fetchDoctorById(id);
@@ -49,6 +56,7 @@ const EditDoctor = () => {
       } catch (err) {
         if (!isMounted) return;
         const message = err?.response?.data?.message || "Failed to load doctor";
+        setError(message);
         toast.error(message);
 
         if (err?.response?.status === 404) {
@@ -74,12 +82,9 @@ const EditDoctor = () => {
     try {
       setSubmitting(true);
 
-      // 🖼️ Detect intent to remove existing photo:
-      // Doctor had a photo + form has no new file + no preview → admin removed it
-      const removePhoto =
-        !!doctor.photo &&
-        !(formData.photo instanceof File) &&
-        formData.photo === null;
+      // 🖼️ Photo removal is now explicit — only true if admin clicked the X button
+      // and the doctor had a photo to remove
+      const removePhoto = !!doctor.photo && formData.photoRemoved === true;
 
       await updateDoctor(id, formData, { removePhoto });
 
@@ -101,6 +106,22 @@ const EditDoctor = () => {
   };
 
   // ============================================
+  // 🔄 HANDLE STATUS CHANGE FROM DANGER ZONE
+  // Updates local doctor state so UI reflects new status immediately
+  // ============================================
+  const handleStatusChange = (updatedDoctor) => {
+    setDoctor((prev) => ({ ...prev, ...updatedDoctor }));
+  };
+
+  // ============================================
+  // 🔐 HANDLE PASSWORD RESET FROM DANGER ZONE
+  // Updates local doctor state with new password change timestamp
+  // ============================================
+  const handlePasswordReset = (updatedDoctor) => {
+    setDoctor((prev) => ({ ...prev, ...updatedDoctor }));
+  };
+
+  // ============================================
   // ⏳ LOADING STATE
   // ============================================
   if (loading) {
@@ -115,10 +136,27 @@ const EditDoctor = () => {
   }
 
   // ============================================
-  // 🚫 NOT FOUND
+  // 🚫 ERROR STATE
   // ============================================
-  if (!doctor) {
-    return null; // Already redirected
+  if (error || !doctor) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3 max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertCircle size={20} className="text-red-500" />
+          </div>
+          <p className="text-sm font-medium text-gray-700">
+            {error || "Doctor not found"}
+          </p>
+          <button
+            onClick={() => navigate("/admin/doctors")}
+            className="text-sm text-indigo-600 font-medium hover:underline"
+          >
+            Back to Doctor Directory
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -141,7 +179,7 @@ const EditDoctor = () => {
       {/* 🏷️ Page header */}
       <AdminPageHeader
         title="Edit Doctor"
-        subtitle="Update professional information and photo. Login credentials remain unchanged."
+        subtitle={`Manage ${doctor.fullName}'s account — update info, reset password, or change status.`}
       />
 
       {/* 📝 Form (pre-filled with current values) */}
@@ -157,6 +195,13 @@ const EditDoctor = () => {
         onCancel={handleCancel}
         submitting={submitting}
         submitLabel="Save Changes"
+      />
+
+      {/* 🚨 Danger Zone — Reset Password + Activate/Deactivate */}
+      <DoctorDangerZone
+        doctor={doctor}
+        onStatusChange={handleStatusChange}
+        onPasswordReset={handlePasswordReset}
       />
     </div>
   );

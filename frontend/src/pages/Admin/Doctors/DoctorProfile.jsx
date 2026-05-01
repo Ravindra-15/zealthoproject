@@ -1,77 +1,105 @@
 /**
- * ADMIN MODULE — Doctor Profile Page
- * Detail view of a single doctor with activate/deactivate action.
+ * ADMIN MODULE — Doctor Profile Page (Simplified View)
  *
- * Layout matches Figma:
- *  - Top card: avatar, name, domain pill, deactivate button (right)
- *  - Bottom card: Professional info (bio) + Contact info (email + phone)
+ * Pure read-only view of a single doctor's profile.
+ * All editing/management actions live on /admin/doctors/:id/edit.
  *
- * Note: Email and Phone are shown as "Not yet provided" until doctor
- * completes profile on first login (Phase 4C).
+ * Features:
+ *  - Avatar, name, domain, status badge
+ *  - Single "Edit Doctor" button (top right)
+ *  - Professional info with formatted bio + specialization chips
+ *  - Contact info (placeholder until doctor completes profile)
+ *  - Re-fetches data when navigated back to (handles post-edit refresh)
+ *  - Error boundary around bio rendering (defensive)
  *
  * Route: /admin/doctors/:id
  * Access: Super Admin only (wrapped in ProtectedAdminRoute)
  */
 
 import React, { useState, useEffect } from "react";
-import DOMPurify from "dompurify";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Mail,
   Phone,
-  Power,
-  CheckCircle,
   User,
   Loader2,
+  Pencil,
+  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import DOMPurify from "dompurify";
 
 import {
   fetchDoctorById,
-  toggleDoctorStatus,
   buildPhotoUrl,
 } from "../../../services/doctorService";
 
 // 🛡️ Sanitize HTML before rendering (XSS protection)
 const sanitizeBioHtml = (html) => {
-  if (!html) return "";
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      "p",
-      "br",
-      "strong",
-      "em",
-      "u",
-      "s",
-      "ol",
-      "ul",
-      "li",
-      "a",
-      "blockquote",
-    ],
-    ALLOWED_ATTR: ["href", "target", "rel"],
-  });
+  if (!html || typeof html !== "string") return "";
+  try {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        "p",
+        "br",
+        "strong",
+        "em",
+        "u",
+        "s",
+        "ol",
+        "ul",
+        "li",
+        "a",
+        "blockquote",
+      ],
+      ALLOWED_ATTR: ["href", "target", "rel"],
+    });
+  } catch {
+    return ""; // Defensive — never crash the UI
+  }
 };
+
+// 🛡️ Safe bio renderer with error boundary
+const SafeBioContent = ({ html }) => {
+  try {
+    const sanitized = sanitizeBioHtml(html);
+    if (!sanitized) {
+      return <p className="text-sm text-gray-400 italic">No bio provided</p>;
+    }
+    return (
+      <div
+        className="text-sm text-gray-600 leading-relaxed mb-4 bio-content"
+        dangerouslySetInnerHTML={{ __html: sanitized }}
+      />
+    );
+  } catch {
+    return (
+      <p className="text-sm text-gray-400 italic">Bio could not be displayed</p>
+    );
+  }
+};
+
 const DoctorProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // ============================================
-  // 📊 STATE
-  // ============================================
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState(false);
+  const [error, setError] = useState(null);
 
   // ============================================
-  // 📥 LOAD DOCTOR ON MOUNT
+  // 📥 LOAD DOCTOR
+  // Re-runs whenever ID changes OR navigation happens
+  // (location.key changes on every navigation, ensuring fresh data after edit)
   // ============================================
   useEffect(() => {
     let isMounted = true;
 
     const loadDoctor = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const data = await fetchDoctorById(id);
@@ -80,6 +108,7 @@ const DoctorProfile = () => {
       } catch (err) {
         if (!isMounted) return;
         const message = err?.response?.data?.message || "Failed to load doctor";
+        setError(message);
         toast.error(message);
 
         // Redirect to directory if doctor not found
@@ -95,38 +124,7 @@ const DoctorProfile = () => {
     return () => {
       isMounted = false;
     };
-  }, [id, navigate]);
-
-  // ============================================
-  // 🔄 TOGGLE STATUS
-  // ============================================
-  const handleToggleStatus = async () => {
-    if (toggling || !doctor) return;
-
-    const willDeactivate = doctor.isActive;
-    const confirmMessage = willDeactivate
-      ? `Deactivate ${doctor.fullName}? They will lose access to their account.`
-      : `Activate ${doctor.fullName}?`;
-
-    if (!window.confirm(confirmMessage)) return;
-
-    try {
-      setToggling(true);
-      const updated = await toggleDoctorStatus(id);
-      setDoctor(updated);
-      toast.success(
-        updated.isActive
-          ? "Doctor activated successfully"
-          : "Doctor deactivated successfully",
-      );
-    } catch (err) {
-      const message =
-        err?.response?.data?.message || "Failed to update doctor status";
-      toast.error(message);
-    } finally {
-      setToggling(false);
-    }
-  };
+  }, [id, location.key, navigate]); // 🔄 location.key forces refetch on navigation
 
   // ============================================
   // ⏳ LOADING STATE
@@ -143,10 +141,27 @@ const DoctorProfile = () => {
   }
 
   // ============================================
-  // 🚫 NOT FOUND
+  // 🚫 ERROR STATE
   // ============================================
-  if (!doctor) {
-    return null; // Already redirected in useEffect
+  if (error || !doctor) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3 max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertCircle size={20} className="text-red-500" />
+          </div>
+          <p className="text-sm font-medium text-gray-700">
+            {error || "Doctor not found"}
+          </p>
+          <button
+            onClick={() => navigate("/admin/doctors")}
+            className="text-sm text-indigo-600 font-medium hover:underline"
+          >
+            Back to Doctor Directory
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const photoUrl = buildPhotoUrl(doctor.photo);
@@ -169,7 +184,7 @@ const DoctorProfile = () => {
       </button>
 
       {/* ============================================ */}
-      {/* 🏷️ TOP CARD — Avatar + Name + Action          */}
+      {/* 🏷️ TOP CARD — Avatar + Name + Edit Button   */}
       {/* ============================================ */}
       <div
         className="
@@ -188,20 +203,27 @@ const DoctorProfile = () => {
                 w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover
                 ring-4 ring-indigo-100 flex-shrink-0
               "
+              onError={(e) => {
+                // 🛡️ If image fails to load, replace with fallback
+                e.target.style.display = "none";
+                e.target.nextElementSibling?.classList.remove("hidden");
+              }}
             />
-          ) : (
-            <div
-              className="
-                w-24 h-24 sm:w-28 sm:h-28 rounded-full flex-shrink-0
-                bg-gradient-to-br from-gray-200 to-gray-300
-                ring-4 ring-indigo-100
-                flex items-center justify-center
-              "
-              aria-hidden="true"
-            >
-              <User size={36} className="text-gray-400" />
-            </div>
-          )}
+          ) : null}
+
+          {/* Fallback avatar (shown if no photo OR if image fails to load) */}
+          <div
+            className={`
+              w-24 h-24 sm:w-28 sm:h-28 rounded-full flex-shrink-0
+              bg-gradient-to-br from-gray-200 to-gray-300
+              ring-4 ring-indigo-100
+              flex items-center justify-center
+              ${photoUrl ? "hidden" : ""}
+            `}
+            aria-hidden="true"
+          >
+            <User size={36} className="text-gray-400" />
+          </div>
 
           {/* 📝 Name + Domain */}
           <div className="flex-1 min-w-0">
@@ -209,69 +231,62 @@ const DoctorProfile = () => {
               {doctor.fullName}
             </h1>
 
-            <span
-              className="
-                inline-flex items-center px-3 py-1
-                bg-gray-100 text-gray-700
-                text-sm font-medium
-                rounded-full
-              "
-            >
-              {doctor.domain}
-            </span>
-
-            {/* Status indicator (subtle, below domain) */}
-            {!doctor.isActive && (
+            <div className="flex flex-wrap items-center gap-2">
               <span
                 className="
-                  ml-2 inline-flex items-center px-2.5 py-1
-                  bg-red-50 text-red-600 border border-red-100
-                  text-xs font-semibold
+                  inline-flex items-center px-3 py-1
+                  bg-gray-100 text-gray-700
+                  text-sm font-medium
                   rounded-full
                 "
               >
-                Inactive
+                {doctor.domain}
               </span>
-            )}
+
+              {/* Status indicator */}
+              {doctor.isActive ? (
+                <span
+                  className="
+                    inline-flex items-center px-2.5 py-1
+                    bg-emerald-50 text-emerald-600 border border-emerald-100
+                    text-xs font-semibold
+                    rounded-full
+                  "
+                >
+                  Active
+                </span>
+              ) : (
+                <span
+                  className="
+                    inline-flex items-center px-2.5 py-1
+                    bg-red-50 text-red-600 border border-red-100
+                    text-xs font-semibold
+                    rounded-full
+                  "
+                >
+                  Inactive
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* 🔄 Activate / Deactivate Button */}
+          {/* ✏️ Edit Button — ONLY action on this page */}
           <button
-            onClick={handleToggleStatus}
-            disabled={toggling}
-            className={`
+            onClick={() => navigate(`/admin/doctors/${id}/edit`)}
+            className="
               inline-flex items-center justify-center gap-2
-              px-4 py-2.5 rounded-xl
+              px-5 py-2.5 rounded-xl
               text-sm font-semibold
-              border transition-colors
+              bg-indigo-600 hover:bg-indigo-700
+              text-white border border-transparent
+              shadow-sm shadow-indigo-200
+              transition-colors
               flex-shrink-0
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${
-                doctor.isActive
-                  ? "bg-white border-red-200 text-red-600 hover:bg-red-50"
-                  : "bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100"
-              }
-            `}
-            aria-label={
-              doctor.isActive ? "Deactivate doctor" : "Activate doctor"
-            }
+            "
+            aria-label="Edit doctor profile"
           >
-            {toggling ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                {doctor.isActive ? "Deactivating..." : "Activating..."}
-              </>
-            ) : doctor.isActive ? (
-              <>
-                <Power size={14} />
-                Deactivate
-              </>
-            ) : (
-              <>
-                <CheckCircle size={14} />
-                Activate
-              </>
-            )}
+            <Pencil size={14} />
+            Edit Doctor
           </button>
         </div>
       </div>
@@ -287,29 +302,41 @@ const DoctorProfile = () => {
         "
       >
         {/* 🩺 Professional Information */}
+        {/* 🩺 Professional Information */}
         <section>
           <h2 className="text-base font-bold text-gray-900 mb-3">
             Professional Information
           </h2>
-          <div
-            className="text-sm text-gray-600 leading-relaxed mb-4 bio-content"
-            dangerouslySetInnerHTML={{
-              __html: sanitizeBioHtml(doctor.shortBio),
-            }}
-          />
 
-          {/* Specializations as small chips */}
+          {/* ✅ FIXED BIO WRAPPER */}
+         <div className="max-w-6xl">
+            <div
+              className="
+        text-sm text-gray-600 leading-relaxed mb-4
+        break-words
+        [&>p]:mb-2
+        [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-2
+        [&>ol]:list-decimal [&>ol]:pl-5 [&>ol]:mb-2
+        [&>blockquote]:border-l-4 [&>blockquote]:pl-3 [&>blockquote]:italic
+      "
+              dangerouslySetInnerHTML={{
+                __html: sanitizeBioHtml(doctor.shortBio),
+              }}
+            />
+          </div>
+
+          {/* Specializations */}
           {doctor.specializations && doctor.specializations.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
               {doctor.specializations.map((spec) => (
                 <span
                   key={spec}
                   className="
-                    inline-flex px-2.5 py-1
-                    bg-indigo-50 text-indigo-700
-                    text-xs font-medium
-                    rounded-md
-                  "
+            inline-flex px-2.5 py-1
+            bg-indigo-50 text-indigo-700
+            text-xs font-medium
+            rounded-md
+          "
                 >
                   {spec}
                 </span>
@@ -317,7 +344,6 @@ const DoctorProfile = () => {
             </div>
           )}
         </section>
-
         {/* Divider */}
         <div className="my-6 border-t border-gray-100" />
 
@@ -391,7 +417,7 @@ const DoctorProfile = () => {
             </div>
           </div>
 
-          {/* ℹ️ Helper note when contact info missing */}
+          {/* ℹ️ Helper note */}
           {(!hasEmail || !hasPhone) && (
             <p className="mt-4 text-xs text-gray-500 leading-relaxed italic">
               Contact details will be filled in by the doctor during profile
@@ -400,7 +426,7 @@ const DoctorProfile = () => {
           )}
         </section>
 
-        {/* Optional: Show login info if doctor has logged in */}
+        {/* Optional: Account activity */}
         {doctor.lastLogin && (
           <>
             <div className="my-6 border-t border-gray-100" />

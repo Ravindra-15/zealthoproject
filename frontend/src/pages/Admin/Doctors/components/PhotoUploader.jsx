@@ -67,7 +67,7 @@ const PhotoUploader = ({
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setRemoved(false); // 🆕 Reset removed flag when new file picked
-    onChange(file);
+     onChange(file, { removed: false });
   };
 
   // 📁 Handle file input change
@@ -111,7 +111,7 @@ const PhotoUploader = ({
     }
     setPreviewUrl(null);
     setRemoved(true); // 🆕 Mark existing photo as removed
-    onChange(null);
+    onChange(null, { removed: true });
   };
 
   // 🖱️ Click to open file picker

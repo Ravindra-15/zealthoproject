@@ -91,6 +91,7 @@ const DoctorForm = ({
     specializations: initialValues.specializations || [],
     shortBio: initialValues.shortBio || "",
     photo: null, // File object (only set when user picks new file)
+    photoRemoved: false,
   });
 
   // ============================================
@@ -219,6 +220,7 @@ const DoctorForm = ({
       specializations: form.specializations,
       shortBio: sanitizeHtml(form.shortBio), // 🛡️ Strip dangerous HTML
       photo: form.photo,
+      photoRemoved: form.photoRemoved,
     });
   };
 
@@ -253,7 +255,14 @@ const DoctorForm = ({
           <div className="flex justify-center">
             <PhotoUploader
               value={form.photo}
-              onChange={(file) => handleField("photo", file)}
+              onChange={(file, meta = {}) => {
+                // 🖼️ Update both photo and removed flag from PhotoUploader
+                setForm((prev) => ({
+                  ...prev,
+                  photo: file,
+                  photoRemoved: meta.removed || false,
+                }));
+              }}
               existingUrl={existingPhotoUrl}
               disabled={submitting}
             />
