@@ -173,6 +173,17 @@ const getDoctorById = async (doctorId) => {
  * @param {Object} updates - Validated update payload
  * @returns {Promise<Object|null>} Updated doctor or null if not found
  */
+// ============================================
+// ✏️ UPDATE DOCTOR (admin-editable fields only)
+// ============================================
+
+/**
+ * Updates only admin-editable fields. Cannot change auth fields.
+ *
+ * @param {string} doctorId
+ * @param {Object} updates - Validated update payload
+ * @returns {Promise<Object|null>} Updated doctor or null if not found
+ */
 const updateDoctor = async (doctorId, updates) => {
   // 🔒 SECURITY: Whitelist allowed fields — prevents mass assignment
   const ALLOWED_FIELDS = [
@@ -185,10 +196,19 @@ const updateDoctor = async (doctorId, updates) => {
 
   const safeUpdates = {};
   for (const key of ALLOWED_FIELDS) {
+    // 🖼️ Special handling for photo: allow explicit null (for removal)
+    if (key === "photo") {
+      if (updates.photo === null) {
+        safeUpdates.photo = null; // Explicit removal
+      } else if (typeof updates.photo === "string") {
+        safeUpdates.photo = updates.photo;
+      }
+      continue;
+    }
+
     if (updates[key] !== undefined) {
-      safeUpdates[key] = typeof updates[key] === "string"
-        ? updates[key].trim()
-        : updates[key];
+      safeUpdates[key] =
+        typeof updates[key] === "string" ? updates[key].trim() : updates[key];
     }
   }
 
@@ -256,6 +276,46 @@ const deleteDoctor = async (doctorId) => {
 };
 
 // ============================================
+// 🔐 RESET DOCTOR PASSWORD
+// ============================================
+
+/**
+ * Generates a new temporary password for a doctor.
+ * Used when admin needs to recover lost credentials.
+ * Forces doctor to change password on next login.
+ *
+ * @param {string} doctorId - Mongo ObjectId
+ * @returns {Promise<{ doctor, credentials } | null>}
+ *   - doctor: Updated doctor object
+ *   - credentials: { username, password } — plain password shown ONCE
+ *   Returns null if doctor not found
+ */
+const resetDoctorPassword = async (doctorId) => {
+  const doctor = await Doctor.findById(doctorId);
+  if (!doctor) return null;
+
+  // 🔐 Generate new secure temporary password
+  const { generateSecurePassword } = require("../utils/credentialsGenerator");
+  const newPlainPassword = generateSecurePassword();
+
+  // 🔒 Reset auth state — force re-login with new password
+  doctor.password = newPlainPassword;            // Will be hashed by pre-save hook
+  doctor.mustChangePassword = true;               // Force change on next login
+  doctor.loginAttempts = 0;                       // Clear any locked state
+  doctor.lockedUntil = null;                      // Unlock account if locked
+
+  await doctor.save();
+
+  return {
+    doctor: doctor.toJSON(),
+    credentials: {
+      username: doctor.username,
+      password: newPlainPassword, // 🚨 Only shown once — admin must save
+    },
+  };
+};
+
+// ============================================
 // 📦 EXPORTS
 // ============================================
 
@@ -266,4 +326,5 @@ module.exports = {
   updateDoctor,
   toggleDoctorStatus,
   deleteDoctor,
+  resetDoctorPassword,
 };

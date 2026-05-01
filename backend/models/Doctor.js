@@ -48,7 +48,11 @@ const doctorSchema = new mongoose.Schema(
       required: [true, "At least one specialization is required"],
       validate: {
         validator: function (arr) {
-          return Array.isArray(arr) && arr.length >= 1 && arr.length <= DOCTOR_LIMITS.SPECIALIZATIONS_MAX_COUNT;
+          return (
+            Array.isArray(arr) &&
+            arr.length >= 1 &&
+            arr.length <= DOCTOR_LIMITS.SPECIALIZATIONS_MAX_COUNT
+          );
         },
         message: `Specializations must be between 1 and ${DOCTOR_LIMITS.SPECIALIZATIONS_MAX_COUNT}`,
       },
@@ -58,9 +62,13 @@ const doctorSchema = new mongoose.Schema(
       type: String,
       required: [true, "Short bio is required"],
       trim: true,
-      maxlength: [DOCTOR_LIMITS.SHORT_BIO_MAX, "Bio exceeds 500 characters"],
+      // 🛡️ Allow HTML overhead — visible char limit (500) is enforced by validator
+      // Raw HTML can be larger due to tags. Cap at 10x to prevent abuse.
+      maxlength: [
+        DOCTOR_LIMITS.SHORT_BIO_MAX * 10,
+        "Bio HTML payload too large",
+      ],
     },
-
     photo: {
       type: String, // File path relative to uploads folder
       default: null,
@@ -175,7 +183,7 @@ const doctorSchema = new mongoose.Schema(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 // ============================================

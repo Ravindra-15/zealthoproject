@@ -50,6 +50,8 @@ app.use(
     maxAge: "7d",
     setHeaders: (res) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "http://localhost:5173"); // 🆕 ADD THIS LINE
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");                                    // 🆕 AND THIS LINE
     },
   })
 );

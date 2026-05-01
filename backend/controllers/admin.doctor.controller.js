@@ -166,11 +166,10 @@ const updateDoctor = async (req, res) => {
   let oldPhotoPath = null;
 
   try {
-    // 📸 Handle photo replacement
+    // 🖼️ CASE 1: New file uploaded
     if (req.file) {
       newUploadedPath = `/uploads/doctors/${req.file.filename}`;
 
-      // Get current photo path so we can delete after successful update
       const existing = await doctorService.getDoctorById(req.params.id);
       if (existing && existing.photo) {
         oldPhotoPath = path.join(__dirname, "..", existing.photo);
@@ -178,16 +177,31 @@ const updateDoctor = async (req, res) => {
 
       req.body.photo = newUploadedPath;
     }
+    // 🖼️ CASE 2: Explicit photo removal (no file but removePhoto flag)
+    else if (req.body.removePhoto === "true" || req.body.removePhoto === true) {
+      const existing = await doctorService.getDoctorById(req.params.id);
+      if (existing && existing.photo) {
+        oldPhotoPath = path.join(__dirname, "..", existing.photo);
+      }
+
+      req.body.photo = null; // Set to null in DB
+    }
+    // 🖼️ CASE 3: No photo change — strip the key so service doesn't update it
+    else {
+      delete req.body.photo;
+    }
+
+    // 🧹 Don't pass removePhoto flag to service (it's not a valid field)
+    delete req.body.removePhoto;
 
     const updated = await doctorService.updateDoctor(req.params.id, req.body);
 
     if (!updated) {
-      // 🧹 Cleanup new upload if doctor wasn't found
       if (newUploadedPath) {
         const fullPath = path.join(__dirname, "..", newUploadedPath);
         try {
           if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-        } catch {}
+        } catch { }
       }
 
       return res.status(404).json({
@@ -196,7 +210,7 @@ const updateDoctor = async (req, res) => {
       });
     }
 
-    // 🧹 Delete old photo if it was replaced successfully
+    // 🧹 Delete old photo from disk if it was replaced or removed
     if (oldPhotoPath) {
       try {
         if (fs.existsSync(oldPhotoPath)) fs.unlinkSync(oldPhotoPath);
@@ -211,12 +225,11 @@ const updateDoctor = async (req, res) => {
       data: { doctor: updated },
     });
   } catch (err) {
-    // 🧹 Cleanup new upload on error
     if (newUploadedPath) {
       const fullPath = path.join(__dirname, "..", newUploadedPath);
       try {
         if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-      } catch {}
+      } catch { }
     }
 
     console.error("[DOCTOR UPDATE ERROR]:", err);
@@ -328,6 +341,43 @@ const getOptions = async (req, res) => {
 };
 
 // ============================================
+// 🔐 POST /api/admin/doctors/:id/reset-password
+// ============================================
+
+/**
+ * @desc Generates a new temporary password for the doctor.
+ *       Old password becomes invalid immediately.
+ * @access Private (admin)
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const result = await doctorService.resetDoctorPassword(req.params.id);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+      data: {
+        doctor: result.doctor,
+        credentials: result.credentials, // ⚠️ Shown ONCE — admin must save
+      },
+    });
+  } catch (err) {
+    console.error("[DOCTOR RESET PASSWORD ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reset password",
+    });
+  }
+};
+
+// ============================================
 // 📦 EXPORTS
 // ============================================
 
@@ -339,4 +389,5 @@ module.exports = {
   toggleStatus,
   deleteDoctor,
   getOptions,
+  resetPassword,
 };

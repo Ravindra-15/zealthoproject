@@ -19,6 +19,7 @@ const {
   toggleStatus,
   deleteDoctor,
   getOptions,
+  resetPassword,
 } = require("../controllers/admin.doctor.controller");
 
 const {
@@ -91,9 +92,8 @@ const handleMulterError = (err, req, res, next) => {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         success: false,
-        message: `Photo too large. Max size: ${
-          DOCTOR_LIMITS.PHOTO_MAX_SIZE_BYTES / (1024 * 1024)
-        }MB`,
+        message: `Photo too large. Max size: ${DOCTOR_LIMITS.PHOTO_MAX_SIZE_BYTES / (1024 * 1024)
+          }MB`,
       });
     }
     if (err.code === "LIMIT_UNEXPECTED_FILE") {
@@ -213,6 +213,16 @@ router.patch(
   toggleStatus
 );
 
+/**
+ * @route   POST /api/admin/doctors/:id/reset-password
+ * @desc    Generate new temporary password for doctor (recovery flow)
+ */
+router.post(
+  "/:id/reset-password",
+  doctorWriteLimiter,
+  validateDoctorId,
+  resetPassword
+);
 /**
  * @route   DELETE /api/admin/doctors/:id
  * @desc    Permanently delete doctor (super admin only)

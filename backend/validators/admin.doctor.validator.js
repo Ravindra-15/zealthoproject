@@ -12,6 +12,20 @@ const mongoose = require("mongoose");
 // 🔧 HELPERS
 // ============================================
 
+// 🧮 Count visible characters in HTML (excludes tags + entities)
+const countVisibleChars = (html) => {
+  if (typeof html !== "string") return 0;
+  const textOnly = html
+    .replace(/<[^>]*>/g, "")           // Strip HTML tags
+    .replace(/&nbsp;/g, " ")           // Replace nbsp
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  return textOnly.trim().length;
+};
+
 const isValidObjectId = (id) =>
   typeof id === "string" && mongoose.Types.ObjectId.isValid(id);
 
@@ -127,6 +141,9 @@ const validateCreateDoctor = (req, res, next) => {
   // ============================================
   // 📝 shortBio
   // ============================================
+  // ============================================
+  // 📝 shortBio (HTML — count visible chars only)
+  // ============================================
   if (!isNonEmptyString(shortBio)) {
     return res.status(400).json({
       success: false,
@@ -134,10 +151,28 @@ const validateCreateDoctor = (req, res, next) => {
     });
   }
 
-  if (shortBio.trim().length > DOCTOR_LIMITS.SHORT_BIO_MAX) {
+  const visibleBioLength = countVisibleChars(shortBio);
+
+  if (visibleBioLength === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Short bio is required",
+    });
+  }
+
+  if (visibleBioLength > DOCTOR_LIMITS.SHORT_BIO_MAX) {
     return res.status(400).json({
       success: false,
       message: `Short bio cannot exceed ${DOCTOR_LIMITS.SHORT_BIO_MAX} characters`,
+    });
+  }
+
+  // 🛡️ Cap raw HTML length at ~10x visible to prevent abuse
+  // (someone sending megabytes of HTML to encode 100 visible chars)
+  if (shortBio.length > DOCTOR_LIMITS.SHORT_BIO_MAX * 10) {
+    return res.status(400).json({
+      success: false,
+      message: "Short bio HTML too large",
     });
   }
 
@@ -219,10 +254,34 @@ const validateUpdateDoctor = (req, res, next) => {
   }
 
   if (shortBio !== undefined) {
-    if (!isNonEmptyString(shortBio) || shortBio.trim().length > DOCTOR_LIMITS.SHORT_BIO_MAX) {
+    if (!isNonEmptyString(shortBio)) {
       return res.status(400).json({
         success: false,
-        message: `Short bio must be 1-${DOCTOR_LIMITS.SHORT_BIO_MAX} characters`,
+        message: "Short bio cannot be empty",
+      });
+    }
+
+    const visibleBioLength = countVisibleChars(shortBio);
+
+    if (visibleBioLength === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Short bio is required",
+      });
+    }
+
+    if (visibleBioLength > DOCTOR_LIMITS.SHORT_BIO_MAX) {
+      return res.status(400).json({
+        success: false,
+        message: `Short bio cannot exceed ${DOCTOR_LIMITS.SHORT_BIO_MAX} characters`,
+      });
+    }
+
+    // 🛡️ Prevent HTML payload abuse
+    if (shortBio.length > DOCTOR_LIMITS.SHORT_BIO_MAX * 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Short bio HTML too large",
       });
     }
   }

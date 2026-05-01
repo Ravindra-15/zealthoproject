@@ -8,3 +8,122 @@
 body {
   font-family: 'Bricolage Grotesque', sans-serif;
 }
+
+/* ============================================
+   📝 React Quill — Custom Styling
+   Matches the admin form design system
+   ============================================ */
+
+.quill-wrapper .ql-toolbar {
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  background-color: #fafbfc;
+  padding: 8px 12px;
+  border-radius: 12px 12px 0 0;
+}
+
+.quill-wrapper .ql-container {
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  min-height: 140px;
+}
+
+.quill-wrapper .ql-editor {
+  min-height: 140px;
+  padding: 12px 16px;
+  color: #111827;
+}
+
+.quill-wrapper .ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
+  font-size: 14px;
+}
+
+.quill-wrapper .ql-toolbar .ql-stroke {
+  stroke: #6b7280;
+}
+
+.quill-wrapper .ql-toolbar .ql-fill {
+  fill: #6b7280;
+}
+
+.quill-wrapper .ql-toolbar button:hover .ql-stroke,
+.quill-wrapper .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #6366f1;
+}
+
+.quill-wrapper .ql-toolbar button:hover .ql-fill,
+.quill-wrapper .ql-toolbar button.ql-active .ql-fill {
+  fill: #6366f1;
+}
+
+.quill-wrapper .ql-toolbar button {
+  border-radius: 6px;
+  padding: 4px 6px;
+  transition: background-color 150ms;
+}
+
+.quill-wrapper .ql-toolbar button:hover {
+  background-color: #eef2ff;
+}
+
+/* ============================================
+   📝 Bio Content Display Styling
+   For rendered HTML from React Quill bio editor
+   ============================================ */
+
+.bio-content p {
+  margin-bottom: 0.5rem;
+}
+
+.bio-content p:last-child {
+  margin-bottom: 0;
+}
+
+.bio-content strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.bio-content em {
+  font-style: italic;
+}
+
+.bio-content u {
+  text-decoration: underline;
+}
+
+.bio-content ul {
+  list-style: disc;
+  margin-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.bio-content ol {
+  list-style: decimal;
+  margin-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.bio-content li {
+  margin-bottom: 0.25rem;
+}
+
+.bio-content a {
+  color: #6366f1;
+  text-decoration: underline;
+}
+
+.bio-content a:hover {
+  color: #4f46e5;
+}
+
+.bio-content blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: #6b7280;
+  font-style: italic;
+}

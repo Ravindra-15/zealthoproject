@@ -13,7 +13,12 @@
  * ============================================
  */
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
 // 👤 CUSTOMER PAGES
 import Signup from "./pages/Signup/Signup";
@@ -26,8 +31,12 @@ import ProtectedRoute from "./components/common/ProtectedRoute";
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
-import AdminLogin from "./pages/Admin/Login/AdminLogin";                  // 🆕
-import ProtectedAdminRoute from "./components/admin/auth/ProtectedAdminRoute"; // 🆕
+import AdminLogin from "./pages/Admin/Login/AdminLogin";
+import ProtectedAdminRoute from "./components/admin/auth/ProtectedAdminRoute";
+import DoctorDirectory from "./pages/Admin/Doctors/DoctorDirectory";
+import AddDoctor from "./pages/Admin/Doctors/AddDoctor";
+import DoctorProfile from "./pages/Admin/Doctors/DoctorProfile";
+import EditDoctor from "./pages/Admin/Doctors/EditDoctor";       
 
 function App() {
   return (
@@ -75,6 +84,10 @@ function App() {
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="doctors" element={<DoctorDirectory />} />
+          <Route path="doctors/new" element={<AddDoctor />} />
+          <Route path="doctors/:id/edit" element={<EditDoctor />} /> 
+          <Route path="doctors/:id" element={<DoctorProfile />} />
         </Route>
 
         {/* 🚫 Catch-all */}
