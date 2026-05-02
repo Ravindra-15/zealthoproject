@@ -20,6 +20,7 @@ const userRoutes = require("./routes/user.routes");
 const adminAuthRoutes = require("./routes/admin.auth.routes");
 const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
 const adminDoctorRoutes = require("./routes/admin.doctor.routes");
+const doctorAuthRoutes = require("./routes/doctor.auth.routes");
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
 
@@ -87,6 +88,7 @@ app.use("/api/users", userRoutes);
 // 🔐 ADMIN ROUTES (NEW)
 // ============================================
 app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/doctor/auth", doctorAuthRoutes);
 // TODO: Future admin routes
 // app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/doctors", adminDoctorRoutes);

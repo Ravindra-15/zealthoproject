@@ -17,6 +17,7 @@ const path = require("path");
 const Doctor = require("../models/Doctor");
 const {
   generateStaffCredentials,
+  generateSecurePassword,
 } = require("../utils/credentialsGenerator");
 
 // ============================================
@@ -316,9 +317,91 @@ const resetDoctorPassword = async (doctorId) => {
 };
 
 // ============================================
-// 📦 EXPORTS
+// 🔐 CHANGE DOCTOR PASSWORD (forced on first login + ongoing)
 // ============================================
 
+/**
+ * Verifies current password, sets new password, clears mustChangePassword flag.
+ *
+ * @param {string} doctorId
+ * @param {string} currentPassword - Plain text current password
+ * @param {string} newPassword - Plain text new password (validator already checked rules)
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+const changeDoctorPassword = async (doctorId, currentPassword, newPassword) => {
+  // 🔍 Fetch doctor with password field (excluded by default)
+  const doctor = await Doctor.findById(doctorId).select("+password");
+
+  if (!doctor) {
+    return { success: false, error: "Doctor not found" };
+  }
+
+  // 🔒 Verify current password
+  const isCurrentValid = await doctor.comparePassword(currentPassword);
+  if (!isCurrentValid) {
+    return { success: false, error: "Current password is incorrect" };
+  }
+
+  // 🔒 Reject if new password is same as current
+  const isSameAsCurrent = await doctor.comparePassword(newPassword);
+  if (isSameAsCurrent) {
+    return { success: false, error: "New password must be different from current password" };
+  }
+
+  // 🔄 Set new password (pre-save hook hashes it + updates passwordChangedAt)
+  doctor.password = newPassword;
+  doctor.mustChangePassword = false;
+
+  await doctor.save();
+
+  return { success: true };
+};
+
+// ============================================
+// 📝 COMPLETE DOCTOR PROFILE (first-login profile fill)
+// ============================================
+
+/**
+ * Updates doctor-set profile fields and marks profile as complete.
+ * Whitelist enforced — admin-set fields cannot be modified through this endpoint.
+ *
+ * @param {string} doctorId
+ * @param {Object} profileData - { personalEmail, phone, qualifications, yearsOfExperience }
+ * @returns {Promise<Object|null>} Updated doctor (sanitized) or null if not found
+ */
+const completeDoctorProfile = async (doctorId, profileData) => {
+  // 🔒 Whitelist — only doctor-set fields allowed here
+  const ALLOWED_FIELDS = [
+    "personalEmail",
+    "phone",
+    "qualifications",
+    "yearsOfExperience",
+  ];
+
+  const safeUpdates = {};
+  for (const key of ALLOWED_FIELDS) {
+    if (profileData[key] !== undefined && profileData[key] !== null) {
+      safeUpdates[key] =
+        typeof profileData[key] === "string"
+          ? profileData[key].trim()
+          : profileData[key];
+    }
+  }
+
+  // ✅ Mark profile as complete
+  safeUpdates.isProfileComplete = true;
+
+  const updated = await Doctor.findByIdAndUpdate(doctorId, safeUpdates, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  return updated;
+};
+
+// ============================================
+// 📦 EXPORTS
+// ============================================
 module.exports = {
   createDoctor,
   listDoctors,
@@ -327,4 +410,6 @@ module.exports = {
   toggleDoctorStatus,
   deleteDoctor,
   resetDoctorPassword,
+  changeDoctorPassword,
+  completeDoctorProfile,
 };

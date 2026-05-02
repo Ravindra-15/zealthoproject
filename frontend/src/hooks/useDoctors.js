@@ -40,7 +40,7 @@ const useDoctors = ({ initialLimit = 10 } = {}) => {
   const [page, setPage] = useState(1);
 
   // 🛡️ Track mount status to avoid state updates after unmount
-  const isMountedRef = useRef(true);
+  const isMountedRef = useRef(false);
 
   // ============================================
   // ⏳ DEBOUNCE SEARCH

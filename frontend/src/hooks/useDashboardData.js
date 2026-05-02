@@ -39,7 +39,7 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
   const [filter, setFilter] = useState(initialFilter);
 
   // 🛡️ Track mount status to avoid state updates after unmount
-  const isMountedRef = useRef(true);
+  const isMountedRef = useRef(false);
 
   // ============================================
   // 📥 FETCHERS — Each section is independent
