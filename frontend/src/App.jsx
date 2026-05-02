@@ -34,6 +34,7 @@ import { DoctorAuthProvider } from "./context/DoctorAuthContext";
 import ProtectedDoctorRoute from "./components/common/ProtectedDoctorRoute";
 import DoctorLogin from "./pages/Doctor/Login/DoctorLogin";
 import ChangePassword from "./pages/Doctor/ChangePassword/ChangePassword";
+import CompleteProfile from "./pages/Doctor/CompleteProfile/CompleteProfile";
 
 // 🩺 Tiny inline placeholder used until Batches 4–6 build real pages
 const DoctorPlaceholder = ({ title, subtitle }) => (
@@ -120,15 +121,12 @@ function App() {
                   }
                 />
 
-                {/* Placeholder — real page in Batch 5 */}
+                
                 <Route
                   path="complete-profile"
                   element={
                     <ProtectedDoctorRoute allowDuringProfileCompletion>
-                      <DoctorPlaceholder
-                        title="📝 Complete Profile"
-                        subtitle="Profile completion page — coming in Batch 5."
-                      />
+                      <CompleteProfile />
                     </ProtectedDoctorRoute>
                   }
                 />
