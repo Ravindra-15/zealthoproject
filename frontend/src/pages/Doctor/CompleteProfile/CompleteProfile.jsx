@@ -388,7 +388,7 @@ const CompleteProfile = () => {
               </button>
 
               <p className="text-center text-[11px] text-gray-400 pt-1">
-                You can update these details anytime from Settings.
+                You can update these details anytime from Settings...
               </p>
             </form>
           </div>
