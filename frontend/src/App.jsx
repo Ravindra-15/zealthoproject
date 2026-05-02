@@ -32,19 +32,18 @@ import EditDoctor from "./pages/Admin/Doctors/EditDoctor";
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
 import ProtectedDoctorRoute from "./components/common/ProtectedDoctorRoute";
+import DoctorLayout from "./components/doctor/layout/DoctorLayout";
 import DoctorLogin from "./pages/Doctor/Login/DoctorLogin";
 import ChangePassword from "./pages/Doctor/ChangePassword/ChangePassword";
 import CompleteProfile from "./pages/Doctor/CompleteProfile/CompleteProfile";
+import DoctorDashboard from "./pages/Doctor/Dashboard/Dashboard";
+import Appointments from "./pages/Doctor/Appointments/Appointments";
+import MyPatients from "./pages/Doctor/MyPatients/MyPatients";
+import AvailabilityManager from "./pages/Doctor/AvailabilityManager/AvailabilityManager";
+import Notifications from "./pages/Doctor/Notifications/Notifications";
+import Settings from "./pages/Doctor/Settings/Settings";
 
-// 🩺 Tiny inline placeholder used until Batches 4–6 build real pages
-const DoctorPlaceholder = ({ title, subtitle }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-    <div className="text-center max-w-md">
-      <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-      <p className="mt-2 text-sm text-gray-500">{subtitle}</p>
-    </div>
-  </div>
-);
+
 
 function App() {
   return (
@@ -100,6 +99,7 @@ function App() {
           <Route path="doctors/:id" element={<DoctorProfile />} />
         </Route>
 
+      
         {/* ============================================ */}
         {/* 🩺 DOCTOR ROUTES (wrapped in DoctorAuthProvider) */}
         {/* ============================================ */}
@@ -108,10 +108,10 @@ function App() {
           element={
             <DoctorAuthProvider>
               <Routes>
-                {/* Public — login */}
+                {/* 🔓 Public — login */}
                 <Route path="login" element={<DoctorLogin />} />
 
-                {/* Placeholder — real page in Batch 4 */}
+                {/* 🚪 Onboarding gates (no sidebar — full-screen flow) */}
                 <Route
                   path="change-password"
                   element={
@@ -120,8 +120,6 @@ function App() {
                     </ProtectedDoctorRoute>
                   }
                 />
-
-                
                 <Route
                   path="complete-profile"
                   element={
@@ -131,20 +129,23 @@ function App() {
                   }
                 />
 
-                {/* Placeholder — real dashboard in Batch 6 */}
+                {/* 🏠 Main app (with sidebar layout) */}
                 <Route
-                  path="dashboard"
                   element={
                     <ProtectedDoctorRoute>
-                      <DoctorPlaceholder
-                        title="🩺 Doctor Dashboard"
-                        subtitle="Login flow working! Full dashboard coming in Batch 6."
-                      />
+                      <DoctorLayout />
                     </ProtectedDoctorRoute>
                   }
-                />
+                >
+                  <Route path="dashboard" element={<DoctorDashboard />} />
+                  <Route path="appointments" element={<Appointments />} />
+                  <Route path="my-patients" element={<MyPatients />} />
+                  <Route path="availability" element={<AvailabilityManager />} />
+                  <Route path="notifications" element={<Notifications />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
 
-                {/* Default doctor route → login */}
+                {/* 🏁 Defaults */}
                 <Route index element={<Navigate to="login" replace />} />
                 <Route path="*" element={<Navigate to="login" replace />} />
               </Routes>
