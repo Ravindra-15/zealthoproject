@@ -288,10 +288,151 @@ const completeProfile = async (req, res) => {
   }
 };
 
+// ============================================
+// ✏️ UPDATE PROFILE (Settings page)
+// ============================================
+
+/**
+ * @route   PATCH /api/doctor/auth/profile
+ * @desc    Doctor edits own profile from Settings page.
+ *          Handles text fields + optional photo upload/removal in one request.
+ * @access  Private (doctor token)
+ *
+ * Multipart form data:
+ *  - Text fields: fullName, specializations[], shortBio, personalEmail, phone,
+ *                 qualifications, yearsOfExperience
+ *  - File field: photo (optional, replaces existing)
+ *  - Special field: removePhoto=true (optional, deletes existing photo)
+ *
+ * Note: When sending multipart form data, specializations should be sent as
+ * either repeated 'specializations' fields OR as JSON string 'specializations'.
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const doctorId = req.doctorId;
+
+    // ============================================
+    // 🛡️ Defense in depth: gates must be cleared
+    // ============================================
+    if (req.doctor.mustChangePassword) {
+      // Cleanup uploaded file if any (request rejected before service runs)
+      if (req.file?.path) {
+        try {
+          require("fs").unlinkSync(req.file.path);
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      return res.status(403).json({
+        success: false,
+        message: "Please change your password first.",
+      });
+    }
+
+    // ============================================
+    // 🧩 Parse specializations if sent as JSON string (multipart workaround)
+    // ============================================
+    if (req.body.specializations !== undefined) {
+      if (typeof req.body.specializations === "string") {
+        try {
+          const parsed = JSON.parse(req.body.specializations);
+          if (Array.isArray(parsed)) {
+            req.body.specializations = parsed;
+          }
+        } catch (e) {
+          // Leave as-is — validator will catch the type error
+        }
+      }
+    }
+
+    // ============================================
+    // 🖼️ Determine photo intent
+    // ============================================
+    const newPhotoPath = req.file
+      ? `/uploads/doctors/${req.file.filename}`
+      : null;
+
+    // Frontend sends 'removePhoto' as string "true" via multipart
+    const removePhoto =
+      req.body.removePhoto === "true" || req.body.removePhoto === true;
+
+    // Strip the meta field so it doesn't reach the validator/service
+    delete req.body.removePhoto;
+
+    // ============================================
+    // 📞 Call service
+    // ============================================
+    const updatedDoctor = await doctorService.updateDoctorOwnProfile(
+      doctorId,
+      req.body,
+      {
+        newPhotoPath,
+        removePhoto,
+      }
+    );
+
+    if (!updatedDoctor) {
+      // Cleanup uploaded file if doctor not found
+      if (req.file?.path) {
+        try {
+          require("fs").unlinkSync(req.file.path);
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        doctor: updatedDoctor,
+      },
+    });
+  } catch (err) {
+    // 🧹 Cleanup uploaded file on error to prevent orphan
+    if (req.file?.path) {
+      try {
+        require("fs").unlinkSync(req.file.path);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    // 🛡️ Mongoose validation errors
+    if (err.name === "ValidationError") {
+      const firstError = Object.values(err.errors)[0]?.message || "Invalid data";
+      return res.status(400).json({
+        success: false,
+        message: firstError,
+      });
+    }
+
+    // 🛡️ Duplicate key (e.g., personalEmail uniqueness if you add it later)
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "This value is already in use",
+      });
+    }
+
+    console.error("[DOCTOR UPDATE PROFILE ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update profile. Please try again.",
+    });
+  }
+};
+
 module.exports = {
   doctorLogin,
   doctorLogout,
   getCurrentDoctor,
   changePassword,
   completeProfile,
+  updateProfile,
 };

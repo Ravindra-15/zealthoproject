@@ -128,4 +128,19 @@ export const completeDoctorProfile = async ({
   return response.data.data;
 };
 
+/**
+ * Update doctor's own profile (Settings page).
+ * Accepts a FormData instance — supports text + photo + removePhoto in one call.
+ * @param {FormData} formData
+ * @returns Promise<{ doctor }>
+ */
+export const updateDoctorProfile = async (formData) => {
+  const response = await doctorApi.patch("/doctor/auth/profile", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data.data;
+};
+
 export default doctorApi;

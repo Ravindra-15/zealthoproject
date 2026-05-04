@@ -190,7 +190,7 @@ const EditDoctor = () => {
           specializations: doctor.specializations,
           shortBio: doctor.shortBio,
         }}
-        existingPhotoUrl={buildPhotoUrl(doctor.photo)}
+        existingPhotoUrl={buildPhotoUrl(doctor.photo, doctor.updatedAt)}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         submitting={submitting}

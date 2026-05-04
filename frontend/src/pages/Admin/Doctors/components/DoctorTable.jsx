@@ -43,7 +43,7 @@ const StatusPill = ({ isActive }) => (
 // 👤 DOCTOR AVATAR
 // ============================================
 const DoctorAvatar = ({ doctor }) => {
-  const photoUrl = buildPhotoUrl(doctor.photo);
+  const photoUrl = buildPhotoUrl(doctor.photo, doctor.updatedAt);
 
   if (photoUrl) {
     return (

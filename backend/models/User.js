@@ -73,6 +73,13 @@ const userSchema = new mongoose.Schema(
       minlength: [2, "City name too short"],
       match: [/^[a-zA-Z\s]+$/, "Invalid city"],
     },
+
+    // 🔄 Admin-controlled status
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );

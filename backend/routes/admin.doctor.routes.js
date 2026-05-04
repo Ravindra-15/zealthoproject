@@ -5,10 +5,6 @@
  */
 
 const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const crypto = require("crypto");
-const fs = require("fs");
 const rateLimit = require("express-rate-limit");
 
 const {
@@ -34,89 +30,12 @@ const {
   requireSuperAdmin,
 } = require("../middleware/admin.auth.middleware");
 
-const { DOCTOR_LIMITS } = require("../utils/doctorConstants");
+const {
+  doctorPhotoUpload,
+  handleDoctorPhotoUploadError,
+} = require("../middleware/upload.middleware");
 
 const router = express.Router();
-
-// ============================================
-// 📁 ENSURE UPLOAD DIRECTORY EXISTS
-// ============================================
-const uploadDir = path.join(__dirname, "..", "uploads", "doctors");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// ============================================
-// 📸 MULTER CONFIGURATION (Photo Upload)
-// ============================================
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // 🔒 Generate cryptographically secure random filename
-    // Prevents enumeration attacks and filename collisions
-    const randomName = crypto.randomBytes(16).toString("hex");
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `doctor_${Date.now()}_${randomName}${ext}`);
-  },
-});
-
-// 🛡️ ADMIN: Strict file filter — only allow safe image types
-const fileFilter = (req, file, cb) => {
-  if (DOCTOR_LIMITS.ALLOWED_PHOTO_MIME_TYPES.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error(
-        `Only ${DOCTOR_LIMITS.ALLOWED_PHOTO_MIME_TYPES.join(", ")} files are allowed`
-      ),
-      false
-    );
-  }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: DOCTOR_LIMITS.PHOTO_MAX_SIZE_BYTES, // 2MB
-    files: 1, // Only 1 file per request
-  },
-});
-
-// 🛡️ ADMIN: Multer error handler — wraps multer errors as 400 responses
-const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        success: false,
-        message: `Photo too large. Max size: ${DOCTOR_LIMITS.PHOTO_MAX_SIZE_BYTES / (1024 * 1024)
-          }MB`,
-      });
-    }
-    if (err.code === "LIMIT_UNEXPECTED_FILE") {
-      return res.status(400).json({
-        success: false,
-        message: "Unexpected file field. Use 'photo' field name.",
-      });
-    }
-    return res.status(400).json({
-      success: false,
-      message: err.message || "File upload error",
-    });
-  }
-
-  if (err) {
-    return res.status(400).json({
-      success: false,
-      message: err.message || "File upload failed",
-    });
-  }
-
-  next();
-};
 
 // ============================================
 // 🚦 RATE LIMITERS
@@ -176,8 +95,8 @@ router.get("/", doctorReadLimiter, validateListQuery, listDoctors);
 router.post(
   "/",
   doctorWriteLimiter,
-  upload.single("photo"),
-  handleMulterError,
+  doctorPhotoUpload.single("photo"),
+  handleDoctorPhotoUploadError,
   validateCreateDoctor,
   createDoctor
 );
@@ -196,8 +115,8 @@ router.put(
   "/:id",
   doctorWriteLimiter,
   validateDoctorId,
-  upload.single("photo"),
-  handleMulterError,
+  doctorPhotoUpload.single("photo"),
+  handleDoctorPhotoUploadError,
   validateUpdateDoctor,
   updateDoctor
 );

@@ -6,16 +6,22 @@ const {
   getCurrentDoctor,
   changePassword,
   completeProfile,
+  updateProfile,
 } = require("../controllers/doctor.auth.controller");
 
 const {
   validateDoctorLogin,
   validateChangePassword,
   validateCompleteProfile,
+  validateUpdateProfile,
 } = require("../validators/doctor.auth.validator");
 
 const { protectDoctor } = require("../middleware/doctor.auth.middleware");
 const { authLoginLimiter } = require("../middleware/rateLimit.middleware");
+const {
+  doctorPhotoUpload,
+  handleDoctorPhotoUploadError,
+} = require("../middleware/upload.middleware");
 
 const router = express.Router();
 // ============================================
@@ -43,6 +49,15 @@ router.patch(
   protectDoctor,
   validateCompleteProfile,
   completeProfile
+);
+
+router.patch(
+  "/profile",
+  protectDoctor,
+  doctorPhotoUpload.single("photo"),
+  handleDoctorPhotoUploadError,
+  validateUpdateProfile,
+  updateProfile
 );
 
 module.exports = router;

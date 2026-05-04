@@ -164,7 +164,7 @@ const DoctorProfile = () => {
     );
   }
 
-  const photoUrl = buildPhotoUrl(doctor.photo);
+ const photoUrl = buildPhotoUrl(doctor.photo, doctor.updatedAt);
   const hasEmail = !!doctor.personalEmail;
   const hasPhone = !!doctor.phone;
 

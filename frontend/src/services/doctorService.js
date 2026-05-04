@@ -143,13 +143,10 @@ export const resetDoctorPassword = async (doctorId) => {
  * @param {string|null} photoPath - Relative path from backend
  * @returns Full URL or null
  */
-export const buildPhotoUrl = (photoPath) => {
+export const buildPhotoUrl = (photoPath, updatedAt) => {
   if (!photoPath) return null;
-  if (photoPath.startsWith("http")) return photoPath; // Already absolute
-
-  const baseUrl =
-    import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") ||
-    "http://localhost:5000";
-
-  return `${baseUrl}${photoPath}`;
+  if (photoPath.startsWith("http")) return photoPath;
+  const base = import.meta.env.VITE_API_BASE_URL?.replace("/api", "") || "http://localhost:5000";
+  const cacheBuster = updatedAt ? `?v=${new Date(updatedAt).getTime()}` : "";
+  return `${base}${photoPath}${cacheBuster}`;
 };

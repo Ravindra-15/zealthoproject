@@ -400,6 +400,112 @@ const completeDoctorProfile = async (doctorId, profileData) => {
 };
 
 // ============================================
+// ✏️ UPDATE DOCTOR'S OWN PROFILE (from Settings page)
+// ============================================
+
+/**
+ * Doctor edits own profile fields. Whitelist enforced — protects auth fields.
+ *
+ * Photo handling:
+ *  - If newPhotoPath provided → delete old photo from disk + update path
+ *  - If removePhoto === true → delete old photo from disk + set photo to null
+ *  - Otherwise → photo unchanged
+ *
+ * @param {string} doctorId
+ * @param {Object} updates - Validated update payload (validator already sanitized)
+ * @param {Object} options
+ * @param {string} [options.newPhotoPath] - Set when a new photo file was uploaded
+ * @param {boolean} [options.removePhoto] - Set when doctor explicitly removed photo
+ * @returns {Promise<Object|null>} Updated doctor or null if not found
+ */
+const updateDoctorOwnProfile = async (doctorId, updates, options = {}) => {
+  const { newPhotoPath, removePhoto = false } = options;
+
+  // 🔒 Whitelist — fields a doctor can edit about themselves
+  // 'domain' is intentionally EXCLUDED (admin-controlled for credentialing).
+  // To allow doctor editing of domain, add 'domain' to this array.
+  const ALLOWED_FIELDS = [
+    "fullName",
+    "specializations",
+    "shortBio",
+    "personalEmail",
+    "phone",
+    "qualifications",
+    "yearsOfExperience",
+    // "domain", // 🔒 Read-only by default — uncomment to allow doctor editing
+  ];
+
+  const safeUpdates = {};
+  for (const key of ALLOWED_FIELDS) {
+    if (updates[key] !== undefined) {
+      safeUpdates[key] =
+        typeof updates[key] === "string" ? updates[key].trim() : updates[key];
+    }
+  }
+
+  // ============================================
+  // 🖼️ PHOTO HANDLING
+  // ============================================
+  let oldPhotoToDelete = null;
+
+  if (newPhotoPath) {
+    // 📸 New photo uploaded — fetch old path, set new one
+    const existing = await Doctor.findById(doctorId).lean();
+    if (!existing) return null;
+
+    if (existing.photo && existing.photo !== newPhotoPath) {
+      oldPhotoToDelete = existing.photo;
+    }
+    safeUpdates.photo = newPhotoPath;
+  } else if (removePhoto) {
+    // 🗑️ Explicit removal — fetch old path, set to null
+    const existing = await Doctor.findById(doctorId).lean();
+    if (!existing) return null;
+
+    if (existing.photo) {
+      oldPhotoToDelete = existing.photo;
+    }
+    safeUpdates.photo = null;
+  }
+
+  // ============================================
+  // 🚫 No-op guard
+  // ============================================
+  if (Object.keys(safeUpdates).length === 0) {
+    return await getDoctorById(doctorId);
+  }
+  // ============================================
+  // 💾 Save
+  // ============================================
+  const updated = await Doctor.findByIdAndUpdate(doctorId, safeUpdates, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  if (!updated) return null;
+
+  // ============================================
+  // 🧹 Best-effort cleanup of old photo file
+  // ============================================
+  if (oldPhotoToDelete) {
+    const oldPath = path.join(__dirname, "..", oldPhotoToDelete);
+    try {
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    } catch (err) {
+      console.error(
+        "[DOCTOR PROFILE UPDATE] Failed to clean up old photo:",
+        err.message
+      );
+      // Don't block — DB update already succeeded
+    }
+  }
+
+  return updated;
+};
+
+// ============================================
 // 📦 EXPORTS
 // ============================================
 module.exports = {
@@ -412,4 +518,5 @@ module.exports = {
   resetDoctorPassword,
   changeDoctorPassword,
   completeDoctorProfile,
+  updateDoctorOwnProfile,
 };
