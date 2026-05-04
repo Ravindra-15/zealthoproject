@@ -28,6 +28,9 @@ import DoctorDirectory from "./pages/Admin/Doctors/DoctorDirectory";
 import AddDoctor from "./pages/Admin/Doctors/AddDoctor";
 import DoctorProfile from "./pages/Admin/Doctors/DoctorProfile";
 import EditDoctor from "./pages/Admin/Doctors/EditDoctor";
+import UserDirectory from "./pages/Admin/Users/UserDirectory";
+import UserProfile from "./pages/Admin/Users/UserProfile";
+import EditUser from "./pages/Admin/Users/EditUser";
 
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
@@ -42,8 +45,6 @@ import MyPatients from "./pages/Doctor/MyPatients/MyPatients";
 import AvailabilityManager from "./pages/Doctor/AvailabilityManager/AvailabilityManager";
 import Notifications from "./pages/Doctor/Notifications/Notifications";
 import Settings from "./pages/Doctor/Settings/Settings";
-
-
 
 function App() {
   return (
@@ -97,9 +98,12 @@ function App() {
           <Route path="doctors/new" element={<AddDoctor />} />
           <Route path="doctors/:id/edit" element={<EditDoctor />} />
           <Route path="doctors/:id" element={<DoctorProfile />} />
+          {/* 👥 USERS */}
+          <Route path="users" element={<UserDirectory />} />
+          <Route path="users/:id/edit" element={<EditUser />} />
+          <Route path="users/:id" element={<UserProfile />} />
         </Route>
 
-      
         {/* ============================================ */}
         {/* 🩺 DOCTOR ROUTES (wrapped in DoctorAuthProvider) */}
         {/* ============================================ */}
@@ -140,7 +144,10 @@ function App() {
                   <Route path="dashboard" element={<DoctorDashboard />} />
                   <Route path="appointments" element={<Appointments />} />
                   <Route path="my-patients" element={<MyPatients />} />
-                  <Route path="availability" element={<AvailabilityManager />} />
+                  <Route
+                    path="availability"
+                    element={<AvailabilityManager />}
+                  />
                   <Route path="notifications" element={<Notifications />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
