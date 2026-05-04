@@ -5,14 +5,15 @@
  * Main navigation sidebar for the admin panel.
  * Contains brand block, tenant switcher, navigation items
  * (grouped into collapsible sections), profile block, and logout.
+ * Appointment Log badge shows live pending count from API.
  *
  * Used by: AdminLayout
  * Access: Super Admin only
  * ============================================
  */
 
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Shield,
   ChevronDown,
@@ -29,16 +30,42 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { getAppointmentCounts } from "../../../services/appointmentService";
 import toast from "react-hot-toast";
 import AdminSidebarSection from "./AdminSidebarSection";
 import AdminSidebarItem from "./AdminSidebarItem";
 
 const AdminSidebar = ({ onNavigate }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // 🏢 ADMIN: Tenant/Brand switcher state (placeholder until multi-tenant backend exists)
   const [selectedTenant] = useState("Slimfitter");
   const [isTenantOpen, setIsTenantOpen] = useState(false);
+
+  // 🔢 ADMIN: Pending appointments badge — live count
+  const [pendingCount, setPendingCount] = useState(0);
+  const isMountedRef = useRef(false);
+
+  // 📥 Fetch appointment counts on mount + every route change
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const loadCounts = async () => {
+      try {
+        const counts = await getAppointmentCounts();
+        if (!isMountedRef.current) return;
+        setPendingCount(counts.pending || 0);
+      } catch {
+        // Silent fail — badge defaults to 0, sidebar still works
+      }
+    };
+
+    loadCounts();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [location.pathname]);
 
   // 🚪 ADMIN: Logout handler — clears admin session
   const { logout } = useAdminAuth();
@@ -71,7 +98,7 @@ const AdminSidebar = ({ onNavigate }) => {
           icon: ClipboardList,
           label: "Appointment Log",
           to: "/admin/appointments",
-          badge: "1",
+          badge: pendingCount > 0 ? String(pendingCount) : null,
         },
       ],
     },

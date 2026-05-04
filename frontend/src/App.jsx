@@ -31,6 +31,7 @@ import EditDoctor from "./pages/Admin/Doctors/EditDoctor";
 import UserDirectory from "./pages/Admin/Users/UserDirectory";
 import UserProfile from "./pages/Admin/Users/UserProfile";
 import EditUser from "./pages/Admin/Users/EditUser";
+import AppointmentLog from "./pages/Admin/Appointments/AppointmentLog";
 
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
@@ -102,6 +103,8 @@ function App() {
           <Route path="users" element={<UserDirectory />} />
           <Route path="users/:id/edit" element={<EditUser />} />
           <Route path="users/:id" element={<UserProfile />} />
+          {/* 🗓️ APPOINTMENTS */}
+          <Route path="appointments" element={<AppointmentLog />} />
         </Route>
 
         {/* ============================================ */}
