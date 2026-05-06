@@ -27,6 +27,7 @@ const adminDoctorRoutes = require("./routes/admin.doctor.routes");
 const adminAppointmentRoutes = require('./routes/admin.appointment.routes')
 const doctorAuthRoutes = require("./routes/doctor.auth.routes");
 const doctorAvailabilityRoutes = require("./routes/doctor.availability.routes")
+const doctorAppointmentRoutes = require("./routes/doctor.appointment.routes");
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
 
@@ -99,6 +100,7 @@ app.use("/api/customer/body-profile", customerBodyProfileRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/doctor/auth", doctorAuthRoutes);
 app.use("/api/doctor/availability", doctorAvailabilityRoutes);
+app.use("/api/doctor/appointments", doctorAppointmentRoutes);
 // TODO: Future admin routes
 app.use("/api/admin/doctors", adminDoctorRoutes);
 app.use("/api/admin/users", adminUserRoutes);

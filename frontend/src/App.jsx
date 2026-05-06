@@ -19,6 +19,13 @@ import ProfileStepTwo from "./pages/Signup/ProfileStepTwo";
 import Home from "./pages/Home/Home";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import BookDoctor from "./pages/Customer/BookDoctor/BookDoctor";
+
+import DoctorDetail from "./pages/Customer/BookDoctor/DoctorDetail";
+import Checkout from "./pages/Customer/Checkout/Checkout";
+import Confirmation from "./pages/Customer/Confirmation/Confirmation";
+import MyAppointments from "./pages/Customer/MyAppointments/MyAppointments";
+import BodyProfileWizard from "./pages/Customer/BodyProfile/BodyProfileWizard";
+
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
@@ -80,8 +87,13 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
+
         <Route path="/book-doctor" element={<BookDoctor />} />
+        <Route path="/book-doctor/:id" element={<DoctorDetail />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/booking/confirmation/:id" element={<Confirmation />} />
+        <Route path="/my-appointments" element={<MyAppointments />} />
+        <Route path="/body-profile" element={<BodyProfileWizard />} />
 
         {/* ============================================ */}
         {/* 🔐 ADMIN ROUTES */}
