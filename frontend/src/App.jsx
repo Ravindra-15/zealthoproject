@@ -18,7 +18,7 @@ import ProfileStepOne from "./pages/Signup/ProfileStepOne";
 import ProfileStepTwo from "./pages/Signup/ProfileStepTwo";
 import Home from "./pages/Home/Home";
 import ProtectedRoute from "./components/common/ProtectedRoute";
-
+import BookDoctor from "./pages/Customer/BookDoctor/BookDoctor";
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
@@ -80,6 +80,8 @@ function App() {
             </ProtectedRoute>
           }
         />
+        
+        <Route path="/book-doctor" element={<BookDoctor />} />
 
         {/* ============================================ */}
         {/* 🔐 ADMIN ROUTES */}

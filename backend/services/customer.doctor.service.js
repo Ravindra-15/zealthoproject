@@ -97,7 +97,126 @@ const getPublicDoctorById = async (doctorId) => {
   return doctor || null;
 };
 
+// ============================================
+// 📅 GET SINGLE-DAY AVAILABILITY (for customer booking)
+// ============================================
+/**
+ * Returns slot statuses for a doctor on a single date.
+ * Customer-facing — no PII (no patient names, no time-off reasons).
+ *
+ * @param {string} doctorId
+ * @param {string} dateStr - "YYYY-MM-DD"
+ * @returns {Promise<{ date, dayOfWeek, slots: [{ time, isBookable }] }> | null}
+ */
+const getDayAvailability = async (doctorId, dateStr) => {
+  const Doctor = require("../models/Doctor");
+  const AvailabilityTemplate = require("../models/AvailabilityTemplate");
+  const TimeOff = require("../models/TimeOff");
+  const Appointment = require("../models/Appointment");
+  const {
+    generateSlotStartTimes,
+    SLOT_DURATION_MINUTES,
+  } = require("../utils/availabilityConstants");
+
+  // 🔒 Verify doctor exists, is active, and profile complete
+  const doctor = await Doctor.findOne({
+    _id: doctorId,
+    isActive: true,
+    isProfileComplete: true,
+  })
+    .select("_id")
+    .lean();
+  if (!doctor) return null;
+
+  // 🗓️ Build day bounds (UTC) — start = 00:00, end = next day 00:00
+  const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
+  if (isNaN(dayStart.getTime())) return null;
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+  const dayOfWeek = dayStart.getUTCDay(); // 0–6
+
+  // 🚫 Block past dates entirely (today is OK, yesterday is not)
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  if (dayStart < today) {
+    return {
+      date: dateStr,
+      dayOfWeek,
+      slots: generateSlotStartTimes().map((time) => ({
+        time,
+        isBookable: false,
+      })),
+    };
+  }
+
+  // 📥 Parallel fetch: template, time-offs in this day, existing bookings
+  const [template, timeOffs, appointments] = await Promise.all([
+    AvailabilityTemplate.findOne({ doctor: doctorId }).lean(),
+    TimeOff.find({
+      doctor: doctorId,
+      startsAt: { $lt: dayEnd },
+      endsAt: { $gt: dayStart },
+    }).lean(),
+    Appointment.find({
+      doctor: doctorId,
+      scheduledAt: { $gte: dayStart, $lt: dayEnd },
+      status: { $in: ["pending", "confirmed", "completed"] },
+    }).lean(),
+  ]);
+
+  // 🔧 Today-only: also block past time slots
+  const isToday = dayStart.getTime() === today.getTime();
+  const now = new Date();
+
+  // 🪪 Lookup: which slots is the doctor open for on this dayOfWeek?
+  const openSet = new Set(
+    (template?.weekly?.find((d) => d.dayOfWeek === dayOfWeek) || { slots: [] })
+      .slots
+  );
+
+  const slotTimes = generateSlotStartTimes();
+
+  const slots = slotTimes.map((hhmm) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    const slotStart = new Date(dayStart);
+    slotStart.setUTCHours(h, m, 0, 0);
+    const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
+
+    // ❌ Past slot today
+    if (isToday && slotStart < now) return { time: hhmm, isBookable: false };
+
+    // ❌ Doctor not open on this dayOfWeek
+    if (!openSet.has(hhmm)) return { time: hhmm, isBookable: false };
+
+    // ❌ Time-off overlap
+    const blocked = timeOffs.some(
+      (t) => new Date(t.startsAt) < slotEnd && new Date(t.endsAt) > slotStart
+    );
+    if (blocked) return { time: hhmm, isBookable: false };
+
+    // ❌ Already booked
+    const taken = appointments.some((a) => {
+      const aStart = new Date(a.scheduledAt);
+      const aEnd = new Date(
+        aStart.getTime() + (a.durationMinutes || SLOT_DURATION_MINUTES) * 60000
+      );
+      return aStart < slotEnd && aEnd > slotStart;
+    });
+    if (taken) return { time: hhmm, isBookable: false };
+
+    return { time: hhmm, isBookable: true };
+  });
+
+  return {
+    date: dateStr,
+    dayOfWeek,
+    slots,
+  };
+};
+
 module.exports = {
   listPublicDoctors,
   getPublicDoctorById,
+  getDayAvailability,
 };

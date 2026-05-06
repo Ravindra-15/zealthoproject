@@ -16,7 +16,8 @@ const authRoutes = require("./routes/auth.routes");
 const otpRoutes = require("./routes/otp.routes");
 const userRoutes = require("./routes/user.routes");
 const customerDoctorRoutes = require("./routes/customer.doctor.routes");
-
+const customerAppointmentRoutes = require("./routes/customer.appointment.routes");
+const customerBodyProfileRoutes = require("./routes/customer.bodyProfile.routes");
 
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
@@ -89,7 +90,9 @@ app.use("/api/otp", otpRoutes);
 // ⚠️ FIX: use plural for consistency
 app.use("/api/users", userRoutes);
 app.use("/api/customer/doctors", customerDoctorRoutes);
-
+app.use("/api/customer/doctors", customerAppointmentRoutes.publicDoctorRouter);
+app.use("/api/customer/appointments", customerAppointmentRoutes.appointmentRouter);
+app.use("/api/customer/body-profile", customerBodyProfileRoutes);
 // ============================================
 // 🔐 ADMIN ROUTES (NEW)
 // ============================================

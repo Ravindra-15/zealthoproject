@@ -99,9 +99,7 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-[#f4efe8]">
       <Navbar />
-<button onClick={() => toast.success("Test toast")}>
-  Test
-</button>
+
       <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-20 py-10 md:py-16 gap-10 md:gap-0">
         {/* LEFT */}
         <div className="max-w-md mx-auto md:mx-0 text-center md:text-left px-2">

@@ -114,6 +114,27 @@ const appointmentSchema = new mongoose.Schema(
       default: "",
       maxlength: 500,
     },
+
+    // 🔗 Google Meet / Zoom link added by doctor before consultation
+    meetingLink: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500,
+      validate: {
+        validator: function (v) {
+          if (!v) return true; // empty is OK
+          return /^https?:\/\/.+/.test(v); // must be http/https URL if provided
+        },
+        message: "Meeting link must be a valid URL",
+      },
+    },
+
+    // 📤 Has the doctor sent the meeting link to the patient yet?
+    meetingLinkSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true, versionKey: false }
 );

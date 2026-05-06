@@ -4,8 +4,10 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../../components/layout/Navbar";
 import Modal from "../../components/common/Modal";
 import Button from "../../components/common/Button";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -15,19 +17,15 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-
       <Navbar />
 
       <div className="p-10 text-center">
-        <h1 className="text-3xl font-bold text-teal-800">
-          Welcome to Zealtho
-        </h1>
+        <h1 className="text-3xl font-bold text-teal-800">Welcome to Zealtho</h1>
       </div>
 
       {/* Modal */}
       <Modal isOpen={open} onClose={() => setOpen(false)}>
         <div className="text-center">
-
           <h2 className="text-xl font-semibold text-teal-800 mb-4">
             Welcome to Zealtho
           </h2>
@@ -38,15 +36,13 @@ const Home = () => {
             className="w-32 mx-auto mb-4"
           />
 
-          <Button text="Book Doctor Consultation" />
-
+          <Button type="button" onClick={() => navigate("/book-doctor")} text="Book Doctor Consultation">
+</Button> 
           <p className="text-xs text-gray-500 mt-3">
             🔥 10K Users Already Registered
           </p>
-
         </div>
       </Modal>
-
     </div>
   );
 };
