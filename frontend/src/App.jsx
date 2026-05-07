@@ -11,13 +11,14 @@ import {
   Navigate,
 } from "react-router-dom";
 
+import LandingPage from "./pages/Customer/Landing/LandingPage";
 // 👤 CUSTOMER PAGES
 import Signup from "./pages/Signup/Signup";
 
 import OtpVerification from "./pages/Signup/OtpVerification";
 import ProfileStepOne from "./pages/Signup/ProfileStepOne";
 import ProfileStepTwo from "./pages/Signup/ProfileStepTwo";
-import Home from "./pages/Home/Home";
+
 import Login from "./pages/Customer/Login/Login";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import BookDoctor from "./pages/Customer/BookDoctor/BookDoctor";
@@ -63,7 +64,8 @@ function App() {
         {/* ============================================ */}
         {/* 👤 CUSTOMER ROUTES */}
         {/* ============================================ */}
-        <Route path="/" element={<Signup />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/verify-otp" element={<OtpVerification />} />
         <Route
@@ -82,21 +84,45 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/home" element={<LandingPage />} />
+
+        <Route path="/book-doctor" element={<BookDoctor />} />
+        <Route path="/book-doctor/:id" element={<DoctorDetail />} />
         <Route
-          path="/home"
+          path="/checkout"
           element={
             <ProtectedRoute>
-              <Home />
+              <Checkout />
             </ProtectedRoute>
           }
         />
 
-        <Route path="/book-doctor" element={<BookDoctor />} />
-        <Route path="/book-doctor/:id" element={<DoctorDetail />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/booking/confirmation/:id" element={<Confirmation />} />
-        <Route path="/my-appointments" element={<MyAppointments />} />
-        <Route path="/body-profile" element={<BodyProfileWizard />} />
+        <Route
+          path="/booking/confirmation/:id"
+          element={
+            <ProtectedRoute>
+              <Confirmation />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-appointments"
+          element={
+            <ProtectedRoute>
+              <MyAppointments />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/body-profile"
+          element={
+            <ProtectedRoute>
+              <BodyProfileWizard />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ============================================ */}
         {/* 🔐 ADMIN ROUTES */}

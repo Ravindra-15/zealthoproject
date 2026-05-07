@@ -8,7 +8,10 @@
 // 🔍 IS USER LOGGED IN
 // ============================================
 export const isCustomerLoggedIn = () => {
-  return !!localStorage.getItem("token");
+  return !!(
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token")
+  );
 };
 
 // ============================================
@@ -35,9 +38,14 @@ export const getPostLoginRedirect = (searchString) => {
   try {
     const params = new URLSearchParams(searchString);
     const next = params.get("next");
+
     if (!next) return "/";
-    // 🛡️ Only allow same-origin paths (prevent open-redirect attacks)
-    if (!next.startsWith("/") || next.startsWith("//")) return "/";
+
+    // 🛡️ Prevent external redirects
+    if (!next.startsWith("/") || next.startsWith("//")) {
+      return "/";
+    }
+
     return decodeURIComponent(next);
   } catch {
     return "/";

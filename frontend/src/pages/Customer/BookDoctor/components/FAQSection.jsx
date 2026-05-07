@@ -51,7 +51,7 @@ const FAQSection = () => {
   const [imgError, setImgError] = useState(false);
 
   return (
-    <section className="py-12 sm:py-16">
+    <section id="faq" className="py-12 sm:py-16">
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
 
         {/* ============================================ */}

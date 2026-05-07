@@ -17,13 +17,13 @@ import AuthContext from "../../../context/AuthContext";
 // ============================================
 const PUBLIC_LINKS = [
   { to: "/home", label: "Home" },
-  { to: "/programs", label: "Our Programs" },
+  { to: "/home#programs", label: "Our Programs" },
   { to: "/book-doctor", label: "Book Doctor" },
 ];
 
 const PRIVATE_LINKS = [
   { to: "/home", label: "Home" },
-  { to: "/programs", label: "Our Programs" },
+  { to: "/home#programs", label: "Our Programs" },
   { to: "/book-doctor", label: "Book Doctor" },
   { to: "/my-appointments", label: "My Appointments" },
 ];
@@ -78,24 +78,50 @@ const CustomerNavbar = () => {
             </Link>
 
             {/* 🖥️ Desktop links (centered) */}
-            <nav className="hidden lg:flex items-center gap-12 flex-1 justify-center">
-              {links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    `text-sm font-medium tracking-wide transition-colors ${
-                      isActive
-                        ? "text-teal-700"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
-            </nav>
-
+            <div className="hidden lg:flex items-center justify-center gap-48 flex-1">
+              {links.map((link) =>
+                link.to.includes("#") ? (
+                  <a
+                    key={link.to}
+                    href={link.to}
+                    className="
+                    relative text-sm font-medium tracking-wide
+                    text-gray-600 hover:text-teal-700
+                    transition-all duration-300
+                    hover:-translate-y-[1px]
+                    after:absolute after:left-0 after:-bottom-1
+                    after:h-[2px] after:w-0
+                    after:bg-orange-500
+                    after:rounded-full
+                    after:transition-all after:duration-300
+                    hover:after:w-full
+                  "
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={({ isActive }) =>
+                      `relative text-sm font-medium tracking-wide
+                          transition-all duration-300 hover:-translate-y-[1px]
+                          after:absolute after:left-0 after:-bottom-1
+                          after:h-[2px] after:w-0
+                          after:bg-orange-500 after:rounded-full
+                          after:transition-all after:duration-300
+                          hover:after:w-full ${
+                            isActive
+                              ? "text-teal-700"
+                              : "text-gray-600 hover:text-gray-900"
+                          }`
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ),
+              )}
+            </div>
             {/* 🎯 Right-side actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
               {isLoggedIn ? (
@@ -165,22 +191,33 @@ const CustomerNavbar = () => {
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white">
             <div className="px-4 py-3 flex flex-col gap-1">
-              {links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  onClick={closeMobile}
-                  className={({ isActive }) =>
-                    `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-teal-50 text-teal-700"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+              {links.map((link) =>
+                link.to.includes("#") ? (
+                  <a
+                    key={link.to}
+                    href={link.to}
+                    onClick={closeMobile}
+                    className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    onClick={closeMobile}
+                    className={({ isActive }) =>
+                      `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-teal-50 text-teal-700"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ),
+              )}
 
               {isLoggedIn ? (
                 <>
@@ -193,7 +230,10 @@ const CustomerNavbar = () => {
                   </NavLink>
                   <button
                     type="button"
-                    onClick={() => { closeMobile(); navigate("/profile"); }}
+                    onClick={() => {
+                      closeMobile();
+                      navigate("/profile");
+                    }}
                     className="
                       mt-1 px-4 py-2 rounded-full self-start
                       text-xs font-semibold text-white
@@ -207,7 +247,10 @@ const CustomerNavbar = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => { closeMobile(); navigate("/signup"); }}
+                  onClick={() => {
+                    closeMobile();
+                    navigate("/signup");
+                  }}
                   className="
                     mt-1 px-4 py-2 rounded-full self-start
                     text-xs font-semibold text-white

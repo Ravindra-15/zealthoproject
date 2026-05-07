@@ -26,7 +26,7 @@ const ProfileStepTwo = () => {
       JSON.parse(sessionStorage.getItem("user"));
 
     if (user?.dob && user?.country && user?.city) {
-      navigate("/home", { replace: true });
+      navigate("/book-doctor", { replace: true });
       return;
     }
 

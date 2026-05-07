@@ -28,12 +28,15 @@ const Navbar = () => {
     navigate("/login");
   };
 
-  const navLinks = ["Home", "Our Programs", "Book Doctor"];
+  const navLinks = [
+    { label: "Home", to: "/home" },
+    { label: "Our Programs", to: "/home#programs" },
+    { label: "Book Doctor", to: "/book-doctor" },
+  ];
 
   return (
     <div className="bg-white">
       <div className="flex items-center justify-between px-4 md:px-8 lg:px-12 py-4">
-
         {/* LEFT — Logo */}
         <Link to="/">
           <h1 className="text-lg md:text-xl font-semibold text-teal-800 tracking-tight">
@@ -43,12 +46,27 @@ const Navbar = () => {
 
         {/* CENTER — Desktop nav links */}
         <div className="hidden md:flex lg:flex-1 lg:max-w-xl lg:mx-auto items-center md:space-x-6 lg:justify-between lg:space-x-0 text-[14px] font-medium text-gray-700">
-          {navLinks.map((item) => (
-            <div key={item} className="group relative cursor-pointer whitespace-nowrap">
-              <span className="hover:text-teal-800 transition">{item}</span>
-              <span className="absolute left-0 -bottom-1 w-0 h-[2px] bg-orange-500 transition-all duration-300 group-hover:w-full" />
-            </div>
-          ))}
+          {navLinks.map((item) =>
+            item.to.includes("#") ? (
+              <a
+                key={item.label}
+                href={item.to}
+                className="group relative whitespace-nowrap text-gray-700 hover:text-teal-800 transition-all duration-300"
+              >
+                {item.label}
+                <span className="absolute left-0 -bottom-1 w-0 h-[2px] bg-orange-500 transition-all duration-300 group-hover:w-full" />
+              </a>
+            ) : (
+              <Link
+                key={item.label}
+                to={item.to}
+                className="group relative whitespace-nowrap text-gray-700 hover:text-teal-800 transition-all duration-300"
+              >
+                {item.label}
+                <span className="absolute left-0 -bottom-1 w-0 h-[2px] bg-orange-500 transition-all duration-300 group-hover:w-full" />
+              </Link>
+            ),
+          )}
         </div>
 
         {/* RIGHT */}
@@ -101,41 +119,79 @@ const Navbar = () => {
             className="md:hidden flex flex-col gap-1.5 p-1"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            <span className={`block w-5 h-0.5 bg-gray-700 transition-all ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
-            <span className={`block w-5 h-0.5 bg-gray-700 transition-all ${mobileMenuOpen ? "opacity-0" : ""}`} />
-            <span className={`block w-5 h-0.5 bg-gray-700 transition-all ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+            <span
+              className={`block w-5 h-0.5 bg-gray-700 transition-all ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`}
+            />
+            <span
+              className={`block w-5 h-0.5 bg-gray-700 transition-all ${mobileMenuOpen ? "opacity-0" : ""}`}
+            />
+            <span
+              className={`block w-5 h-0.5 bg-gray-700 transition-all ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`}
+            />
           </button>
         </div>
       </div>
 
       {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-3 flex flex-col gap-3 text-[14px] font-medium text-gray-700">
-          {navLinks.map((item) => (
-            <span
-              key={item}
-              className="cursor-pointer hover:text-teal-800 transition py-1"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {item}
-            </span>
-          ))}
-          {token ? (
-            <button
-              onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-              className="text-left text-red-500 py-1"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-              <button className="bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-medium w-full">
-                Join now
-              </button>
-            </Link>
-          )}
-        </div>
-      )}
+      {/* Mobile menu */}
+{mobileMenuOpen && (
+  <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2 text-[14px] font-medium text-gray-700 animate-in slide-in-from-top duration-300">
+    
+    {navLinks.map((item) =>
+      item.to.includes("#") ? (
+        <a
+          key={item.label}
+          href={item.to}
+          onClick={() => setMobileMenuOpen(false)}
+          className="
+            group relative w-fit
+            py-2 text-gray-700
+            hover:text-teal-800
+            transition-all duration-300
+          "
+        >
+          {item.label}
+
+          <span className="absolute left-0 -bottom-0.5 w-0 h-[2px] bg-orange-500 rounded-full transition-all duration-300 group-hover:w-full" />
+        </a>
+      ) : (
+        <Link
+          key={item.label}
+          to={item.to}
+          onClick={() => setMobileMenuOpen(false)}
+          className="
+            group relative w-fit
+            py-2 text-gray-700
+            hover:text-teal-800
+            transition-all duration-300
+          "
+        >
+          {item.label}
+
+          <span className="absolute left-0 -bottom-0.5 w-0 h-[2px] bg-orange-500 rounded-full transition-all duration-300 group-hover:w-full" />
+        </Link>
+      ),
+    )}
+
+    {token ? (
+      <button
+        onClick={() => {
+          handleLogout();
+          setMobileMenuOpen(false);
+        }}
+        className="text-left text-red-500 py-2"
+      >
+        Logout
+      </button>
+    ) : (
+      <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+      <button className="bg-orange-500 text-white px-5 py-2 rounded-full text-sm font-medium inline-flex items-center justify-center">
+          Join now
+        </button>
+      </Link>
+    )}
+  </div>
+)}
     </div>
   );
 };

@@ -130,7 +130,7 @@ const Login = () => {
       navigate(
         next?.startsWith("/")
           ? next
-          : "/home"
+          : "/book-doctor"
       );
     } catch (err) {
       const message =

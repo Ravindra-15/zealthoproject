@@ -13,7 +13,7 @@ import PhotoUploader from "../../../Admin/Doctors/components/PhotoUploader";
 import ChipsInput from "../../../Admin/Doctors/components/ChipsInput";
 import { useDoctorAuth } from "../../../../context/DoctorAuthContext";
 import { updateDoctorProfile } from "../../../../services/doctorAuthService";
-import { fetchDoctorOptions } from "../../../../services/doctorService";
+// import { fetchDoctorOptions } from "../../../../services/doctorService";
 
 // 📏 Limits
 const LIMITS = {
