@@ -115,3 +115,33 @@ exports.resendOtp = async (req, res) => {
     return errorResponse(res, error.message, 500);
   }
 };
+
+// 🔹 LOGIN
+exports.login = async (req, res) => {
+  try {
+    let { email, password } = req.body;
+
+    email = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email }).select("+password");
+    if (!user || !user.isVerified) {
+      return errorResponse(res, "Invalid email or password", 401);
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return errorResponse(res, "Invalid email or password", 401);
+    }
+
+    const jwt = require("jsonwebtoken");
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+    return successResponse(res, {
+      token,
+      user: { id: user._id, email: user.email, fullName: user.fullName, nickName: user.nickName },
+    }, "Login successful");
+
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};

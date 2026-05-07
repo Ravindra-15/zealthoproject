@@ -225,3 +225,28 @@ exports.validateResendOtp = (req, res, next) => {
 
   next();
 };
+
+exports.validateLogin = (req, res, next) => {
+  let { email, password } = req.body;
+
+  email = email?.toLowerCase().trim();
+  password = password?.trim();
+
+  req.body.email = email;
+  req.body.password = password;
+
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: "Email and password are required" });
+  }
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ success: false, message: "Invalid email format" });
+  }
+
+  if (!password) {
+    return res.status(400).json({ success: false, message: "Password is required" });
+  }
+
+  next();
+};

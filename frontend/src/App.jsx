@@ -13,10 +13,12 @@ import {
 
 // 👤 CUSTOMER PAGES
 import Signup from "./pages/Signup/Signup";
+
 import OtpVerification from "./pages/Signup/OtpVerification";
 import ProfileStepOne from "./pages/Signup/ProfileStepOne";
 import ProfileStepTwo from "./pages/Signup/ProfileStepTwo";
 import Home from "./pages/Home/Home";
+import Login from "./pages/Customer/Login/Login";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import BookDoctor from "./pages/Customer/BookDoctor/BookDoctor";
 
@@ -62,6 +64,7 @@ function App() {
         {/* 👤 CUSTOMER ROUTES */}
         {/* ============================================ */}
         <Route path="/" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/verify-otp" element={<OtpVerification />} />
         <Route
           path="/profile-step-1"
