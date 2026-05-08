@@ -99,7 +99,7 @@ const ProfileStepOne = () => {
 
             <p className="mt-4 text-xs text-gray-500">
               — Anna R., 32 <br />
-              (Yoga T20 Member)
+              (Zealtho Member)
             </p>
           </div>
         </div>

@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 
 const programs = [
   {
-    id: "yogat20",
-    title: "Yoga T20",
+    id: "zealtho",
+    title: "Zealtho",
     subtitle: "Master the Art of Consistency. 20 Minutes to a Balanced Life",
     bg: "bg-[#FFF3E8]",
     accent: "bg-[#FFD8B5]",

@@ -29,6 +29,12 @@ import Confirmation from "./pages/Customer/Confirmation/Confirmation";
 import MyAppointments from "./pages/Customer/MyAppointments/MyAppointments";
 import BodyProfileWizard from "./pages/Customer/BodyProfile/BodyProfileWizard";
 
+import SelectTenure from "./pages/Customer/Programs/SelectTenure";
+import ProgramCheckout from "./pages/Customer/Programs/ProgramCheckout";
+import ProgramSuccess from "./pages/Customer/Programs/ProgramSuccess";
+import ProgramDashboard from "./pages/Customer/Programs/ProgramDashboard";
+import ProtectedProgramRoute from "./components/common/ProtectedProgramRoute";
+
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
@@ -121,6 +127,17 @@ function App() {
             <ProtectedRoute>
               <BodyProfileWizard />
             </ProtectedRoute>
+          }
+        />
+        <Route path="/programs/:id/tenure" element={<SelectTenure />} />
+        <Route path="/programs/:id/checkout" element={<ProgramCheckout />} />
+        <Route path="/programs/:id/success" element={<ProgramSuccess />} />
+        <Route
+          path="/programs/:id/dashboard"
+          element={
+            <ProtectedProgramRoute>
+              <ProgramDashboard />
+            </ProtectedProgramRoute>
           }
         />
 

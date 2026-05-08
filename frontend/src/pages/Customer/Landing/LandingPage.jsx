@@ -8,6 +8,7 @@ import ProgramsSection from "./sections/ProgramsSection";
 import FAQSection from "./sections/FAQSection";
 import CallbackSection from "./sections/CallbackSection";
 import WelcomePopup from "./components/WelcomePopup";
+import PricingSection from "./sections/PricingSection";
 
 export default function LandingPage() {
   return (
@@ -18,6 +19,7 @@ export default function LandingPage() {
       <main className="flex-1 w-full">
         <HeroSection />
         <ConditionsSection />
+        <PricingSection />
         <HealingCTASection />
         <ProgramsSection />
         <FAQSection />

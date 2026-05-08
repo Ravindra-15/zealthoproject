@@ -1,15 +1,27 @@
 /**
  * CUSTOMER MODULE — Top Navbar
- *
- * Reusable across all customer pages.
- * Switches UI based on auth state via AuthContext (or whichever your customer auth context is).
- * Logged-out: Home / Our Programs / Book Doctor + "Join now" CTA
- * Logged-in:  Home / Our Programs / Book Doctor / My Appointments / Notifications + "Profile" pill
  */
 
-import React, { useState, useContext, useEffect, useRef } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Menu, X, Bell } from "lucide-react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
+
+import {
+  Link,
+  NavLink,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+
+import {
+  Menu,
+  X,
+  Bell,
+} from "lucide-react";
+
 import AuthContext from "../../../context/AuthContext";
 
 // ============================================
@@ -30,36 +42,99 @@ const PRIVATE_LINKS = [
 
 const CustomerNavbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const auth = useContext(AuthContext) || {};
   const isLoggedIn = !!auth?.token;
 
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // ============================================
+  // 🚫 HIDE AUTH UI ON AUTH PAGES
+  // ============================================
+  const authHiddenRoutes = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/verify-otp",
+  ];
+
+  const hideAuthUI =
+    authHiddenRoutes.includes(
+      location.pathname
+    );
+
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
+
   const drawerRef = useRef(null);
 
-  const links = isLoggedIn ? PRIVATE_LINKS : PUBLIC_LINKS;
-  const closeMobile = () => setMobileOpen(false);
+  const links = isLoggedIn
+    ? PRIVATE_LINKS
+    : PUBLIC_LINKS;
 
-  // ✅ Close on scroll
+  const closeMobile = () =>
+    setMobileOpen(false);
+
+  // ============================================
+  // ✅ CLOSE ON SCROLL
+  // ============================================
   useEffect(() => {
     if (!mobileOpen) return;
-    const handleScroll = () => closeMobile();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    const handleScroll = () =>
+      closeMobile();
+
+    window.addEventListener(
+      "scroll",
+      handleScroll,
+      { passive: true }
+    );
+
+    return () =>
+      window.removeEventListener(
+        "scroll",
+        handleScroll
+      );
   }, [mobileOpen]);
 
-  // ✅ Close on outside click / tap
+  // ============================================
+  // ✅ CLOSE ON OUTSIDE CLICK
+  // ============================================
   useEffect(() => {
     if (!mobileOpen) return;
-    const handleClickOutside = (e) => {
-      if (drawerRef.current && !drawerRef.current.contains(e.target)) {
+
+    const handleClickOutside = (
+      e
+    ) => {
+      if (
+        drawerRef.current &&
+        !drawerRef.current.contains(
+          e.target
+        )
+      ) {
         closeMobile();
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    document.addEventListener(
+      "touchstart",
+      handleClickOutside
+    );
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+
+      document.removeEventListener(
+        "touchstart",
+        handleClickOutside
+      );
     };
   }, [mobileOpen]);
 
@@ -68,7 +143,7 @@ const CustomerNavbar = () => {
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between gap-4">
-            {/* 🏷️ Brand */}
+            {/* 🏷️ BRAND */}
             <Link
               to="/home"
               className="text-xl font-bold text-teal-700 tracking-tight flex-shrink-0"
@@ -77,7 +152,7 @@ const CustomerNavbar = () => {
               Zealtho
             </Link>
 
-            {/* 🖥️ Desktop links (centered) */}
+            {/* 🖥️ DESKTOP LINKS */}
             <div className="hidden lg:flex items-center justify-center gap-48 flex-1">
               {links.map((link) =>
                 link.to.includes("#") ? (
@@ -85,17 +160,17 @@ const CustomerNavbar = () => {
                     key={link.to}
                     href={link.to}
                     className="
-                    relative text-sm font-medium tracking-wide
-                    text-gray-600 hover:text-teal-700
-                    transition-all duration-300
-                    hover:-translate-y-[1px]
-                    after:absolute after:left-0 after:-bottom-1
-                    after:h-[2px] after:w-0
-                    after:bg-orange-500
-                    after:rounded-full
-                    after:transition-all after:duration-300
-                    hover:after:w-full
-                  "
+                      relative text-sm font-medium tracking-wide
+                      text-gray-600 hover:text-teal-700
+                      transition-all duration-300
+                      hover:-translate-y-[1px]
+                      after:absolute after:left-0 after:-bottom-1
+                      after:h-[2px] after:w-0
+                      after:bg-orange-500
+                      after:rounded-full
+                      after:transition-all after:duration-300
+                      hover:after:w-full
+                    "
                   >
                     {link.label}
                   </a>
@@ -103,33 +178,39 @@ const CustomerNavbar = () => {
                   <NavLink
                     key={link.to}
                     to={link.to}
-                    className={({ isActive }) =>
+                    className={({
+                      isActive,
+                    }) =>
                       `relative text-sm font-medium tracking-wide
-                          transition-all duration-300 hover:-translate-y-[1px]
-                          after:absolute after:left-0 after:-bottom-1
-                          after:h-[2px] after:w-0
-                          after:bg-orange-500 after:rounded-full
-                          after:transition-all after:duration-300
-                          hover:after:w-full ${
-                            isActive
-                              ? "text-teal-700"
-                              : "text-gray-600 hover:text-gray-900"
-                          }`
+                      transition-all duration-300 hover:-translate-y-[1px]
+                      after:absolute after:left-0 after:-bottom-1
+                      after:h-[2px] after:w-0
+                      after:bg-orange-500 after:rounded-full
+                      after:transition-all after:duration-300
+                      hover:after:w-full ${
+                        isActive
+                          ? "text-teal-700"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`
                     }
                   >
                     {link.label}
                   </NavLink>
-                ),
+                )
               )}
             </div>
-            {/* 🎯 Right-side actions */}
+
+            {/* 🎯 RIGHT SIDE */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {isLoggedIn ? (
+              {!hideAuthUI &&
+              isLoggedIn ? (
                 <>
-                  {/* 🔔 Notifications icon */}
+                  {/* 🔔 NOTIFICATIONS */}
                   <NavLink
                     to="/notifications"
-                    className={({ isActive }) =>
+                    className={({
+                      isActive,
+                    }) =>
                       `hidden sm:inline-flex w-10 h-10 rounded-full items-center justify-center transition-colors ${
                         isActive
                           ? "bg-teal-50 text-teal-700"
@@ -141,10 +222,12 @@ const CustomerNavbar = () => {
                     <Bell size={18} />
                   </NavLink>
 
-                  {/* 👤 Profile pill */}
+                  {/* 👤 PROFILE */}
                   <button
                     type="button"
-                    onClick={() => navigate("/profile")}
+                    onClick={() =>
+                      navigate("/profile")
+                    }
                     className="
                       hidden sm:inline-flex items-center
                       px-5 py-2 rounded-full
@@ -157,10 +240,12 @@ const CustomerNavbar = () => {
                     Profile
                   </button>
                 </>
-              ) : (
+              ) : !hideAuthUI ? (
                 <button
                   type="button"
-                  onClick={() => navigate("/signup")}
+                  onClick={() =>
+                    navigate("/signup")
+                  }
                   className="
                     hidden sm:inline-flex items-center
                     px-5 py-2 rounded-full
@@ -172,22 +257,28 @@ const CustomerNavbar = () => {
                 >
                   Join now
                 </button>
-              )}
+              ) : null}
 
-              {/* 📱 Mobile menu toggle */}
+              {/* 📱 MOBILE MENU */}
               <button
                 type="button"
-                onClick={() => setMobileOpen((v) => !v)}
+                onClick={() =>
+                  setMobileOpen((v) => !v)
+                }
                 className="lg:hidden w-10 h-10 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-50"
                 aria-label="Toggle menu"
               >
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                {mobileOpen ? (
+                  <X size={20} />
+                ) : (
+                  <Menu size={20} />
+                )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* 📱 Mobile drawer */}
+        {/* 📱 MOBILE DRAWER */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white">
             <div className="px-4 py-3 flex flex-col gap-1">
@@ -206,7 +297,9 @@ const CustomerNavbar = () => {
                     key={link.to}
                     to={link.to}
                     onClick={closeMobile}
-                    className={({ isActive }) =>
+                    className={({
+                      isActive,
+                    }) =>
                       `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive
                           ? "bg-teal-50 text-teal-700"
@@ -216,10 +309,11 @@ const CustomerNavbar = () => {
                   >
                     {link.label}
                   </NavLink>
-                ),
+                )
               )}
 
-              {isLoggedIn ? (
+              {!hideAuthUI &&
+              isLoggedIn ? (
                 <>
                   <NavLink
                     to="/notifications"
@@ -228,6 +322,7 @@ const CustomerNavbar = () => {
                   >
                     Notifications
                   </NavLink>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -244,7 +339,7 @@ const CustomerNavbar = () => {
                     Profile
                   </button>
                 </>
-              ) : (
+              ) : !hideAuthUI ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -260,7 +355,7 @@ const CustomerNavbar = () => {
                 >
                   Join now
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         )}
