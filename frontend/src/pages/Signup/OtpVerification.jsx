@@ -115,7 +115,7 @@ const OtpVerification = () => {
         return "/home";
       };
 
-      navigate(getRedirectPath(user));
+      navigate(getRedirectPath(user), { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || "Invalid OTP");
       verifyingRef.current = false;

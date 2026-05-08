@@ -1,4 +1,8 @@
-import mongoose from "mongoose";
+// Zealtho - Notification Model
+// Stores per-user notifications (appointment, payment, program, general)
+// Used by /api/customer/notifications routes
+
+const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
   {
@@ -46,5 +50,4 @@ const notificationSchema = new mongoose.Schema(
 
 notificationSchema.index({ userId: 1, createdAt: -1 });
 
-const Notification = mongoose.model("Notification", notificationSchema);
-export default Notification;
+module.exports = mongoose.model("Notification", notificationSchema);

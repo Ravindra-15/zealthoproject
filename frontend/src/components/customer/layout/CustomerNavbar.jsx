@@ -1,8 +1,7 @@
 /**
  * CUSTOMER MODULE — Top Navbar
  */
-
-import React, { useState, useContext, useEffect, useRef } from "react";
+import React, { useState, useContext, useEffect, useRef, useMemo } from "react";
 
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 
@@ -32,16 +31,26 @@ const CustomerNavbar = () => {
 
   const auth = useContext(AuthContext) || {};
 
-  const isLoggedIn = !!auth?.token;
-  const storedUser =
-    JSON.parse(localStorage.getItem("user")) ||
-    JSON.parse(sessionStorage.getItem("user"));
+const isLoggedIn = !!auth?.token;
 
-  const profileCompleted =
-    storedUser?.fullName &&
-    storedUser?.dob &&
-    storedUser?.country &&
-    storedUser?.city;
+// Safe parse with try-catch (prevents crash on bad/null storage values)
+const getStoredUser = () => {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const storedUser = useMemo(() => getStoredUser(), [auth?.token]);
+
+const profileCompleted = !!(
+  storedUser?.fullName &&
+  storedUser?.dob &&
+  storedUser?.country &&
+  storedUser?.city
+);
   // ============================================
   // 🚫 HIDE AUTH UI ON AUTH PAGES
   // ============================================
@@ -180,7 +189,7 @@ const CustomerNavbar = () => {
                   {/* 👤 PROFILE */}
                   <button
                     type="button"
-                    onClick={() => navigate("/profile")}
+                    onClick={() => navigate("/my-profile")}
                     className="
                       hidden sm:inline-flex items-center
                       px-5 py-2 rounded-full
@@ -269,7 +278,7 @@ const CustomerNavbar = () => {
                     type="button"
                     onClick={() => {
                       closeMobile();
-                      navigate("/profile");
+                      navigate("/my-profile");
                     }}
                     className="
                       mt-1 px-4 py-2 rounded-full self-start

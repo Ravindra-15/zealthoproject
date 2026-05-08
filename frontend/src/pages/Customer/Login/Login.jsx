@@ -115,23 +115,22 @@ const Login = () => {
       toast.success("Welcome back!");
 
       const params = new URLSearchParams(location.search);
-
       const next = params.get("next");
-
       const user = data.data.user;
 
       const profileStepOneComplete = user?.fullName && user?.nickName;
-
       const profileStepTwoComplete = user?.dob && user?.country && user?.city;
 
-      // Redirect logic
-      if (!profileStepOneComplete) {
-        navigate("/profile-step-1");
-      } else if (!profileStepTwoComplete) {
-        navigate("/profile-step-2");
-      } else {
-        navigate(next?.startsWith("/") ? next : "/home");
-      }
+      // Small delay so toast lifecycle isn't disrupted by route change
+      setTimeout(() => {
+        if (!profileStepOneComplete) {
+          navigate("/profile-step-1");
+        } else if (!profileStepTwoComplete) {
+          navigate("/profile-step-2");
+        } else {
+          navigate(next?.startsWith("/") ? next : "/home");
+        }
+      }, 300);
     } catch (err) {
       const message = err?.response?.data?.message || "Something went wrong";
 

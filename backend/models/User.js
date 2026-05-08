@@ -73,6 +73,17 @@ const userSchema = new mongoose.Schema(
       minlength: [2, "City name too short"],
       match: [/^[a-zA-Z\s]+$/, "Invalid city"],
     },
+    whatsapp: {
+      type: String,
+      trim: true,
+      default: "",
+      match: [/^\+?[0-9\s-]{0,20}$/, "Invalid whatsapp number"],
+    },
+
+    profilePhoto: {
+      type: String,
+      default: "",
+    },
 
     // 🔄 Admin-controlled status
     isActive: {

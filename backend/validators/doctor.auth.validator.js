@@ -193,14 +193,26 @@ const validateUpdateProfile = (req, res, next) => {
   // 🏷️ specializations (optional, but if provided must be valid array)
   // ============================================
   if (specializations !== undefined) {
-    if (!Array.isArray(specializations)) {
+  // Parse JSON string from FormData (multipart requests send arrays as strings)
+  let parsedSpecs = specializations;
+  if (typeof specializations === "string") {
+    try {
+      parsedSpecs = JSON.parse(specializations);
+    } catch {
+      errors.push("Specializations must be a valid array");
+      parsedSpecs = null;
+    }
+  }
+
+  if (parsedSpecs !== null) {
+    if (!Array.isArray(parsedSpecs)) {
       errors.push("Specializations must be an array");
-    } else if (specializations.length < 1) {
+    } else if (parsedSpecs.length < 1) {
       errors.push("At least one specialization is required");
-    } else if (specializations.length > 10) {
+    } else if (parsedSpecs.length > 10) {
       errors.push("Too many specializations (max 10)");
     } else {
-      const cleanedSpecs = specializations
+      const cleanedSpecs = parsedSpecs
         .map((s) => (typeof s === "string" ? s.trim() : ""))
         .filter((s) => s.length > 0 && s.length <= 60);
 
@@ -211,6 +223,7 @@ const validateUpdateProfile = (req, res, next) => {
       }
     }
   }
+}
 
   // ============================================
   // 📝 shortBio (optional)

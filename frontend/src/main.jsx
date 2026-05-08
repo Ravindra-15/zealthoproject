@@ -8,10 +8,10 @@ import AppToaster from "./components/common/AppToaster";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
+    <AppToaster />
     <AuthProvider>
       <AdminAuthProvider>
-      <App />
-      <AppToaster />
+        <App />
       </AdminAuthProvider>
     </AuthProvider>
   </React.StrictMode>

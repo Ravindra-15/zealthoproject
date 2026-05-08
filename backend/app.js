@@ -18,8 +18,11 @@ const userRoutes = require("./routes/user.routes");
 const customerDoctorRoutes = require("./routes/customer.doctor.routes");
 const customerAppointmentRoutes = require("./routes/customer.appointment.routes");
 const customerBodyProfileRoutes = require("./routes/customer.bodyProfile.routes");
+const customerProfileRoutes = require("./routes/customer.profile.routes");
+const customerNotificationRoutes = require("./routes/customer.notification.routes");
+const customerBillingRoutes = require("./routes/customer.billing.routes");
+const customerProgramRoutes = require("./routes/customer.program.routes");
 
-const customerProgramRoutes = require("./routes/customer.program.routes.js")
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
 const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
@@ -96,6 +99,10 @@ app.use("/api/customer/doctors", customerAppointmentRoutes.publicDoctorRouter);
 app.use("/api/customer/appointments", customerAppointmentRoutes.appointmentRouter);
 app.use("/api/customer/body-profile", customerBodyProfileRoutes);
 app.use("/api/customer/programs", customerProgramRoutes);
+
+app.use("/api/customer/profile", customerProfileRoutes);
+app.use("/api/customer/notifications", customerNotificationRoutes);
+app.use("/api/customer/billing", customerBillingRoutes);
 // ============================================
 // 🔐 ADMIN ROUTES (NEW)
 // ============================================

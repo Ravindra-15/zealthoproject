@@ -35,6 +35,11 @@ import ProgramSuccess from "./pages/Customer/Programs/ProgramSuccess";
 import ProgramDashboard from "./pages/Customer/Programs/ProgramDashboard";
 import ProtectedProgramRoute from "./components/common/ProtectedProgramRoute";
 
+import MyProfile from "./pages/Customer/MyProfile/MyProfile";
+import CustomerNotifications from "./pages/Customer/Notifications/Notifications";
+import MyPlansAndBillings from "./pages/Customer/MyPlansAndBillings/MyPlansAndBillings";
+import Receipt from "./pages/Customer/Receipt/Receipt";
+
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
@@ -117,6 +122,41 @@ function App() {
           element={
             <ProtectedRoute>
               <MyAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-profile"
+          element={
+            <ProtectedRoute>
+              <MyProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <CustomerNotifications />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-plans-and-billings"
+          element={
+            <ProtectedRoute>
+              <MyPlansAndBillings />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/billing/receipt/:id"
+          element={
+            <ProtectedRoute>
+              <Receipt />
             </ProtectedRoute>
           }
         />
