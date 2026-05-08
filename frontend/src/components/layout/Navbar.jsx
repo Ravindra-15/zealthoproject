@@ -71,49 +71,11 @@ const Navbar = () => {
 
         {/* RIGHT */}
         <div className="flex items-center gap-3">
-          {token ? (
-            /* Profile dropdown */
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="w-9 h-9 rounded-full bg-teal-800 text-white text-sm font-semibold flex items-center justify-center"
-              >
-                U
-              </button>
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-                  <Link
-                    to="/home"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50"
-                  >
-                    My Profile
-                  </Link>
-                  <Link
-                    to="/my-appointments"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50"
-                  >
-                    Appointments
-                  </Link>
-                  <hr className="my-1 border-gray-100" />
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-[13px] text-red-500 hover:bg-gray-50"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Link to="/login">
-              <button className="bg-orange-500 text-white px-4 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium whitespace-nowrap">
-                Join now
-              </button>
-            </Link>
-          )}
-
+          <Link to="/login">
+  <button className="bg-orange-500 text-white px-4 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium whitespace-nowrap">
+    Join now
+  </button>
+</Link>
           {/* Mobile hamburger */}
           <button
             className="md:hidden flex flex-col gap-1.5 p-1"

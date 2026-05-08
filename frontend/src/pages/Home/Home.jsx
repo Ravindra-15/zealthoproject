@@ -1,7 +1,8 @@
 // src/pages/Home/Home.jsx
 
 import React, { useState, useEffect } from "react";
-import Navbar from "../../components/layout/Navbar";
+// import Navbar from "../../components/layout/Navbar";
+import CustomerNavbar from "../../components/customer/CustomerNavbar";
 import Modal from "../../components/common/Modal";
 import Button from "../../components/common/Button";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +18,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-      <Navbar />
+      <CustomerNavbar />
 
       <div className="p-10 text-center">
         <h1 className="text-3xl font-bold text-teal-800">Welcome to Zealtho</h1>

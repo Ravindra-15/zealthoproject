@@ -2,25 +2,11 @@
  * CUSTOMER MODULE — Top Navbar
  */
 
-import React, {
-  useState,
-  useContext,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 
-import {
-  Link,
-  NavLink,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 
-import {
-  Menu,
-  X,
-  Bell,
-} from "lucide-react";
+import { Menu, X, Bell } from "lucide-react";
 
 import AuthContext from "../../../context/AuthContext";
 
@@ -45,8 +31,17 @@ const CustomerNavbar = () => {
   const location = useLocation();
 
   const auth = useContext(AuthContext) || {};
-  const isLoggedIn = !!auth?.token;
 
+  const isLoggedIn = !!auth?.token;
+  const storedUser =
+    JSON.parse(localStorage.getItem("user")) ||
+    JSON.parse(sessionStorage.getItem("user"));
+
+  const profileCompleted =
+    storedUser?.fullName &&
+    storedUser?.dob &&
+    storedUser?.country &&
+    storedUser?.city;
   // ============================================
   // 🚫 HIDE AUTH UI ON AUTH PAGES
   // ============================================
@@ -57,22 +52,15 @@ const CustomerNavbar = () => {
     "/verify-otp",
   ];
 
-  const hideAuthUI =
-    authHiddenRoutes.includes(
-      location.pathname
-    );
+  const hideAuthUI = authHiddenRoutes.includes(location.pathname);
 
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const drawerRef = useRef(null);
 
-  const links = isLoggedIn
-    ? PRIVATE_LINKS
-    : PUBLIC_LINKS;
+  const links = isLoggedIn && profileCompleted ? PRIVATE_LINKS : PUBLIC_LINKS;
 
-  const closeMobile = () =>
-    setMobileOpen(false);
+  const closeMobile = () => setMobileOpen(false);
 
   // ============================================
   // ✅ CLOSE ON SCROLL
@@ -80,20 +68,11 @@ const CustomerNavbar = () => {
   useEffect(() => {
     if (!mobileOpen) return;
 
-    const handleScroll = () =>
-      closeMobile();
+    const handleScroll = () => closeMobile();
 
-    window.addEventListener(
-      "scroll",
-      handleScroll,
-      { passive: true }
-    );
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    return () =>
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [mobileOpen]);
 
   // ============================================
@@ -102,39 +81,20 @@ const CustomerNavbar = () => {
   useEffect(() => {
     if (!mobileOpen) return;
 
-    const handleClickOutside = (
-      e
-    ) => {
-      if (
-        drawerRef.current &&
-        !drawerRef.current.contains(
-          e.target
-        )
-      ) {
+    const handleClickOutside = (e) => {
+      if (drawerRef.current && !drawerRef.current.contains(e.target)) {
         closeMobile();
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
-    document.addEventListener(
-      "touchstart",
-      handleClickOutside
-    );
+    document.addEventListener("touchstart", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
 
-      document.removeEventListener(
-        "touchstart",
-        handleClickOutside
-      );
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [mobileOpen]);
 
@@ -178,9 +138,7 @@ const CustomerNavbar = () => {
                   <NavLink
                     key={link.to}
                     to={link.to}
-                    className={({
-                      isActive,
-                    }) =>
+                    className={({ isActive }) =>
                       `relative text-sm font-medium tracking-wide
                       transition-all duration-300 hover:-translate-y-[1px]
                       after:absolute after:left-0 after:-bottom-1
@@ -196,21 +154,18 @@ const CustomerNavbar = () => {
                   >
                     {link.label}
                   </NavLink>
-                )
+                ),
               )}
             </div>
 
             {/* 🎯 RIGHT SIDE */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {!hideAuthUI &&
-              isLoggedIn ? (
+              {!hideAuthUI && isLoggedIn && profileCompleted ? (
                 <>
                   {/* 🔔 NOTIFICATIONS */}
                   <NavLink
                     to="/notifications"
-                    className={({
-                      isActive,
-                    }) =>
+                    className={({ isActive }) =>
                       `hidden sm:inline-flex w-10 h-10 rounded-full items-center justify-center transition-colors ${
                         isActive
                           ? "bg-teal-50 text-teal-700"
@@ -225,9 +180,7 @@ const CustomerNavbar = () => {
                   {/* 👤 PROFILE */}
                   <button
                     type="button"
-                    onClick={() =>
-                      navigate("/profile")
-                    }
+                    onClick={() => navigate("/profile")}
                     className="
                       hidden sm:inline-flex items-center
                       px-5 py-2 rounded-full
@@ -243,9 +196,7 @@ const CustomerNavbar = () => {
               ) : !hideAuthUI ? (
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate("/signup")
-                  }
+                  onClick={() => navigate("/signup")}
                   className="
                     hidden sm:inline-flex items-center
                     px-5 py-2 rounded-full
@@ -262,17 +213,11 @@ const CustomerNavbar = () => {
               {/* 📱 MOBILE MENU */}
               <button
                 type="button"
-                onClick={() =>
-                  setMobileOpen((v) => !v)
-                }
+                onClick={() => setMobileOpen((v) => !v)}
                 className="lg:hidden w-10 h-10 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-50"
                 aria-label="Toggle menu"
               >
-                {mobileOpen ? (
-                  <X size={20} />
-                ) : (
-                  <Menu size={20} />
-                )}
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>
           </div>
@@ -297,9 +242,7 @@ const CustomerNavbar = () => {
                     key={link.to}
                     to={link.to}
                     onClick={closeMobile}
-                    className={({
-                      isActive,
-                    }) =>
+                    className={({ isActive }) =>
                       `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive
                           ? "bg-teal-50 text-teal-700"
@@ -309,11 +252,10 @@ const CustomerNavbar = () => {
                   >
                     {link.label}
                   </NavLink>
-                )
+                ),
               )}
 
-              {!hideAuthUI &&
-              isLoggedIn ? (
+              {!hideAuthUI && isLoggedIn && profileCompleted ? (
                 <>
                   <NavLink
                     to="/notifications"

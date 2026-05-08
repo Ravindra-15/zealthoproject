@@ -1,7 +1,8 @@
 // src/pages/Signup/ProfileStepOne.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../../components/layout/Navbar";
+// import Navbar from "../../components/layout/Navbar";
+import CustomerNavbar from "../../components/customer/layout/CustomerNavbar";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import ProgressBar from "../../components/common/ProgressBar";
@@ -77,7 +78,7 @@ const ProfileStepOne = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-      <Navbar />
+      <CustomerNavbar />
 
       <div className="flex flex-col md:flex-row justify-between items-start px-6 md:px-20 py-12 gap-12">
         {/* LEFT SECTION */}

@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../../components/layout/Navbar";
+// import Navbar from "../../components/layout/Navbar";
+import CustomerNavbar from "../../components/customer/layout/CustomerNavbar";
 import { signupUser } from "../../services/authService";
 import { validateSignup } from "../../utils/validators";
 import toast from "react-hot-toast";
@@ -97,7 +98,7 @@ const Signup = () => {
   };
   return (
     <div className="min-h-screen bg-[#f4efe8]">
-      <Navbar />
+      <CustomerNavbar />
 
       <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-20 py-10 md:py-16 gap-10 md:gap-0">
         {/* LEFT */}

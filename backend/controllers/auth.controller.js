@@ -136,10 +136,22 @@ exports.login = async (req, res) => {
     const jwt = require("jsonwebtoken");
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-    return successResponse(res, {
-      token,
-      user: { id: user._id, email: user.email, fullName: user.fullName, nickName: user.nickName },
-    }, "Login successful");
+    return successResponse(
+  res,
+  {
+    token,
+    user: {
+      id: user._id,
+      email: user.email,
+      fullName: user.fullName,
+      nickName: user.nickName,
+      dob: user.dob,
+      country: user.country,
+      city: user.city,
+    },
+  },
+  "Login successful"
+);
 
   } catch (error) {
     return errorResponse(res, error.message, 500);

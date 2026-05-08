@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useLocation, useNavigate } from "react-router-dom";
-import Navbar from "../../components/layout/Navbar";
+// import Navbar from "../../components/layout/Navbar";
+import CustomerNavbar from "../../components/customer/layout/CustomerNavbar";
 import Button from "../../components/common/Button";
 import { verifyOtp, resendOtp } from "../../services/authService";
 import toast from "react-hot-toast";
@@ -139,7 +140,7 @@ const OtpVerification = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-      <Navbar />
+      <CustomerNavbar />
 
       <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-20 pt-16 md:pt-20 pb-12 gap-8 md:gap-12">
         {/* LEFT SECTION */}

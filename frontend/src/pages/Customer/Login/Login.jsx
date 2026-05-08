@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 
-import Navbar from "../../../components/layout/Navbar";
+// import Navbar from "../../../components/layout/Navbar";
+import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import { useAuth } from "../../../context/AuthContext";
 
 import toast from "react-hot-toast";
@@ -84,10 +85,7 @@ const Login = () => {
 
     setForm({
       ...form,
-      [name]:
-        name === "email"
-          ? value.toLowerCase().trim()
-          : value,
+      [name]: name === "email" ? value.toLowerCase().trim() : value,
     });
   };
 
@@ -104,38 +102,38 @@ const Login = () => {
 
       const { data } = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/auth/login`,
-        form
+        form,
       );
 
       login(data.data.token, remember);
 
       // Store user
-      const storage = remember
-        ? localStorage
-        : sessionStorage;
+      const storage = remember ? localStorage : sessionStorage;
 
-      storage.setItem(
-        "user",
-        JSON.stringify(data.data.user)
-      );
+      storage.setItem("user", JSON.stringify(data.data.user));
 
       toast.success("Welcome back!");
 
-      const params = new URLSearchParams(
-        location.search
-      );
+      const params = new URLSearchParams(location.search);
 
       const next = params.get("next");
 
-      navigate(
-        next?.startsWith("/")
-          ? next
-          : "/book-doctor"
-      );
+      const user = data.data.user;
+
+      const profileStepOneComplete = user?.fullName && user?.nickName;
+
+      const profileStepTwoComplete = user?.dob && user?.country && user?.city;
+
+      // Redirect logic
+      if (!profileStepOneComplete) {
+        navigate("/profile-step-1");
+      } else if (!profileStepTwoComplete) {
+        navigate("/profile-step-2");
+      } else {
+        navigate(next?.startsWith("/") ? next : "/home");
+      }
     } catch (err) {
-      const message =
-        err?.response?.data?.message ||
-        "Something went wrong";
+      const message = err?.response?.data?.message || "Something went wrong";
 
       toast.error(message);
     } finally {
@@ -148,21 +146,18 @@ const Login = () => {
   // ============================================
   return (
     <div className="min-h-screen bg-[#f4efe8]">
-      <Navbar />
+      <CustomerNavbar />
 
       <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-20 py-10 md:py-16 gap-10 md:gap-0">
         {/* LEFT */}
         <div className="max-w-md mx-auto md:mx-0 text-center md:text-left px-2">
           <h1 className="text-[38px] md:text-[52px] font-semibold text-teal-900 leading-[1.15]">
             Welcome <br />
-            <span className="text-orange-500">
-              Back to Zealtho
-            </span>
+            <span className="text-orange-500">Back to Zealtho</span>
           </h1>
 
           <p className="mt-4 text-gray-600 text-[14px] leading-[1.6] max-w-[420px] mx-auto md:mx-0">
-            Pick up right where you left off —
-            your wellness goals are waiting
+            Pick up right where you left off — your wellness goals are waiting
           </p>
         </div>
 
@@ -186,11 +181,7 @@ const Login = () => {
             {/* PASSWORD */}
             <div className="relative">
               <input
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
+                type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 name="password"
                 value={form.password}
@@ -200,16 +191,10 @@ const Login = () => {
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
+                onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
               >
-                {showPassword ? (
-                  <EyeOff />
-                ) : (
-                  <EyeOpen />
-                )}
+                {showPassword ? <EyeOff /> : <EyeOpen />}
               </button>
             </div>
 
@@ -219,12 +204,9 @@ const Login = () => {
                 <input
                   type="checkbox"
                   checked={remember}
-                  onChange={(e) =>
-                    setRemember(e.target.checked)
-                  }
+                  onChange={(e) => setRemember(e.target.checked)}
                   className="accent-orange-500 w-4 h-4"
                 />
-
                 Remember me
               </label>
 
@@ -239,17 +221,13 @@ const Login = () => {
               disabled={loading}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-full text-[14px] font-medium transition"
             >
-              {loading
-                ? "Logging in..."
-                : "Log In"}
+              {loading ? "Logging in..." : "Log In"}
             </button>
 
             {/* DIVIDER */}
             <div className="flex items-center gap-3 text-gray-400 text-xs my-2">
               <div className="flex-1 h-px bg-gray-300" />
-
               OR
-
               <div className="flex-1 h-px bg-gray-300" />
             </div>
 
@@ -298,9 +276,7 @@ const Login = () => {
       >
         <WhatsAppIcon />
 
-        <span className="hidden sm:inline">
-          Chat With Us !
-        </span>
+        <span className="hidden sm:inline">Chat With Us !</span>
       </a>
     </div>
   );
