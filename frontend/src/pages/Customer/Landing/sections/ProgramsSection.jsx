@@ -1,9 +1,11 @@
-import { Link } from "react-router-dom";
+// Zealtho - Tailored Programs Section
+// Cross-promo to all child programs (Yoga T20, Diabmukt, MommyFit, Slimfitter)
+// Each card opens its program in a new tab
 
 const programs = [
   {
-    id: "zealtho",
-    title: "Zealtho",
+    id: "yogat20",
+    title: "Yoga T20",
     subtitle: "Master the Art of Consistency. 20 Minutes to a Balanced Life",
     bg: "bg-[#FFF3E8]",
     accent: "bg-[#FFD8B5]",
@@ -11,7 +13,7 @@ const programs = [
     image: "/images/yogaT20.png",
     btnBg:
       "bg-orange-500 hover:bg-orange-600 shadow-[0_4px_14px_rgba(249,115,22,0.35)]",
-    path: "/programs/yogat20",
+    url: import.meta.env.VITE_YOGAT20_URL || "http://localhost:5174",
   },
   {
     id: "diabmukt",
@@ -23,7 +25,7 @@ const programs = [
     image: "/images/diabmuktCouple.png",
     btnBg:
       "bg-[#4F6EF7] hover:bg-[#3F5EE6] shadow-[0_4px_14px_rgba(79,110,247,0.30)]",
-    path: "/programs/diabmukt",
+    url: import.meta.env.VITE_DIABMUKT_URL || "#",
   },
   {
     id: "mommyfit",
@@ -36,7 +38,7 @@ const programs = [
     image: "/images/mommyfitFamily.png",
     btnBg:
       "bg-pink-500 hover:bg-pink-600 shadow-[0_4px_14px_rgba(236,72,153,0.25)]",
-    path: "/programs/mommyfit",
+    url: import.meta.env.VITE_MOMMYFIT_URL || "#",
   },
   {
     id: "slimfitter",
@@ -48,7 +50,7 @@ const programs = [
     image: "/images/slimfitterHero.png",
     btnBg:
       "bg-indigo-700 hover:bg-indigo-800 shadow-[0_4px_14px_rgba(67,56,202,0.25)]",
-    path: "/programs/slimfitter",
+    url: import.meta.env.VITE_SLIMFITTER_URL || "#",
   },
 ];
 
@@ -56,7 +58,6 @@ export default function ProgramsSection() {
   return (
     <section id="programs" className="py-16 lg:py-24 bg-white scroll-mt-24">
       <div className="max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-14">
-        {/* heading */}
         <div className="text-center mb-12 lg:mb-16">
           <h2 className="text-3xl sm:text-4xl lg:text-4xl font-bold text-[#0F172A] mb-3">
             Tailored Programs <span className="text-orange-500">for you !</span>
@@ -78,37 +79,28 @@ export default function ProgramsSection() {
                   relative overflow-hidden rounded-[36px]
                   ${prog.bg}
                   min-h-[240px] lg:min-h-[290px]
-                  flex flex-col lg:flex-row
-                  items-center
-                  px-6 py-6
-                   lg:px-10 lg:py-0
+                  flex flex-col lg:flex-row items-center
+                  px-6 py-6 lg:px-10 lg:py-0
                 `}
               >
-                {/* accent background shape */}
                 <div
                   className={`
-                        absolute
-                        w-[220px] h-[220px]
-                        lg:w-[320px] lg:h-[320px]
-                        rounded-full
-                        ${prog.accent}
-                        opacity-70
-                        blur-[2px]
-                        top-1/2 -translate-y-1/2
-                        z-0
-                        ${
-                          isRight
-                            ? "left-[80px] lg:left-[120px]"
-                            : "right-[80px] lg:right-[120px]"
-                        }
-                    `}
+                    absolute w-[220px] h-[220px]
+                    lg:w-[320px] lg:h-[320px]
+                    rounded-full ${prog.accent}
+                    opacity-70 blur-[2px]
+                    top-1/2 -translate-y-1/2 z-0
+                    ${
+                      isRight
+                        ? "left-[80px] lg:left-[120px]"
+                        : "right-[80px] lg:right-[120px]"
+                    }
+                  `}
                 />
 
-                {/* LEFT CONTENT */}
                 <div
                   className={`
-                    relative z-10
-                    w-full lg:w-1/2
+                    relative z-10 w-full lg:w-1/2
                     flex flex-col justify-center
                     ${
                       isRight
@@ -126,30 +118,27 @@ export default function ProgramsSection() {
                       {prog.subtitle}
                     </p>
 
-                    <Link
-                      to={prog.path}
+                    <a
+                      href={prog.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className={`
                         inline-flex items-center justify-center
-                        text-white text-sm lg:text-base
-                        font-semibold
-                        px-8 lg:px-10
-                        py-3 rounded-full
+                        text-white text-sm lg:text-base font-semibold
+                        px-8 lg:px-10 py-3 rounded-full
                         transition-all duration-300
                         ${prog.btnBg}
                       `}
                     >
                       Join Now !
-                    </Link>
+                    </a>
                   </div>
                 </div>
 
-                {/* IMAGE SIDE */}
                 <div
                   className={`
-                    relative z-10
-                    w-full lg:w-1/2
-                    flex items-end justify-center
-                    mt-8 lg:mt-0
+                    relative z-10 w-full lg:w-1/2
+                    flex items-end justify-center mt-8 lg:mt-0
                     ${
                       isRight
                         ? "lg:order-1 lg:justify-start"
@@ -160,15 +149,7 @@ export default function ProgramsSection() {
                   <img
                     src={prog.image}
                     alt={prog.title}
-                    className="
-  relative z-10
-  w-[220px]
-  sm:w-[260px]
-  lg:w-[360px]
-  xl:w-[420px]
-  object-contain
-  drop-shadow-[0_12px_30px_rgba(0,0,0,0.08)]
-"
+                    className="relative z-10 w-[220px] sm:w-[260px] lg:w-[360px] xl:w-[420px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.08)]"
                   />
                 </div>
               </div>

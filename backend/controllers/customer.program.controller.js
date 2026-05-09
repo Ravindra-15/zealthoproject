@@ -3,11 +3,13 @@ const ProgramSubscription = require("../models/ProgramSubscription");
 // ============================================
 // 💰 PROGRAM PRICES
 // ============================================
+// Yoga T20 launch pricing (Day-1 hardcoded — admin will edit later)
+// 3 Months → $45 total ($15/month)
+// 12 Months → $84 total ($7/month)
 const programPrices = {
-  "3 Months": 21,
-  "12 Months": 45,
+  "3 Months": 45,
+  "12 Months": 84,
 };
-
 // ============================================
 // 📦 PROGRAM NAMES
 // ============================================

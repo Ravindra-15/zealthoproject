@@ -26,7 +26,7 @@ const customerProgramRoutes = require("./routes/customer.program.routes");
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
 const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
-const adminUserRoutes  = require("./routes/admin.user.routes");
+const adminUserRoutes = require("./routes/admin.user.routes");
 const adminDoctorRoutes = require("./routes/admin.doctor.routes");
 const adminAppointmentRoutes = require('./routes/admin.appointment.routes')
 const doctorAuthRoutes = require("./routes/doctor.auth.routes");
@@ -43,9 +43,19 @@ app.use(helmet());
 // ============================================
 // 🌐 CORS
 // ============================================
+// Allow both Zealtho and YogaT20 frontends (and any other program frontends added later)
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+  : ["http://localhost:5173", "http://localhost:5174"];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
