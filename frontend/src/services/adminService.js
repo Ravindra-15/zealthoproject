@@ -17,7 +17,7 @@ import axios from "axios";
 // 🌐 ADMIN: Axios instance configured for admin API
 // ============================================
 const adminApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",

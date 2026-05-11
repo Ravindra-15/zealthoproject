@@ -102,24 +102,24 @@ const AdminSidebar = ({ onNavigate }) => {
         },
       ],
     },
-    {
-      title: "CONFIGURATION",
-      collapsible: true,
-      items: [
-        { icon: Activity, label: "Habit Configurator", to: "/admin/habits" },
-        {
-          icon: IndianRupee,
-          label: "Subscription Price Configurator",
-          to: "/admin/subscriptions",
-        },
-      ],
-    },
+    // {
+    //   title: "CONFIGURATION",
+    //   collapsible: true,
+    //   items: [
+    //     { icon: Activity, label: "Habit Configurator", to: "/admin/habits" },
+    //     {
+    //       icon: IndianRupee,
+    //       label: "Subscription Price Configurator",
+    //       to: "/admin/subscriptions",
+    //     },
+    //   ],
+    // },
     {
       title: "CONTENT MANAGEMENT",
       collapsible: true,
       items: [
         { icon: Video, label: "Clinical Video CMS", to: "/admin/videos" },
-        { icon: Gift, label: "Referral Engine", to: "/admin/referrals" },
+        // { icon: Gift, label: "Referral Engine", to: "/admin/referrals" },
         { icon: MessageSquare, label: "Enquiries", to: "/admin/enquiries" },
         { icon: FileText, label: "Financial Reports", to: "/admin/reports" },
       ],

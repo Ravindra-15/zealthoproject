@@ -1,5 +1,10 @@
+// Zealtho - Callback Section
+// Submits enquiry to real backend; admin sees it in /admin/enquiries
+// Source field tags the enquiry as coming from "zealtho" (parent site)
+
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { submitEnquiry } from "../../../../services/customerEnquiryService";
 
 const initialForm = { name: "", email: "", phone: "", message: "" };
 
@@ -10,15 +15,41 @@ export default function CallbackSection() {
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async () => {
-    if (!form.name || !form.phone) {
-      toast.error("Name and phone are required.");
+    if (!form.name.trim()) {
+      toast.error("Name is required.");
       return;
     }
+    if (!form.phone.trim()) {
+      toast.error("Mobile number is required.");
+      return;
+    }
+    if (!/^\+?[0-9\s-]{7,20}$/.test(form.phone.trim())) {
+      toast.error("Please enter a valid mobile number.");
+      return;
+    }
+    if (form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    setForm(initialForm);
-    toast.success("We'll call you back within 12 hours!");
+    try {
+      await submitEnquiry({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        message: form.message.trim(),
+        source: "zealtho",
+      });
+      toast.success("We'll call you back within 12 hours!");
+      setForm(initialForm);
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || "Failed to submit. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass =
