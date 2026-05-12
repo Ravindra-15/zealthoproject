@@ -2,22 +2,20 @@
  * ADMIN MODULE — Dashboard Controller
  * HTTP request handlers for /api/admin/dashboard/*
  * Calls dashboard service and formats responses.
+ *
+ * Program-aware: every endpoint reads `programId` from query string
+ * and forwards it to the service so data scopes to the selected program.
  */
 
 const dashboardService = require("../services/dashboard.service");
 
 // ============================================
-// 📊 GET /api/admin/dashboard/stats
+// 📊 GET /api/admin/dashboard/stats?programId=yogat20
 // ============================================
-
-/**
- * @route   GET /api/admin/dashboard/stats
- * @desc    Returns the 6 top stat cards data
- * @access  Private (admin token required)
- */
 const getStats = async (req, res) => {
   try {
-    const stats = await dashboardService.getDashboardStats();
+    const { programId } = req.query;
+    const stats = await dashboardService.getDashboardStats(programId);
 
     return res.status(200).json({
       success: true,
@@ -35,15 +33,6 @@ const getStats = async (req, res) => {
 // ============================================
 // 📈 GET /api/admin/dashboard/users-trend
 // ============================================
-
-/**
- * @route   GET /api/admin/dashboard/users-trend
- * @desc    Returns daily cumulative user count for the chart
- * @access  Private (admin token required)
- *
- * Query params:
- *   days = number of days to look back (default: 30, max: 90)
- */
 const getUsersTrend = async (req, res) => {
   try {
     const { days } = req.query;
@@ -63,22 +52,16 @@ const getUsersTrend = async (req, res) => {
 };
 
 // ============================================
-// ⏳ GET /api/admin/dashboard/expiring-subscriptions
+// ⏳ GET /api/admin/dashboard/expiring-subscriptions?programId=yogat20
 // ============================================
-
-/**
- * @route   GET /api/admin/dashboard/expiring-subscriptions
- * @desc    Returns users with subscriptions expiring soon (Remind Users table)
- * @access  Private (admin token required)
- *
- * Query params:
- *   filter = "expiring-soon" | "expired" | "active" (default: "expiring-soon")
- *   limit  = max records to return (default: 10, max: 50)
- */
 const getExpiringSubscriptions = async (req, res) => {
   try {
-    const { filter, limit } = req.query;
-    const users = await dashboardService.getExpiringSubscriptions(filter, limit);
+    const { filter, limit, programId } = req.query;
+    const users = await dashboardService.getExpiringSubscriptions(
+      filter,
+      limit,
+      programId
+    );
 
     return res.status(200).json({
       success: true,
@@ -96,7 +79,6 @@ const getExpiringSubscriptions = async (req, res) => {
 // ============================================
 // 📦 EXPORTS
 // ============================================
-
 module.exports = {
   getStats,
   getUsersTrend,

@@ -12,7 +12,7 @@
 import React from "react";
 import {
   Users,
-  IndianRupee,
+  DollarSign,
   Stethoscope,
   UserCog,
 } from "lucide-react";
@@ -60,7 +60,7 @@ const Dashboard = () => {
         id: "active-subscriptions",
         label: "Active Subscriptions",
         value: formatNumber(stats.activeSubscriptions),
-        icon: IndianRupee,
+        icon: DollarSign,
         iconBg: "bg-emerald-50",
         iconColor: "text-emerald-500",
       },
@@ -68,7 +68,7 @@ const Dashboard = () => {
         id: "expired-subscriptions",
         label: "Expired Subscriptions",
         value: formatNumber(stats.expiredSubscriptions),
-        icon: IndianRupee,
+        icon: DollarSign,
         iconBg: "bg-red-50",
         iconColor: "text-red-500",
       },
@@ -92,7 +92,7 @@ const Dashboard = () => {
         id: "revenue-month",
         label: "Revenue This Month",
         value: formatRevenue(stats.revenueThisMonth),
-        icon: IndianRupee,
+        icon: DollarSign,
         iconBg: "bg-emerald-50",
         iconColor: "text-emerald-500",
       },
@@ -141,7 +141,7 @@ const formatNumber = (num) => {
 /**
  * Format revenue values:
  *  - >= 100,000 → "47.9K"
- *  - <  100,000 → "₹1,247"
+ *  - <  100,000 → "$1,247"
  */
 const formatRevenue = (num) => {
   if (num === null || num === undefined || num === 0) return "0";

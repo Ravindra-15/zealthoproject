@@ -24,6 +24,7 @@ const customerBillingRoutes = require("./routes/customer.billing.routes");
 const customerProgramRoutes = require("./routes/customer.program.routes");
 
 const customerEnquiryRoutes = require("./routes/customer.enquiry.routes");
+const adminFinancialReportRoutes = require("./routes/admin.financialReport.routes");
 
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
@@ -36,6 +37,7 @@ const doctorAvailabilityRoutes = require("./routes/doctor.availability.routes")
 const doctorAppointmentRoutes = require("./routes/doctor.appointment.routes");
 
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
+const adminBillingRoutes = require("./routes/admin.billing.routes");
 
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
@@ -136,6 +138,8 @@ app.use("/api/admin/appointments", adminAppointmentRoutes);
 // app.use("/api/admin/activities", adminActivityRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/enquiries", adminEnquiryRoutes);
+app.use("/api/admin/financial-reports", adminFinancialReportRoutes);
+app.use("/api/admin/billing", adminBillingRoutes);
 
 // ============================================
 // 🚫 404 HANDLER

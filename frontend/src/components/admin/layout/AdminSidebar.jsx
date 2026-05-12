@@ -3,9 +3,14 @@
  * ADMIN MODULE — Sidebar Navigation
  * ============================================
  * Main navigation sidebar for the admin panel.
- * Contains brand block, tenant switcher, navigation items
- * (grouped into collapsible sections), profile block, and logout.
- * Appointment Log badge shows live pending count from API.
+ * Includes program switcher (dropdown) backed by SelectedProgramContext.
+ *
+ * Menu items adapt based on selected program:
+ *  - Zealtho (parent): Doctor Directory, User Directory, Appointment Log,
+ *    Clinical Video CMS, Enquiries, Financial Reports
+ *  - Child programs (yogat20/diabmukt/mommyfit/slimfitter): all of above
+ *    PLUS Configuration section (Habit Configurator, Subscription Price
+ *    Configurator, Settings, Referral Engine)
  *
  * Used by: AdminLayout
  * Access: Super Admin only
@@ -28,8 +33,11 @@ import {
   MessageSquare,
   FileText,
   LogOut,
+  Check,
+  Settings,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 import { getAppointmentCounts } from "../../../services/appointmentService";
 import toast from "react-hot-toast";
 import AdminSidebarSection from "./AdminSidebarSection";
@@ -39,9 +47,11 @@ const AdminSidebar = ({ onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🏢 ADMIN: Tenant/Brand switcher state (placeholder until multi-tenant backend exists)
-  const [selectedTenant] = useState("Slimfitter");
-  const [isTenantOpen, setIsTenantOpen] = useState(false);
+  // 🏢 ADMIN: Program switcher — backed by global context
+  const { selectedProgram, selectProgram, availablePrograms } =
+    useSelectedProgram();
+  const [isProgramOpen, setIsProgramOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   // 🔢 ADMIN: Pending appointments badge — live count
   const [pendingCount, setPendingCount] = useState(0);
@@ -67,6 +77,18 @@ const AdminSidebar = ({ onNavigate }) => {
     };
   }, [location.pathname]);
 
+  // 🖱️ Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isProgramOpen) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsProgramOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isProgramOpen]);
+
   // 🚪 ADMIN: Logout handler — clears admin session
   const { logout } = useAdminAuth();
   const handleLogout = async () => {
@@ -75,11 +97,27 @@ const AdminSidebar = ({ onNavigate }) => {
     navigate("/admin/login", { replace: true });
   };
 
+  // 🔄 Switch program — closes dropdown + shows feedback
+  const handleProgramSwitch = (programId) => {
+    if (programId === selectedProgram.id) {
+      setIsProgramOpen(false);
+      return;
+    }
+    selectProgram(programId);
+    setIsProgramOpen(false);
+    const programLabel =
+      availablePrograms.find((p) => p.id === programId)?.label || programId;
+    toast.success(`Switched to ${programLabel}`);
+  };
+
+  // 🏢 Is current program a child program (i.e. has subscriptions)?
+  const isChildProgram = selectedProgram.id !== "zealtho";
+
   // 🧭 ADMIN: Navigation structure — grouped by feature area
-  // Each section is collapsible. Items within link to admin routes.
+  // Built dynamically so Configuration section only renders for child programs
   const navSections = [
     {
-      title: null, // No section header for top-level items
+      title: null,
       items: [
         {
           icon: LayoutDashboard,
@@ -102,26 +140,46 @@ const AdminSidebar = ({ onNavigate }) => {
         },
       ],
     },
-    // {
-    //   title: "CONFIGURATION",
-    //   collapsible: true,
-    //   items: [
-    //     { icon: Activity, label: "Habit Configurator", to: "/admin/habits" },
-    //     {
-    //       icon: IndianRupee,
-    //       label: "Subscription Price Configurator",
-    //       to: "/admin/subscriptions",
-    //     },
-    //   ],
-    // },
+    // 🏢 CONFIGURATION section — only for child programs (yogat20, diabmukt, etc.)
+    // Zealtho is the parent platform and doesn't have program-specific configuration.
+    ...(isChildProgram
+      ? [
+          {
+            title: "CONFIGURATION",
+            collapsible: true,
+            items: [
+              {
+                icon: Activity,
+                label: "Habit Configurator",
+                to: "/admin/habits",
+              },
+              {
+                icon: IndianRupee,
+                label: "Subscription Price Configurator",
+                to: "/admin/subscriptions",
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "CONTENT MANAGEMENT",
       collapsible: true,
       items: [
-        { icon: Video, label: "Clinical Video CMS", to: "/admin/videos" },
-        // { icon: Gift, label: "Referral Engine", to: "/admin/referrals" },
+        // 🏢 Clinical Video CMS — only for child programs (Zealtho is parent, no videos)
+        ...(isChildProgram
+          ? [{ icon: Video, label: "Clinical Video CMS", to: "/admin/videos" }]
+          : []),
+        // 🏢 Referral Engine — only for child programs
+        ...(isChildProgram
+          ? [{ icon: Gift, label: "Referral Engine", to: "/admin/referrals" }]
+          : []),
         { icon: MessageSquare, label: "Enquiries", to: "/admin/enquiries" },
-        { icon: FileText, label: "Financial Reports", to: "/admin/reports" },
+        { icon: FileText, label: "Financial Reports", to: "/admin/financial-reports" },
+        // 🏢 Settings — only for child programs
+        ...(isChildProgram
+          ? [{ icon: Settings, label: "Settings", to: "/admin/settings" }]
+          : []),
       ],
     },
   ];
@@ -141,28 +199,64 @@ const AdminSidebar = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* 🏢 ADMIN: Tenant/Brand Switcher (placeholder dropdown) */}
-      <div className="px-4 pb-4">
+      {/* 🏢 ADMIN: Program Switcher (functional dropdown) */}
+      <div className="px-4 pb-4 relative" ref={dropdownRef}>
         <button
-          onClick={() => setIsTenantOpen((prev) => !prev)}
+          onClick={() => setIsProgramOpen((prev) => !prev)}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
           aria-haspopup="listbox"
-          aria-expanded={isTenantOpen}
+          aria-expanded={isProgramOpen}
         >
-          <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500" />
-            <span className="text-sm font-medium text-gray-800">
-              {selectedTenant}
+          <span className="flex items-center gap-2 min-w-0">
+            <span
+              className={`w-2 h-2 rounded-full ${selectedProgram.color} shrink-0`}
+            />
+            <span className="text-sm font-medium text-gray-800 truncate">
+              {selectedProgram.label}
             </span>
           </span>
           <ChevronDown
             size={16}
-            className={`text-gray-500 transition-transform ${
-              isTenantOpen ? "rotate-180" : ""
+            className={`text-gray-500 transition-transform shrink-0 ${
+              isProgramOpen ? "rotate-180" : ""
             }`}
           />
         </button>
-        {/* Future: dropdown options will render here when multi-tenant is implemented */}
+
+        {/* Dropdown options */}
+        {isProgramOpen && (
+          <div
+            role="listbox"
+            className="absolute left-4 right-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 max-h-72 overflow-y-auto"
+          >
+            {availablePrograms.map((program) => {
+              const isActive = program.id === selectedProgram.id;
+              return (
+                <button
+                  key={program.id}
+                  role="option"
+                  aria-selected={isActive}
+                  onClick={() => handleProgramSwitch(program.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "bg-indigo-50 text-indigo-700 font-semibold"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`w-2 h-2 rounded-full ${program.color} shrink-0`}
+                    />
+                    <span className="truncate">{program.label}</span>
+                  </span>
+                  {isActive && (
+                    <Check size={14} className="text-indigo-600 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 🧭 ADMIN: Scrollable navigation area */}
@@ -172,7 +266,7 @@ const AdminSidebar = ({ onNavigate }) => {
       >
         {navSections.map((section, idx) => (
           <AdminSidebarSection
-            key={idx}
+            key={`${idx}-${selectedProgram.id}`}
             title={section.title}
             collapsible={section.collapsible}
           >
@@ -192,10 +286,8 @@ const AdminSidebar = ({ onNavigate }) => {
 
       {/* 👤 ADMIN: Profile + Logout block at bottom */}
       <div className="border-t border-gray-200 mt-auto">
-        {/* Admin user info */}
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
-            {/* Placeholder avatar — replace with real avatar later */}
             <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400" />
           </div>
           <div className="min-w-0 flex-1">
@@ -206,7 +298,6 @@ const AdminSidebar = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* 🚪 Logout button */}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-5 py-3 text-red-600 hover:bg-red-50 transition-colors text-sm font-semibold border-t border-gray-100"

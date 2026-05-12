@@ -19,7 +19,7 @@ const {
   generateSlotStartTimes,
 } = require("../utils/availabilityConstants");
 const paymentService = require("./payment.service");
-
+const Consultation = require("../models/Consultation");
 // ============================================
 // 💰 BOOKING FEE (constant for now; future: per-doctor)
 // ============================================
@@ -214,6 +214,20 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "" }) => {
     status: "confirmed",
     notes,
   });
+
+  await Consultation.create({
+  user: userId,
+  doctor: doctorId,
+  doctorName: doctor.fullName,
+  durationMinutes: SLOT_DURATION_MINUTES,
+  consultedAt: slotStart,
+  fee: BOOKING_FEE,
+  status: "completed",
+  paymentStatus: "paid",
+  paidAt: new Date(),
+  programSource: "zealtho",
+  notes,
+});
 
   return { appointment, paymentResult };
 };
