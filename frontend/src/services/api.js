@@ -2,7 +2,8 @@ import axios from "axios";
 
 const API = axios.create({
   // baseURL: import.meta.env.VITE_API_BASE_URL, 
-  baseURL:"https://zealtho.delicode.com" , // e.g. http://localhost:5000/api
+  // baseURL:"https://zealtho.delicode.com" , 
+  baseURL: import.meta.env.VITE_API_BASE_URL,// e.g. http://localhost:5000/api
   withCredentials: true, // 🔥 important for cookies (future use)
 });
 
