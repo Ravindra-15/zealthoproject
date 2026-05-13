@@ -1,15 +1,6 @@
 const ProgramSubscription = require("../models/ProgramSubscription");
+const ProgramPlan = require("../models/ProgramPlan");
 
-// ============================================
-// 💰 PROGRAM PRICES
-// ============================================
-// Yoga T20 launch pricing (Day-1 hardcoded — admin will edit later)
-// 3 Months → $45 total ($15/month)
-// 12 Months → $84 total ($7/month)
-const programPrices = {
-  "3 Months": 45,
-  "12 Months": 84,
-};
 // ============================================
 // 📦 PROGRAM NAMES
 // ============================================
@@ -21,11 +12,12 @@ const programNames = {
 };
 
 // ============================================
-// 📅 GET MONTHS
+// 📅 GET MONTHS — fallback parser if plan.durationMonths missing
 // ============================================
-const getTenureMonths = (tenure) => {
-  if (tenure === "12 Months") return 12;
-  if (tenure === "3 Months") return 3;
+const parseMonthsFromName = (tenure) => {
+  if (!tenure) return 3;
+  const match = String(tenure).match(/(\d+)\s*month/i);
+  if (match) return parseInt(match[1], 10);
   return 3;
 };
 
@@ -49,9 +41,7 @@ const subscribeToProgram = async (req, res) => {
       });
     }
 
-    const purchasedByRole = doctorId
-      ? "doctor"
-      : "customer";
+    const purchasedByRole = doctorId ? "doctor" : "customer";
 
     // ============================================
     // ✅ VALIDATION
@@ -68,9 +58,19 @@ const subscribeToProgram = async (req, res) => {
       });
     }
 
-    if (!programPrices[tenure]) {
-      return res.status(400).json({
-        message: "Invalid subscription tenure.",
+    // ============================================
+    // 💰 LOOKUP PLAN FROM DB (admin-configured pricing)
+    // ============================================
+    const plan = await ProgramPlan.findOne({
+      programId,
+      planName: tenure,
+      isActive: true,
+    });
+
+    if (!plan) {
+      return res.status(404).json({
+        message:
+          "Selected plan is unavailable. Please refresh and try again.",
       });
     }
 
@@ -91,92 +91,82 @@ const subscribeToProgram = async (req, res) => {
       existingQuery.doctor = doctorId;
     }
 
-    const existingSubscription =
-      await ProgramSubscription.findOne(existingQuery);
+    const existingSubscription = await ProgramSubscription.findOne(existingQuery);
 
     if (existingSubscription) {
       return res.status(409).json({
-        message:
-          "You already have an active subscription for this program.",
+        message: "You already have an active subscription for this program.",
       });
     }
 
     // ============================================
-    // 💵 PRICING
+    // 💵 PRICING — snapshot from plan (price at purchase time)
+    // Editing the plan price later WILL NOT affect this subscription's amount.
     // ============================================
-    const amount = programPrices[tenure];
+    const amount = plan.offerPrice;
 
     // ============================================
-    // 📆 DATES
+    // 📆 DATES — use plan.durationMonths, fallback to parsing the name
     // ============================================
-    const months = getTenureMonths(tenure);
+    const months = plan.durationMonths || parseMonthsFromName(tenure);
 
     const startDate = new Date();
 
     const endDate = new Date();
-
     endDate.setMonth(endDate.getMonth() + months);
 
     // ============================================
     // 💳 TRANSACTION
     // ============================================
-    const transactionId =
-      "TXN_" + Date.now();
+    const transactionId = "TXN_" + Date.now();
 
     // ============================================
     // 📦 CREATE SUBSCRIPTION
     // ============================================
-    const subscription =
-      await ProgramSubscription.create({
-        customer: customerId || null,
+    const subscription = await ProgramSubscription.create({
+      customer: customerId || null,
 
-        doctor: doctorId || null,
+      doctor: doctorId || null,
 
-        purchasedByRole,
+      purchasedByRole,
 
-        programId,
+      programId,
 
-        programName: programNames[programId],
+      programName: programNames[programId],
 
-        tenure,
+      tenure,
 
-        amount,
+      amount,
 
-        referralCode:
-          referralCode?.trim() || null,
+      referralCode: referralCode?.trim() || null,
 
-        paymentStatus: "paid",
+      paymentStatus: "paid",
 
-        paymentProvider: "manual",
+      paymentProvider: "manual",
 
-        transactionId,
+      transactionId,
 
-        status: "active",
+      status: "active",
 
-        startDate,
+      startDate,
 
-        endDate,
-      });
+      endDate,
+    });
 
     return res.status(201).json({
       success: true,
 
-      message:
-        "Program subscription activated successfully.",
+      message: "Program subscription activated successfully.",
 
       subscription,
     });
   } catch (err) {
-    console.error(
-      "subscribeToProgram error:",
-      err
-    );
+    console.error("subscribeToProgram error:", err);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        "Something went wrong while activating subscription.",
+      message: "Something went wrong while activating subscription.",
     });
   }
 };
@@ -184,6 +174,7 @@ const subscribeToProgram = async (req, res) => {
 // ============================================
 // 📋 GET MY SUBSCRIPTIONS
 // GET /api/customer/programs/my-subscriptions
+// (unchanged)
 // ============================================
 const getMySubscriptions = async (req, res) => {
   try {
@@ -206,11 +197,9 @@ const getMySubscriptions = async (req, res) => {
       query.doctor = doctorId;
     }
 
-    const subscriptions =
-      await ProgramSubscription.find(query)
-        .sort({
-          createdAt: -1,
-        });
+    const subscriptions = await ProgramSubscription.find(query).sort({
+      createdAt: -1,
+    });
 
     return res.status(200).json({
       success: true,
@@ -218,16 +207,12 @@ const getMySubscriptions = async (req, res) => {
       subscriptions,
     });
   } catch (err) {
-    console.error(
-      "getMySubscriptions error:",
-      err
-    );
+    console.error("getMySubscriptions error:", err);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        "Failed to fetch subscriptions.",
+      message: "Failed to fetch subscriptions.",
     });
   }
 };
@@ -235,6 +220,7 @@ const getMySubscriptions = async (req, res) => {
 // ============================================
 // 🎯 GET PROGRAM STATUS
 // GET /api/customer/programs/:programId/status
+// (unchanged)
 // ============================================
 const getProgramStatus = async (req, res) => {
   try {
@@ -257,28 +243,22 @@ const getProgramStatus = async (req, res) => {
       query.doctor = doctorId;
     }
 
-    const subscription =
-      await ProgramSubscription.findOne(query);
+    const subscription = await ProgramSubscription.findOne(query);
 
     return res.status(200).json({
       success: true,
 
       subscribed: !!subscription,
 
-      subscription:
-        subscription || null,
+      subscription: subscription || null,
     });
   } catch (err) {
-    console.error(
-      "getProgramStatus error:",
-      err
-    );
+    console.error("getProgramStatus error:", err);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        "Failed to fetch program status.",
+      message: "Failed to fetch program status.",
     });
   }
 };
@@ -286,6 +266,7 @@ const getProgramStatus = async (req, res) => {
 // ============================================
 // ❌ CANCEL SUBSCRIPTION
 // PATCH /api/customer/programs/:id/cancel
+// (unchanged)
 // ============================================
 const cancelSubscription = async (req, res) => {
   try {
@@ -306,55 +287,44 @@ const cancelSubscription = async (req, res) => {
       query.doctor = doctorId;
     }
 
-    const subscription =
-      await ProgramSubscription.findOne(query);
+    const subscription = await ProgramSubscription.findOne(query);
 
     if (!subscription) {
       return res.status(404).json({
         success: false,
 
-        message:
-          "Subscription not found.",
+        message: "Subscription not found.",
       });
     }
 
-    if (
-      subscription.status === "cancelled"
-    ) {
+    if (subscription.status === "cancelled") {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Subscription already cancelled.",
+        message: "Subscription already cancelled.",
       });
     }
 
     subscription.status = "cancelled";
 
-    subscription.cancelledAt =
-      new Date();
+    subscription.cancelledAt = new Date();
 
     await subscription.save();
 
     return res.status(200).json({
       success: true,
 
-      message:
-        "Subscription cancelled successfully.",
+      message: "Subscription cancelled successfully.",
 
       subscription,
     });
   } catch (err) {
-    console.error(
-      "cancelSubscription error:",
-      err
-    );
+    console.error("cancelSubscription error:", err);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        "Failed to cancel subscription.",
+      message: "Failed to cancel subscription.",
     });
   }
 };

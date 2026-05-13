@@ -34,7 +34,6 @@ import {
   FileText,
   LogOut,
   Check,
-  Settings,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
@@ -176,10 +175,7 @@ const AdminSidebar = ({ onNavigate }) => {
           : []),
         { icon: MessageSquare, label: "Enquiries", to: "/admin/enquiries" },
         { icon: FileText, label: "Financial Reports", to: "/admin/financial-reports" },
-        // 🏢 Settings — only for child programs
-        ...(isChildProgram
-          ? [{ icon: Settings, label: "Settings", to: "/admin/settings" }]
-          : []),
+        
       ],
     },
   ];

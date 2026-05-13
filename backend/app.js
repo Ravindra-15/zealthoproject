@@ -38,7 +38,8 @@ const doctorAppointmentRoutes = require("./routes/doctor.appointment.routes");
 
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
 const adminBillingRoutes = require("./routes/admin.billing.routes");
-
+const adminProgramPlanRoutes = require("./routes/admin.programPlan.routes");
+const customerProgramPlanRoutes = require("./routes/customer.programPlan.routes");
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
 
@@ -123,6 +124,9 @@ app.use("/api/customer/billing", customerBillingRoutes);
 
 app.use("/api/customer/enquiries", customerEnquiryRoutes);
 
+
+app.use("/api/admin/program-plans", adminProgramPlanRoutes);
+app.use("/api/customer/program-plans", customerProgramPlanRoutes);
 // ============================================
 // 🔐 ADMIN ROUTES (NEW)
 // ============================================

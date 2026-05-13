@@ -57,6 +57,8 @@ import AppointmentLog from "./pages/Admin/Appointments/AppointmentLog";
 import Enquiries from "./pages/Admin/Enquiries/Enquiries";
 import FinancialReports from "./pages/Admin/FinancialReports/FinancialReports";
 import AdminReceipt from "./pages/Admin/FinancialReports/AdminReceipt";
+import SubscriptionConfigurator from "./pages/Admin/SubscriptionConfigurator/SubscriptionConfigurator";
+import AddEditPlan from "./pages/Admin/SubscriptionConfigurator/AddEditPlan";
 
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
@@ -206,6 +208,13 @@ function App() {
           <Route path="financial-reports" element={<FinancialReports />} />
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="billing/receipt/:id" element={<AdminReceipt />} />
+
+          {/* 🆕 Subscription Configurator */}
+
+          <Route path="subscriptions" element={<SubscriptionConfigurator />} />
+          <Route path="subscriptions/new" element={<AddEditPlan />} />
+          <Route path="subscriptions/:id/edit" element={<AddEditPlan />} />
+          
           {/* 👥 USERS */}
           <Route path="users" element={<UserDirectory />} />
           <Route path="users/:id/edit" element={<EditUser />} />
