@@ -10,6 +10,11 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const path = require("path");
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 // 👤 CUSTOMER ROUTES (existing)
 const authRoutes = require("./routes/auth.routes");
@@ -24,7 +29,8 @@ const customerBillingRoutes = require("./routes/customer.billing.routes");
 const customerProgramRoutes = require("./routes/customer.program.routes");
 
 const customerEnquiryRoutes = require("./routes/customer.enquiry.routes");
-const adminFinancialReportRoutes = require("./routes/admin.financialReport.routes");
+const customerClinicalVideoRoutes = require("./routes/customer.clinicalVideo.routes");
+
 
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
@@ -35,11 +41,14 @@ const adminAppointmentRoutes = require('./routes/admin.appointment.routes')
 const doctorAuthRoutes = require("./routes/doctor.auth.routes");
 const doctorAvailabilityRoutes = require("./routes/doctor.availability.routes")
 const doctorAppointmentRoutes = require("./routes/doctor.appointment.routes");
-
+const adminFinancialReportRoutes = require("./routes/admin.financialReport.routes");
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
 const adminBillingRoutes = require("./routes/admin.billing.routes");
 const adminProgramPlanRoutes = require("./routes/admin.programPlan.routes");
 const customerProgramPlanRoutes = require("./routes/customer.programPlan.routes");
+const adminClinicalVideoRoutes = require("./routes/admin.clinicalVideo.routes");
+
+
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
 
@@ -123,7 +132,7 @@ app.use("/api/customer/notifications", customerNotificationRoutes);
 app.use("/api/customer/billing", customerBillingRoutes);
 
 app.use("/api/customer/enquiries", customerEnquiryRoutes);
-
+app.use("/api/customer/clinical-videos", customerClinicalVideoRoutes);
 
 app.use("/api/admin/program-plans", adminProgramPlanRoutes);
 app.use("/api/customer/program-plans", customerProgramPlanRoutes);
@@ -144,6 +153,7 @@ app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/enquiries", adminEnquiryRoutes);
 app.use("/api/admin/financial-reports", adminFinancialReportRoutes);
 app.use("/api/admin/billing", adminBillingRoutes);
+app.use("/api/admin/clinical-videos", adminClinicalVideoRoutes);
 
 // ============================================
 // 🚫 404 HANDLER

@@ -59,6 +59,8 @@ import FinancialReports from "./pages/Admin/FinancialReports/FinancialReports";
 import AdminReceipt from "./pages/Admin/FinancialReports/AdminReceipt";
 import SubscriptionConfigurator from "./pages/Admin/SubscriptionConfigurator/SubscriptionConfigurator";
 import AddEditPlan from "./pages/Admin/SubscriptionConfigurator/AddEditPlan";
+import ClinicalVideoCMS from "./pages/Admin/ClinicalVideoCMS/ClinicalVideoCMS";
+
 
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
@@ -208,6 +210,7 @@ function App() {
           <Route path="financial-reports" element={<FinancialReports />} />
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="billing/receipt/:id" element={<AdminReceipt />} />
+          <Route path="videos" element={<ClinicalVideoCMS />} />
 
           {/* 🆕 Subscription Configurator */}
 
