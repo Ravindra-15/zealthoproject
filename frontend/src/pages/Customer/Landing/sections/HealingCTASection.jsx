@@ -9,14 +9,19 @@ const points = [
 
 export default function HealingCTASection() {
   return (
-    <section className="py-20 bg-white">
-      <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12 grid lg:grid-cols-[0.95fr_1.05fr] gap-14 items-center">
+    <section className="py-8 lg:py-10 bg-white">
+      <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12 grid lg:grid-cols-[0.95fr_1.05fr] gap-8 lg:gap-10 items-center">
         {/* left */}
         <div className="max-w-[520px]">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2 leading-snug">
-            Ready to start your{" "}
-            <span className="text-orange-500">healing journey?</span>
-          </h2>
+         <h2 className="font-bold leading-[1.05]">
+  <span className="block text-gray-800 text-4xl sm:text-5xl">
+    Ready to start your
+  </span>
+
+  <span className="block text-orange-500 text-4xl sm:text-5xl mt-1">
+    healing journey?
+  </span>
+</h2>
           <ul className="mt-6 space-y-3 mb-8">
             {points.map((p) => (
               <li key={p} className="flex items-center gap-3 text-gray-600 text-sm">
@@ -34,15 +39,16 @@ export default function HealingCTASection() {
         </div>
 
         {/* right — doctor image */}
-        <div className="w-full flex justify-center lg:justify-end">
-          <div className="rounded-3xl overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.08)] w-full max-w-[520px]">
-            <img
-              src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80"
-              alt="Doctor consultation"
-              className="w-full h-72 object-cover"
-            />
-          </div>
+        {/* right — doctor image */}
+      <div className="w-full flex justify-center lg:justify-end">
+        <div className="rounded-[28px] overflow-hidden w-full max-w-[520px] relative">
+          <img
+            src="/images/healing-doctor.png"
+            alt="Doctor consultation"
+            className="w-full h-auto object-cover"
+          />
         </div>
+      </div>
       </div>
     </section>
   );

@@ -1,31 +1,27 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
+import cure1 from "../../../../../public/images/cure1.png";
+import cure2 from "../../../../../public/images/cure2.png";
+import cure3 from "../../../../../public/images/cure3.png";
 const conditions = [
   {
     title: "Metabolic Health Diseases",
     items: ["Obesity & Overweight", "Metabolic Syndrome", "Thyroid Disorders"],
     icon: "🫀",
-    image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&q=80",
+    image: cure1,
   },
   {
     title: "Ladies Diseases",
     items: ["PCOD & PCOS", "Hormonal Imbalance", "Postnatal Recovery"],
     icon: "👩‍⚕️",
-    image: "https://images.unsplash.com/photo-1551190822-a9333d879b1f?w=400&q=80",
+    image: cure2,
   },
   {
     title: "Diabetes Care Diseases",
     items: ["Type 2 Diabetes", "Pre-Diabetes", "Insulin Resistance"],
     icon: "💊",
-    image: "https://images.unsplash.com/photo-1505751171710-1f6d0ace5a85?w=400&q=80",
-  },
-  {
-    title: "Digestive Disorders",
-    items: ["IBS & Bloating", "Gut Dysbiosis", "Acid Reflux"],
-    icon: "🌿",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80",
-  },
+    image: cure3,
+  }
 ];
 
 export default function ConditionsSection() {
@@ -41,17 +37,17 @@ export default function ConditionsSection() {
   ];
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-6 lg:py-8 bg-white">
       <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12 text-center">
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
           What we <span className="text-orange-500">cure !</span>
         </h2>
-        <p className="text-gray-500 mb-12 max-w-xl mx-auto">
+       <p className="text-gray-500 mb-8 max-w-xl mx-auto">
           From metabolic health to postnatal recovery, we provide the data-driven pathways to help
           you reclaim your wellness
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
           {visible.map((c, i) => (
             <div
               key={i}

@@ -30,29 +30,47 @@ const faqs = [
 
 export default function FAQSection() {
   return (
-    <section className="py-20 bg-white">
-      <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12 flex flex-col lg:flex-row gap-12 items-start">
-        {/* left */}
-        <div className="lg:w-1/3 w-full">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-3">
-            Frequently Asked{" "}
-            <span className="text-orange-500">Questions</span>
-          </h2>
-          <p className="text-gray-500 text-sm sm:text-base mb-6">
-            Find answers to common questions about our services, therapy, and mental well-being.
-          </p>
-          <div className="rounded-2xl overflow-hidden hidden lg:block">
-            <img
-              src="https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=500&q=80"
-              alt="Yoga"
-              className="w-full h-64 object-cover"
-            />
-          </div>
-        </div>
+    <section className="py-8 lg:py-10 bg-white">
+      <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
+          
+          {/* LEFT */}
+          <div className="w-full lg:w-[38%]">
+            <h2 className="font-bold leading-[1.05] mb-4">
+              <span className="block text-[#0F172A] text-4xl sm:text-5xl">
+                Frequently Asked
+              </span>
 
-        {/* right */}
-        <div className="lg:w-2/3 w-full">
-          <FAQAccordion items={faqs} />
+              <span className="block text-orange-500 text-4xl sm:text-5xl">
+                Questions
+              </span>
+            </h2>
+
+            <p className="text-gray-500 text-base lg:text-lg leading-relaxed max-w-[520px] mb-8">
+              Find answers to common questions about our services,
+              therapy, and mental well-being.
+            </p>
+
+            {/* IMAGE */}
+            <div className="rounded-[28px] overflow-hidden">
+              <img
+                src="/images/faq-yoga.png"
+                alt="Yoga FAQ"
+                className="
+                  w-full
+                  h-[240px]
+                  sm:h-[320px]
+                  lg:h-[360px]
+                  object-cover
+                "
+              />
+            </div>
+          </div>
+
+          {/* RIGHT */}
+          <div className="w-full lg:w-[62%]">
+            <FAQAccordion items={faqs} />
+          </div>
         </div>
       </div>
     </section>
