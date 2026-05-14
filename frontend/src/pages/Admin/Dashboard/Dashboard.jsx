@@ -10,12 +10,7 @@
  */
 
 import React from "react";
-import {
-  Users,
-  DollarSign,
-  Stethoscope,
-  UserCog,
-} from "lucide-react";
+import { Users, DollarSign, Stethoscope, UserCog } from "lucide-react";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import StatCardsGrid from "./components/StatCardsGrid";
@@ -37,6 +32,7 @@ const Dashboard = () => {
     expiringLoading,
     filter,
     setFilter,
+    selectedProgramId,
   } = useDashboardData();
 
   // ============================================
@@ -115,13 +111,15 @@ const Dashboard = () => {
 
       <UsersChart data={trend} loading={trendLoading} />
 
-      <RemindUsersTable
-        users={expiringUsers || []}
-        loading={expiringLoading}
-        filter={filter}
-        onFilterChange={setFilter}
-        onMessageUser={handleMessageUser}
-      />
+      {selectedProgramId !== "zealtho" && (
+        <RemindUsersTable
+          users={expiringUsers || []}
+          loading={expiringLoading}
+          filter={filter}
+          onFilterChange={setFilter}
+          onMessageUser={handleMessageUser}
+        />
+      )}
     </div>
   );
 };

@@ -60,7 +60,7 @@ import AdminReceipt from "./pages/Admin/FinancialReports/AdminReceipt";
 import SubscriptionConfigurator from "./pages/Admin/SubscriptionConfigurator/SubscriptionConfigurator";
 import AddEditPlan from "./pages/Admin/SubscriptionConfigurator/AddEditPlan";
 import ClinicalVideoCMS from "./pages/Admin/ClinicalVideoCMS/ClinicalVideoCMS";
-
+import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
 
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
@@ -211,7 +211,7 @@ function App() {
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="billing/receipt/:id" element={<AdminReceipt />} />
           <Route path="videos" element={<ClinicalVideoCMS />} />
-
+          <Route path="habits" element={<HabitConfigurator />} />
           {/* 🆕 Subscription Configurator */}
 
           <Route path="subscriptions" element={<SubscriptionConfigurator />} />

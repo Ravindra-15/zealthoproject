@@ -47,7 +47,7 @@ const adminBillingRoutes = require("./routes/admin.billing.routes");
 const adminProgramPlanRoutes = require("./routes/admin.programPlan.routes");
 const customerProgramPlanRoutes = require("./routes/customer.programPlan.routes");
 const adminClinicalVideoRoutes = require("./routes/admin.clinicalVideo.routes");
-
+const adminHabitConfigRoutes = require("./routes/admin.habitConfig.routes");
 
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
@@ -154,7 +154,7 @@ app.use("/api/admin/enquiries", adminEnquiryRoutes);
 app.use("/api/admin/financial-reports", adminFinancialReportRoutes);
 app.use("/api/admin/billing", adminBillingRoutes);
 app.use("/api/admin/clinical-videos", adminClinicalVideoRoutes);
-
+app.use("/api/admin/habit-configs", adminHabitConfigRoutes);
 // ============================================
 // 🚫 404 HANDLER
 // ============================================
