@@ -51,6 +51,14 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // ============================================
+    // 🌐 PLATFORM / PROGRAM SOURCE
+    // ============================================
+    platform: {
+      type: String,
+      default: "zealtho",
+      trim: true,
+    },
 
     // ============================================
     // 🗓️ SCHEDULING

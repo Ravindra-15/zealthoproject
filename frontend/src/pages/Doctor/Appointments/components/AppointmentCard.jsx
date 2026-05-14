@@ -6,13 +6,7 @@
  */
 
 import React, { useState } from "react";
-import {
-  Link as LinkIcon,
-  Clock,
-  Loader2,
-  Send,
-  Video,
-} from "lucide-react";
+import { Link as LinkIcon, Clock, Loader2, Send, Video } from "lucide-react";
 
 import toast from "react-hot-toast";
 
@@ -51,9 +45,7 @@ const getInitials = (name) => {
     return parts[0].slice(0, 2).toUpperCase();
   }
 
-  return (
-    parts[0][0] + parts[parts.length - 1][0]
-  ).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
 // ============================================
@@ -70,10 +62,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   } = appointment;
 
   const displayName =
-    user?.nickName ||
-    user?.fullName ||
-    patientName ||
-    "Patient";
+    user?.nickName || user?.fullName || patientName || "Patient";
 
   const phone = user?.phone || "";
 
@@ -90,18 +79,13 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
     try {
       setSavingLink(true);
 
-      const updated = await setMeetingLink(
-        _id,
-        linkInput.trim()
-      );
+      const updated = await setMeetingLink(_id, linkInput.trim());
 
       toast.success("Meeting link saved");
 
       onUpdated?.(updated);
     } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        "Failed to save link";
+      const msg = err?.response?.data?.message || "Failed to save link";
 
       toast.error(msg);
     } finally {
@@ -129,9 +113,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
 
       onUpdated?.(updated);
     } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        "Failed to send link";
+      const msg = err?.response?.data?.message || "Failed to send link";
 
       toast.error(msg);
     } finally {
@@ -142,8 +124,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   // ============================================
   // 🎯 DERIVED STATE
   // ============================================
-  const linkUnchanged =
-    linkInput.trim() === (meetingLink || "");
+  const linkUnchanged = linkInput.trim() === (meetingLink || "");
 
   const wasSent = !!meetingLinkSentAt;
 
@@ -208,7 +189,10 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
               bg-amber-50 text-amber-700 border border-amber-100
             "
           >
-            DiabMukth
+            {appointment?.platform
+              ? appointment.platform.charAt(0).toUpperCase() +
+                appointment.platform.slice(1)
+              : "Zealtho"}
           </span>
         </div>
       </div>
@@ -260,12 +244,8 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
               "
             >
               {savingLink ? (
-                <Loader2
-                  size={12}
-                  className="animate-spin"
-                />
+                <Loader2 size={12} className="animate-spin" />
               ) : null}
-
               Save
             </button>
           ) : wasSent ? (
@@ -304,14 +284,10 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
               "
             >
               {sending ? (
-                <Loader2
-                  size={12}
-                  className="animate-spin"
-                />
+                <Loader2 size={12} className="animate-spin" />
               ) : (
                 <Send size={12} />
               )}
-
               Send
             </button>
           )}

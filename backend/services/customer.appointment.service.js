@@ -86,10 +86,11 @@ const isSlotStillAvailable = async ({ doctorId, slotStart, slotEnd, dayOfWeek })
  *
  * @returns { appointment, paymentResult } | { error }
  */
-const createBooking = async ({ userId, doctorId, scheduledAt, notes = "" }) => {
+const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho" }) => {
   // ============================================
   // STEP 1 — Validate user + doctor
   // ============================================
+  
   const [user, doctor] = await Promise.all([
     User.findById(userId).select("fullName nickName isActive").lean(),
     Doctor.findOne({
@@ -206,6 +207,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "" }) => {
     doctor: doctorId,
     patientName: user.fullName || user.nickName || "Patient",
     doctorName: doctor.fullName,
+    platform,
     scheduledAt: slotStart,
     durationMinutes: SLOT_DURATION_MINUTES,
     fee: BOOKING_FEE,
@@ -215,20 +217,23 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "" }) => {
     notes,
   });
 
+  try {
   await Consultation.create({
-  user: userId,
-  doctor: doctorId,
-  doctorName: doctor.fullName,
-  durationMinutes: SLOT_DURATION_MINUTES,
-  consultedAt: slotStart,
-  fee: BOOKING_FEE,
-  status: "completed",
-  paymentStatus: "paid",
-  paidAt: new Date(),
-  programSource: "zealtho",
-  notes,
-});
-
+    user: userId,
+    doctor: doctorId,
+    doctorName: doctor.fullName,
+    durationMinutes: SLOT_DURATION_MINUTES,
+    consultedAt: slotStart,
+    fee: BOOKING_FEE,
+    status: "completed",
+    paymentStatus: "paid",
+    paidAt: new Date(),
+    programSource: platform,
+    notes,
+  });
+} catch (err) {
+  console.log("CONSULTATION CREATE ERROR:", err);
+}
   return { appointment, paymentResult };
 };
 

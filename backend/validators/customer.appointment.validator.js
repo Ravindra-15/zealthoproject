@@ -43,7 +43,7 @@ const validateDayAvailabilityQuery = (req, res, next) => {
 // ============================================
 // Body: { doctorId, scheduledAt (ISO), notes? }
 const validateCreateBooking = (req, res, next) => {
-  const { doctorId, scheduledAt, notes } = req.body;
+  const { doctorId, scheduledAt, notes, platform } = req.body;
   const errors = [];
 
   if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
@@ -79,10 +79,13 @@ const validateCreateBooking = (req, res, next) => {
 
   // 🧹 Replace req.body with cleaned values
   req.body = {
-    doctorId,
-    scheduledAt: new Date(scheduledAt),
-    notes: typeof notes === "string" ? notes.trim() : "",
-  };
+  doctorId,
+  scheduledAt: new Date(scheduledAt),
+  notes: typeof notes === "string" ? notes.trim() : "",
+  platform: typeof platform === "string"
+    ? platform.trim().toLowerCase()
+    : "zealtho",
+};
 
   next();
 };

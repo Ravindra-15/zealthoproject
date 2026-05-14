@@ -46,11 +46,13 @@ const getDayAvailability = async (req, res) => {
 // Body: { doctorId, scheduledAt, notes? }
 const createBooking = async (req, res) => {
   try {
+ 
     const result = await customerAppointmentService.createBooking({
       userId: req.user.id, // set by auth middleware
       doctorId: req.body.doctorId,
       scheduledAt: req.body.scheduledAt,
       notes: req.body.notes,
+      platform: req.body.platform || "zealtho",
     });
 
     if (result.error) {
