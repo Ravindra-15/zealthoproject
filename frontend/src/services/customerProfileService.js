@@ -66,14 +66,31 @@ export const uploadProfilePhoto = async (file) => {
 // ============================================
 // 🖼️ HELPER — build full photo URL
 // ============================================
-export const buildUserPhotoUrl = (photoPath, updatedAt) => {
+// export const buildUserPhotoUrl = (photoPath, updatedAt) => {
+//   if (!photoPath) return null;
+//   if (photoPath.startsWith("http")) return photoPath;
+//   const base = import.meta.env.VITE_API_BASE_URL?.replace("/api", "") || "http://localhost:5000";
+//   const cacheBuster = updatedAt ? `?v=${new Date(updatedAt).getTime()}` : "";
+//   return `${base}${photoPath}${cacheBuster}`;
+// };
+export const buildUserPhotoUrl = (
+  photoPath,
+  updatedAt
+) => {
   if (!photoPath) return null;
-  if (photoPath.startsWith("http")) return photoPath;
-  const base = import.meta.env.VITE_API_BASE_URL?.replace("/api", "") || "http://localhost:5000";
-  const cacheBuster = updatedAt ? `?v=${new Date(updatedAt).getTime()}` : "";
+
+  if (photoPath.startsWith("http")) {
+    return photoPath;
+  }
+
+  const base = BASE_URL.replace("/api", "");
+
+  const cacheBuster = updatedAt
+    ? `?v=${new Date(updatedAt).getTime()}`
+    : "";
+
   return `${base}${photoPath}${cacheBuster}`;
 };
-
 // ============================================
 // 🗑️ DELETE PROFILE PHOTO
 // ============================================

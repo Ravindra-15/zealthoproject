@@ -51,9 +51,23 @@ export const getPublicDoctor = async (doctorId) => {
 // ============================================
 // 🖼️ BUILD PHOTO URL (with cache-busting)
 // ============================================
+// export const buildDoctorPhotoUrl = (photo, updatedAt) => {
+//   if (!photo) return null;
+//   const base = import.meta.env.VITE_API_HOST || "http://localhost:5000";
+//   const ts = updatedAt ? new Date(updatedAt).getTime() : "";
+//   return `${base}${photo}${ts ? `?v=${ts}` : ""}`;
+// };
+
 export const buildDoctorPhotoUrl = (photo, updatedAt) => {
   if (!photo) return null;
-  const base = import.meta.env.VITE_API_HOST || "http://localhost:5000";
-  const ts = updatedAt ? new Date(updatedAt).getTime() : "";
-  return `${base}${photo}${ts ? `?v=${ts}` : ""}`;
+
+  const base = BASE_URL.replace("/api", "");
+
+  const ts = updatedAt
+    ? new Date(updatedAt).getTime()
+    : "";
+
+  return `${base}${photo}${
+    ts ? `?v=${ts}` : ""
+  }`;
 };
