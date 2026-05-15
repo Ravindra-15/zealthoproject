@@ -5,6 +5,8 @@
 
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const fs = require("fs");
+const path = require("path");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
 const getProfile = async (req, res) => {
@@ -67,5 +69,58 @@ const changePassword = async (req, res) => {
     return errorResponse(res, err.message || "Failed to update password", 500);
   }
 };
+const uploadPhoto = async (req, res) => {
+  try {
+    if (!req.file) return errorResponse(res, "No photo uploaded", 400);
 
-module.exports = { getProfile, updateProfile, changePassword };
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      // cleanup uploaded file
+      fs.unlinkSync(req.file.path);
+      return errorResponse(res, "User not found", 404);
+    }
+
+    // Delete old photo if exists
+    if (user.profilePhoto) {
+      const oldPath = path.join(__dirname, "..", user.profilePhoto);
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) { /* ignore */ }
+      }
+    }
+
+    // Save relative path
+    user.profilePhoto = `/uploads/users/${req.file.filename}`;
+    await user.save();
+
+    return successResponse(res, { user }, "Photo updated successfully", 200);
+  } catch (err) {
+    return errorResponse(res, err.message || "Failed to upload photo", 500);
+  }
+};
+
+const deletePhoto = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return errorResponse(res, "User not found", 404);
+
+    if (!user.profilePhoto) {
+      return errorResponse(res, "No photo to delete", 400);
+    }
+
+    // Delete file from disk
+    const oldPath = path.join(__dirname, "..", user.profilePhoto);
+    if (fs.existsSync(oldPath)) {
+      try { fs.unlinkSync(oldPath); } catch (e) { /* ignore */ }
+    }
+
+    user.profilePhoto = "";
+    await user.save();
+
+    return successResponse(res, { user }, "Photo removed", 200);
+  } catch (err) {
+    return errorResponse(res, err.message || "Failed to delete photo", 500);
+  }
+};
+
+module.exports = { getProfile, updateProfile, changePassword, uploadPhoto, deletePhoto };
+

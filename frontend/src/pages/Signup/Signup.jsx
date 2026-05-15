@@ -153,7 +153,7 @@ const Signup = () => {
             {/* Phone */}
             <div className="flex w-full gap-2">
               <div className="border border-gray-300 rounded-xl px-3 flex items-center text-sm bg-gray-100">
-                +1
+                +91
               </div>
               <input
                 type="tel"

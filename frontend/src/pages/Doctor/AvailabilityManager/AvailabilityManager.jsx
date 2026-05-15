@@ -107,17 +107,29 @@ const AvailabilityManager = () => {
       toast.error(err?.response?.data?.message || "Failed to unblock");
     }
   };
-
-  const handleCancelAppointment = async (appointmentId) => {
-    if (!window.confirm("Cancel this appointment?")) return;
-    try {
-      await cancelAppointment(appointmentId, "Cancelled by doctor");
-      toast.success("Appointment cancelled");
-      refetch();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to cancel");
-    }
-  };
+const handleCancelAppointment = async (appointmentId) => {
+  const reason = window.prompt(
+    "Please enter a reason for cancelling this appointment:",
+    ""
+  );
+  
+  // User clicked Cancel on prompt
+  if (reason === null) return;
+  
+  // Empty reason
+  if (!reason.trim()) {
+    toast.error("Cancellation reason is required");
+    return;
+  }
+  
+  try {
+    await cancelAppointment(appointmentId, reason.trim());
+    toast.success("Appointment cancelled");
+    refetch();
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to cancel");
+  }
+};
 
   // ============================================
   // ☕ ADD-BREAK MODAL + ON-BREAK OVERLAY

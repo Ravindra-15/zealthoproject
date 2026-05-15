@@ -30,23 +30,18 @@ const faqs = [
 
 export default function FAQSection() {
   return (
-    <section className="py-8 lg:py-10 bg-white">
-      <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12">
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
+    <section className="bg-white">
+      <div className="max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
           
           {/* LEFT */}
-          <div className="w-full lg:w-[38%]">
-            <h2 className="font-bold leading-[1.05] mb-4">
-              <span className="block text-[#0F172A] text-4xl sm:text-5xl">
-                Frequently Asked
-              </span>
-
-              <span className="block text-orange-500 text-4xl sm:text-5xl">
-                Questions
-              </span>
+          <div className="w-full lg:w-[40%] lg:sticky lg:top-8">
+            <h2 className="font-bold leading-[1.15] mb-4 text-3xl sm:text-4xl lg:text-[38px] xl:text-[42px] lg:whitespace-nowrap">
+              <span className="text-[#0F2C3D]">Frequently Asked </span>
+              <span className="text-orange-500">Questions</span>
             </h2>
 
-            <p className="text-gray-500 text-base lg:text-lg leading-relaxed max-w-[520px] mb-8">
+            <p className="text-gray-500 text-sm sm:text-base leading-relaxed max-w-[420px] mb-6 lg:mb-8">
               Find answers to common questions about our services,
               therapy, and mental well-being.
             </p>
@@ -56,20 +51,14 @@ export default function FAQSection() {
               <img
                 src="/images/faq-yoga.png"
                 alt="Yoga FAQ"
-                className="
-                  w-full
-                  h-[240px]
-                  sm:h-[320px]
-                  lg:h-[360px]
-                  object-cover
-                "
+                className="w-full h-[240px] sm:h-[320px] lg:h-[380px] object-cover"
               />
             </div>
           </div>
 
           {/* RIGHT */}
-          <div className="w-full lg:w-[62%]">
-            <FAQAccordion items={faqs} />
+          <div className="w-full lg:flex-1">
+            <FAQAccordion items={faqs} defaultOpenIndex={0} />
           </div>
         </div>
       </div>

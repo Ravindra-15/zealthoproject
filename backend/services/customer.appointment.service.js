@@ -7,6 +7,7 @@
  *  - getMyAppointmentById: single appointment with doctor snapshot
  * Payment handled by isolated payment service (mock now, gateway later).
  */
+const Notification = require("../models/Notification");
 
 const mongoose = require("mongoose");
 const Doctor = require("../models/Doctor");
@@ -90,7 +91,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   // ============================================
   // STEP 1 — Validate user + doctor
   // ============================================
-  
+
   const [user, doctor] = await Promise.all([
     User.findById(userId).select("fullName nickName isActive").lean(),
     Doctor.findOne({
@@ -167,12 +168,16 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   });
 
   if (!paymentResult.success) {
-    return {
-      error: {
-        status: 402,
-        message: paymentResult.message || "Payment failed",
-      },
-    };
+    try {
+      await Notification.create({
+        userId,
+        type: "payment_failed",
+        title: "Payment Failed",
+        body: `Your payment for the $${BOOKING_FEE} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
+        metadata: { doctorId },
+      });
+    } catch (err) { }
+    return { error: { status: 402, message: paymentResult.message || "Payment failed" } };
   }
 
   // ============================================
@@ -218,22 +223,48 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   });
 
   try {
-  await Consultation.create({
-    user: userId,
-    doctor: doctorId,
-    doctorName: doctor.fullName,
-    durationMinutes: SLOT_DURATION_MINUTES,
-    consultedAt: slotStart,
-    fee: BOOKING_FEE,
-    status: "completed",
-    paymentStatus: "paid",
-    paidAt: new Date(),
-    programSource: platform,
-    notes,
-  });
-} catch (err) {
-  console.log("CONSULTATION CREATE ERROR:", err);
-}
+    await Consultation.create({
+      user: userId,
+      doctor: doctorId,
+      doctorName: doctor.fullName,
+      durationMinutes: SLOT_DURATION_MINUTES,
+      consultedAt: slotStart,
+      fee: BOOKING_FEE,
+      status: "completed",
+      paymentStatus: "paid",
+      paidAt: new Date(),
+      programSource: platform,
+      notes,
+    });
+  } catch (err) {
+    console.log("CONSULTATION CREATE ERROR:", err);
+  }
+  // 🔔 Customer notification
+  try {
+    await Notification.create({
+      userId: userId,
+      type: "appointment_confirmed",
+      title: "Appointment Confirmed",
+      body: `Your consultation with ${doctor.fullName} has been confirmed for ${slotStart.toLocaleString()}. Please join on time.`,
+      metadata: { appointmentId: appointment._id, doctorId },
+    });
+  } catch (err) {
+    console.log("CUSTOMER NOTIFICATION ERROR:", err);
+  }
+  // 🔔 Notify doctor
+  try {
+    await Notification.create({
+      userId: doctorId,                    // doctor's ID
+      userType: "doctor",                  // 👈 new field
+      type: "appointment_confirmed",
+      title: "New Appointment Booked",
+      body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${slotStart.toLocaleString()}.`,
+      metadata: { appointmentId: appointment._id, patientId: userId },
+    });
+  } catch (err) {
+    console.log("DOCTOR NOTIFICATION ERROR:", err);
+  }
+
   return { appointment, paymentResult };
 };
 

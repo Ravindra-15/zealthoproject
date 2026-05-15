@@ -1,7 +1,4 @@
 // Zealtho - Callback Section
-// Submits enquiry to real backend; admin sees it in /admin/enquiries
-// Source field tags the enquiry as coming from "zealtho" (parent site)
-
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { submitEnquiry } from "../../../../services/customerEnquiryService";
@@ -56,10 +53,10 @@ export default function CallbackSection() {
     "w-full border-0 border-b border-gray-300 focus:border-teal-700 outline-none py-2 text-sm text-gray-700 placeholder-gray-400 bg-transparent transition-colors";
 
   return (
-    <section id="callback" className="py-14 sm:py-16 lg:py-20 bg-gray-50">
-      <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+    <section id="callback" className="bg-white">
+      <div className="max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 py-10 sm:py-12 lg:py-14">
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F2C3D] mb-2">
             Request a <span className="text-orange-500">Callback</span>
           </h2>
           <p className="text-gray-500 text-sm sm:text-base">
@@ -67,9 +64,9 @@ export default function CallbackSection() {
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-center justify-center">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-48 items-center justify-center">
           {/* form */}
-          <div className="w-full lg:w-[48%] space-y-6">
+          <div className="w-full lg:w-[42%] space-y-5 sm:space-y-6 max-w-md lg:max-w-none mx-auto lg:mx-0">
             <input
               name="name"
               value={form.name}
@@ -103,22 +100,37 @@ export default function CallbackSection() {
             <button
               onClick={submit}
               disabled={loading}
-              className="w-full bg-orange-500 text-white py-3 rounded-full font-semibold shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:bg-orange-600 transition-colors disabled:opacity-60 mt-4"
+              className="w-full bg-orange-500 text-white py-3 rounded-full font-semibold shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:bg-orange-600 transition-colors disabled:opacity-60 mt-2"
             >
               {loading ? "Submitting..." : "Submit"}
             </button>
           </div>
 
-          {/* image */}
-          <div className="w-full lg:w-[42%] flex justify-center">
-            <div className="rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.08)] max-w-md mx-auto">
-              <img
-                src="https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=600&q=80"
-                alt="Wellness"
-                className="w-full h-72 object-cover"
-              />
-            </div>
-          </div>
+          {/* image - bigger to match figma */}
+{/* image - bigger to match figma */}
+{/* image - bigger to match figma */}
+<div className="w-full lg:w-[52%] flex justify-center">
+  <div 
+    className="w-full max-w-xl h-72 sm:h-80 lg:h-[420px] overflow-hidden"
+    style={{ 
+      borderTopLeftRadius: "40px",
+      borderTopRightRadius: "40px",
+      borderBottomLeftRadius: "50px",
+      borderBottomRightRadius: "50px",
+    }}
+  >
+    <img
+      src="/images/callback.png"
+      alt="Wellness callback"
+      className="w-full h-full object-cover"
+      style={{ 
+        display: "block",
+        transform: "scale(1.05)",
+        transformOrigin: "center",
+      }}
+    />
+  </div>
+</div>
         </div>
       </div>
     </section>

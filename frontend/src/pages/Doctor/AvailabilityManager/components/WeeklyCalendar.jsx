@@ -27,13 +27,25 @@ const SlotCell = ({
   onClick,
   onContextMenu,
 }) => {
-  if (!slot) return <div className="h-12 border border-gray-100 rounded-md" />;
+  if (!slot)
+     return <div className="h-12 border border-gray-100 rounded-md" />;
 
   const handleContextMenu = (e) => {
     e.preventDefault();
     onContextMenu?.(e, slot, date);
   };
+// 🚫 Past slot check
+const slotDateTime = new Date(`${date}T${slot.time}:00`);
+const isPast = slotDateTime < new Date();
 
+if (isPast && slot.status !== "booked") {
+  return (
+    <div
+      className="h-12 rounded-md bg-gray-50 border border-gray-100 cursor-not-allowed opacity-50"
+      title="Past slot"
+    />
+  );
+}
   // 🟢 BOOKED
   if (slot.status === "booked") {
     return (

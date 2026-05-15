@@ -10,7 +10,8 @@ import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { User, Power, Loader2 } from "lucide-react";
 
-import { buildUserDisplayId, toggleUserStatus } from "../../../../services/userService";
+import { buildUserDisplayId, toggleUserStatus} from "../../../../services/userService";
+import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
 
 // ============================================
 // 🛡️ Mask helpers
@@ -63,7 +64,7 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
     >
       <div className="flex flex-col sm:flex-row sm:items-center gap-5">
         {/* 👤 Avatar */}
-        <div
+        {/* <div
           className="
             w-16 h-16 rounded-full flex-shrink-0
             bg-gradient-to-br from-indigo-100 to-purple-100
@@ -72,7 +73,30 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
           "
         >
           <User size={28} className="text-indigo-400" />
-        </div>
+        </div> */}
+
+        <div
+  className="
+    w-16 h-16 rounded-full flex-shrink-0
+    bg-gradient-to-br from-indigo-100 to-purple-100
+    flex items-center justify-center
+    border border-gray-200
+    overflow-hidden
+  "
+>
+  {user?.profilePhoto ? (
+    <img
+      src={buildUserPhotoUrl(
+        user.profilePhoto,
+        user.updatedAt
+      )}
+      alt={user.fullName || "User"}
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <User size={28} className="text-indigo-400" />
+  )}
+</div>
 
         {/* 📛 Name + masked contact */}
         <div className="flex-1 min-w-0">

@@ -6,6 +6,7 @@
  *
  * Usage:
  *   <FAQAccordion items={[{ question: "...", answer: "..." }, ...]} />
+ *   <FAQAccordion items={[...]} defaultOpenIndex={0} />  // First item open by default
  */
 
 import React, { useState, useRef, useEffect } from "react";
@@ -30,10 +31,14 @@ const FAQItem = ({ question, answer, isOpen, onToggle }) => {
   return (
     <div
       className={`
-        border border-gray-200 rounded-2xl
+        rounded-2xl
         overflow-hidden
-        transition-colors duration-200
-        ${isOpen ? "bg-white border-gray-300" : "bg-white hover:border-gray-300"}
+        transition-all duration-200
+        ${
+          isOpen
+            ? "border border-gray-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            : "border border-transparent bg-transparent"
+        }
       `}
     >
       <button
@@ -41,27 +46,35 @@ const FAQItem = ({ question, answer, isOpen, onToggle }) => {
         onClick={onToggle}
         aria-expanded={isOpen}
         className="
-          w-full flex items-center justify-between gap-4
-          px-5 py-4
-          text-left
-          transition-colors
-        "
+        w-full flex items-center justify-between gap-4
+        px-5 sm:px-6 py-5 sm:py-6
+        text-left
+        transition-colors
+      "
       >
-        <span className="text-sm font-semibold text-gray-900 flex-1">
+        <span className="text-sm sm:text-base font-semibold text-[#0F2C3D] flex-1">
           {question}
         </span>
 
         {/* Plus/Minus icon */}
         <span
           className={`
-            w-6 h-6 rounded-full
+            w-8 h-8 rounded-full
             flex items-center justify-center
             flex-shrink-0
             transition-colors
-            ${isOpen ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"}
+            ${
+              isOpen
+                ? "bg-gray-100 text-[#0F2C3D]"
+                : "bg-gray-50 text-[#0F2C3D]"
+            }
           `}
         >
-          {isOpen ? <Minus size={14} /> : <Plus size={14} />}
+          {isOpen ? (
+            <Minus size={16} strokeWidth={2.5} />
+          ) : (
+            <Plus size={16} strokeWidth={2.5} />
+          )}
         </span>
       </button>
 
@@ -70,8 +83,10 @@ const FAQItem = ({ question, answer, isOpen, onToggle }) => {
         style={{ maxHeight }}
         className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
       >
-        <div ref={contentRef} className="px-5 pb-4">
-          <p className="text-sm text-gray-600 leading-relaxed">{answer}</p>
+        <div ref={contentRef} className="px-5 sm:px-6 pb-4 sm:pb-5">
+          <p className="text-sm sm:text-[15px] text-gray-600 leading-relaxed">
+            {answer}
+          </p>
         </div>
       </div>
     </div>
@@ -81,9 +96,16 @@ const FAQItem = ({ question, answer, isOpen, onToggle }) => {
 // ============================================
 // 📋 MAIN ACCORDION
 // ============================================
-const FAQAccordion = ({ items = [] }) => {
+const FAQAccordion = ({ items = [], defaultOpenIndex = null }) => {
   // Track which items are open (Set of indexes)
-  const [openIndexes, setOpenIndexes] = useState(new Set());
+  // Initialize with defaultOpenIndex if provided
+  const [openIndexes, setOpenIndexes] = useState(() => {
+    const initial = new Set();
+    if (defaultOpenIndex !== null && defaultOpenIndex !== undefined) {
+      initial.add(defaultOpenIndex);
+    }
+    return initial;
+  });
 
   const toggle = (index) => {
     setOpenIndexes((prev) => {
@@ -100,7 +122,7 @@ const FAQAccordion = ({ items = [] }) => {
   if (!items || items.length === 0) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 sm:space-y-4">
       {items.map((item, index) => (
         <FAQItem
           key={index}

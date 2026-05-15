@@ -1,6 +1,6 @@
 // Zealtho - Notification Model
 // Stores per-user notifications (appointment, payment, program, general)
-// Used by /api/customer/notifications routes
+// Used by customer + doctor notification systems
 
 const mongoose = require("mongoose");
 
@@ -8,10 +8,17 @@ const notificationSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
       required: true,
       index: true,
     },
+
+    userType: {
+      type: String,
+      enum: ["customer", "doctor"],
+      default: "customer",
+      index: true,
+    },
+
     type: {
       type: String,
       enum: [
@@ -25,29 +32,38 @@ const notificationSchema = new mongoose.Schema(
       ],
       required: true,
     },
+
     title: {
       type: String,
       required: true,
       trim: true,
     },
+
     body: {
       type: String,
       required: true,
       trim: true,
     },
+
     read: {
       type: Boolean,
       default: false,
       index: true,
     },
+
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
   },
+
   { timestamps: true }
 );
 
-notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({
+  userId: 1,
+  userType: 1,
+  createdAt: -1,
+});
 
 module.exports = mongoose.model("Notification", notificationSchema);

@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { User, Eye, Pencil } from "lucide-react";
 
 import { buildUserDisplayId } from "../../../../services/userService";
+import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 
 // ============================================
@@ -35,6 +36,19 @@ const StatusPill = ({ isActive }) => (
 // ============================================
 // 👤 USER AVATAR (no photo field on User → always fallback)
 // ============================================
+// const UserAvatar = ({ user }) => (
+//   <div
+//     className="
+//       w-10 h-10 rounded-full flex-shrink-0
+//       bg-gradient-to-br from-indigo-100 to-purple-100
+//       flex items-center justify-center
+//       border border-gray-200
+//     "
+//     aria-hidden="true"
+//   >
+//     <User size={18} className="text-indigo-400" />
+//   </div>
+// );
 const UserAvatar = ({ user }) => (
   <div
     className="
@@ -42,13 +56,24 @@ const UserAvatar = ({ user }) => (
       bg-gradient-to-br from-indigo-100 to-purple-100
       flex items-center justify-center
       border border-gray-200
+      overflow-hidden
     "
     aria-hidden="true"
   >
-    <User size={18} className="text-indigo-400" />
+    {user?.profilePhoto ? (
+      <img
+        src={buildUserPhotoUrl(
+          user.profilePhoto,
+          user.updatedAt
+        )}
+        alt={user.fullName || "User"}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <User size={18} className="text-indigo-400" />
+    )}
   </div>
 );
-
 // ============================================
 // 📋 MAIN TABLE COMPONENT
 // ============================================

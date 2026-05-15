@@ -113,6 +113,7 @@ const Login = () => {
       storage.setItem("user", JSON.stringify(data.data.user));
 
       toast.success("Welcome back!");
+      sessionStorage.removeItem("welcomeShown");
 
       const params = new URLSearchParams(location.search);
       const next = params.get("next");
@@ -128,7 +129,7 @@ const Login = () => {
         } else if (!profileStepTwoComplete) {
           navigate("/profile-step-2");
         } else {
-          navigate(next?.startsWith("/") ? next : "/home");
+          navigate(next?.startsWith("/") ? next : "/book-doctor");
         }
       }, 300);
     } catch (err) {

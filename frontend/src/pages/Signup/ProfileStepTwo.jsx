@@ -70,9 +70,9 @@ const ProfileStepTwo = () => {
         ? localStorage
         : sessionStorage;
 
-      
+      sessionStorage.removeItem("welcomeShown"); 
 
-      navigate("/home", { replace: true });
+      navigate("/book-doctor", { replace: true });
     } catch (err) {
       const message =
         err?.response?.data?.message || err.message || "Something went wrong";
@@ -106,7 +106,7 @@ const ProfileStepTwo = () => {
 
             <p className="mt-4 text-xs text-gray-500">
               — Anna R., 32 <br />
-              (Diabmukt Member)
+              (Zealtho Member)
             </p>
           </div>
         </div>

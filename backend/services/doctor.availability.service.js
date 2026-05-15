@@ -9,6 +9,7 @@
  */
 
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
+const Notification = require("../models/Notification");
 const TimeOff = require("../models/TimeOff");
 const Appointment = require("../models/Appointment");
 const {
@@ -117,9 +118,14 @@ const getWeeklyView = async (doctorId, startDate) => {
 
     // Build each slot's status
     const slots = slotTimes.map((hhmm) => {
+
+
       const slotStart = buildSlotStartDate(dayDate, hhmm);
       const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
 
+      if (slotStart < new Date()) {
+        return { time: hhmm, status: "off" };
+      }
       // 🟢 Booked? (highest precedence)
       const booking = appointments.find((a) => {
         const aStart = new Date(a.scheduledAt);
@@ -182,11 +188,11 @@ const getWeeklyView = async (doctorId, startDate) => {
     days,
     onBreak: activeRangeBreak
       ? {
-          id: activeRangeBreak._id,
-          startsAt: activeRangeBreak.startsAt,
-          endsAt: activeRangeBreak.endsAt,
-          reason: activeRangeBreak.reason,
-        }
+        id: activeRangeBreak._id,
+        startsAt: activeRangeBreak.startsAt,
+        endsAt: activeRangeBreak.endsAt,
+        reason: activeRangeBreak.reason,
+      }
       : null,
   };
 };
@@ -231,6 +237,18 @@ const cancelAppointment = async (doctorId, appointmentId, reason = "") => {
   appointment.status = "cancelled";
   appointment.cancelledReason = reason || "Cancelled by doctor";
   await appointment.save();
+  // 🔔 Notify customer
+  try {
+    await Notification.create({
+      userId: appointment.user,
+      type: "appointment_cancelled",
+      title: "Appointment Cancelled",
+      body: `Your consultation with Dr. ${appointment.doctorName} on ${new Date(appointment.scheduledAt).toLocaleString()} has been cancelled. ${reason ? `Reason: ${reason}` : ""}`,
+      metadata: { appointmentId: appointment._id },
+    });
+  } catch (err) {
+    console.log("NOTIFICATION CREATE ERROR:", err);
+  }
 
   return { appointment };
 };

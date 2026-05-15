@@ -222,6 +222,7 @@ function App() {
           <Route path="users" element={<UserDirectory />} />
           <Route path="users/:id/edit" element={<EditUser />} />
           <Route path="users/:id" element={<UserProfile />} />
+       
           
           
           {/* 🗓️ APPOINTMENTS */}

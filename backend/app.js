@@ -31,7 +31,6 @@ const customerProgramRoutes = require("./routes/customer.program.routes");
 const customerEnquiryRoutes = require("./routes/customer.enquiry.routes");
 const customerClinicalVideoRoutes = require("./routes/customer.clinicalVideo.routes");
 
-
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
 const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
@@ -41,6 +40,8 @@ const adminAppointmentRoutes = require('./routes/admin.appointment.routes')
 const doctorAuthRoutes = require("./routes/doctor.auth.routes");
 const doctorAvailabilityRoutes = require("./routes/doctor.availability.routes")
 const doctorAppointmentRoutes = require("./routes/doctor.appointment.routes");
+const doctorNotificationRoutes = require("./routes/doctor.notification.routes");
+const doctorDashboardRoutes = require("./routes/doctor.dashboard.routes");
 const adminFinancialReportRoutes = require("./routes/admin.financialReport.routes");
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
 const adminBillingRoutes = require("./routes/admin.billing.routes");
@@ -143,6 +144,8 @@ app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/doctor/auth", doctorAuthRoutes);
 app.use("/api/doctor/availability", doctorAvailabilityRoutes);
 app.use("/api/doctor/appointments", doctorAppointmentRoutes);
+app.use("/api/doctor/notifications", doctorNotificationRoutes);
+app.use("/api/doctor/dashboard", doctorDashboardRoutes);
 // TODO: Future admin routes
 app.use("/api/admin/doctors", adminDoctorRoutes);
 app.use("/api/admin/users", adminUserRoutes);
