@@ -3,11 +3,19 @@
 // Displays doctor info, date, and time
 
 import { CheckCircle2, Calendar, Clock } from "lucide-react";
+import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 
 export default function PastAppointmentCard({ appointment }) {
   const doctor = appointment?.doctor || appointment?.doctorId || {};
   const doctorName = doctor.fullName || doctor.name || "Doctor";
   const specialization = doctor.specialization || "";
+
+  const photoUrl = doctor?.photo
+  ? buildDoctorPhotoUrl(
+      doctor.photo,
+      doctor.updatedAt
+    )
+  : null;
 
   const scheduled = appointment?.scheduledAt
     ? new Date(appointment.scheduledAt)
@@ -22,8 +30,12 @@ export default function PastAppointmentCard({ appointment }) {
   return (
     <div className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-orange-200 transition-colors">
       <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
-        {doctor.photo ? (
-          <img src={doctor.photo} alt={doctorName} className="w-full h-full object-cover" />
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={doctorName}
+            className="w-full h-full object-cover"
+          />
         ) : (
           <span className="text-sm font-bold text-gray-400">
             {doctorName?.[0]?.toUpperCase() || "D"}
@@ -33,7 +45,9 @@ export default function PastAppointmentCard({ appointment }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className="font-semibold text-gray-800 text-sm truncate">{doctorName}</p>
+          <p className="font-semibold text-gray-800 text-sm truncate">
+            {doctorName}
+          </p>
           <CheckCircle2 size={14} className="text-orange-500 shrink-0" />
         </div>
         {specialization && (

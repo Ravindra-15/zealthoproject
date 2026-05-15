@@ -73,24 +73,26 @@ const AppointmentCard = ({ appointment, isUpcoming = false }) => {
     scheduledAt,
     status,
     meetingLink,
+    meetingLinkSentAt,
   } = appointment;
-
+  
   const photoUrl = doctor
     ? buildDoctorPhotoUrl(doctor.photo, doctor.updatedAt)
     : null;
 
   // 🎯 Show "Join Video Call" only on upcoming + confirmed/pending + has link
   const canJoinVideo =
-    isUpcoming &&
-    ["pending", "confirmed"].includes(status) &&
-    !!meetingLink;
+  isUpcoming &&
+  ["pending", "confirmed"].includes(status) &&
+  !!meetingLink &&
+  !!meetingLinkSentAt;
 
   // 🎯 Show "Awaiting link" if upcoming but no link yet
   const awaitingLink =
-    isUpcoming &&
-    ["pending", "confirmed"].includes(status) &&
-    !meetingLink;
-
+  isUpcoming &&
+  ["pending", "confirmed"].includes(status) &&
+  !meetingLinkSentAt;
+  
   return (
     <div
       className="

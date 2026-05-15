@@ -38,7 +38,10 @@ const listByDate = async (doctorId, dateStr) => {
     scheduledAt: { $gte: start, $lt: end },
     status: { $in: ["pending", "confirmed", "completed"] },
   })
-    .populate("user", "fullName nickName phone")
+    .populate(
+      "user",
+      "fullName nickName phone profilePhoto updatedAt"
+    )
     .sort({ scheduledAt: 1 })
     .lean();
 
@@ -68,7 +71,16 @@ const setMeetingLink = async (doctorId, appointmentId, meetingLink) => {
   appointment.meetingLinkSentAt = null;
   await appointment.save();
 
-  return { appointment: appointment.toObject() };
+  const populatedAppointment = await Appointment.findById(
+  appointment._id
+)
+  .populate(
+    "user",
+    "fullName nickName phone profilePhoto updatedAt"
+  )
+  .lean();
+
+return { appointment: populatedAppointment };
 };
 
 // ============================================
@@ -95,7 +107,16 @@ const markMeetingLinkSent = async (doctorId, appointmentId) => {
 
   // 📧 Future: trigger email/SMS notification to patient here
 
-  return { appointment: appointment.toObject() };
+  const populatedAppointment = await Appointment.findById(
+  appointment._id
+)
+  .populate(
+    "user",
+    "fullName nickName phone profilePhoto updatedAt"
+  )
+  .lean();
+
+return { appointment: populatedAppointment };
 };
 
 module.exports = {

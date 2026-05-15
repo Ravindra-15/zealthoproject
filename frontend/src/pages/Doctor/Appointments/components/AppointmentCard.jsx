@@ -9,6 +9,7 @@ import React, { useState } from "react";
 import { Link as LinkIcon, Clock, Loader2, Send, Video } from "lucide-react";
 
 import toast from "react-hot-toast";
+import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
 
 import {
   setMeetingLink,
@@ -145,11 +146,19 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
             flex items-center justify-center
             text-white text-sm font-bold
             flex-shrink-0
+            overflow-hidden
           "
         >
-          {getInitials(displayName)}
+          {user?.profilePhoto ? (
+            <img
+              src={buildUserPhotoUrl(user.profilePhoto, user.updatedAt)}
+              alt={displayName}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span>{getInitials(displayName)}</span>
+          )}
         </div>
-
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-gray-900 truncate">
             @{displayName}
