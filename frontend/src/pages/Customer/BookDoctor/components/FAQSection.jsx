@@ -1,15 +1,15 @@
 /**
- * CUSTOMER MODULE — FAQ Section
+ * CUSTOMER MODULE — FAQ Section (Book Doctor page)
  *
- * Uses the reusable FAQAccordion component with curated content.
- * Visual layout: left-side intro + image, right-side accordion list.
+ * Mirrors the landing page FAQ layout exactly — sticky left intro with image,
+ * right-side accordion list — but with book-doctor-specific questions and imagery.
  */
 
 import React, { useState } from "react";
 import FAQAccordion from "../../../../components/customer/common/FAQAccordion";
 
 // ============================================
-// 📚 FAQ CONTENT
+// 📚 FAQ CONTENT (book doctor specific)
 // ============================================
 const FAQ_ITEMS = [
   {
@@ -28,11 +28,6 @@ const FAQ_ITEMS = [
       "Refer a friend using your unique referral link from the Refer & Earn page. When they complete their first consultation, you both receive a wallet credit that can be applied to future bookings or premium programs.",
   },
   {
-    question: "What's the difference between therapy and coaching?",
-    answer:
-      "Therapy is a clinical, doctor-led service for diagnosing and treating health concerns. Coaching is goal-oriented support — habit building, accountability, and lifestyle changes — guided by certified instructors. Many members benefit from both at different stages.",
-  },
-  {
     question: "Can I reschedule or cancel my consultation?",
     answer:
       "You can reschedule or cancel up to 4 hours before your appointment from the My Appointments page. Cancellations within 4 hours may incur a partial fee depending on the doctor's policy.",
@@ -44,64 +39,65 @@ const FAQ_ITEMS = [
   },
 ];
 
-// Image path (can be empty/null if not available)
+// Image path — book doctor FAQ uses its own imagery
 const imageSrc = "/images/faq-image.png";
 
-const FAQSection = () => {
+export default function FAQSection() {
   const [imgError, setImgError] = useState(false);
 
   return (
-    <section id="faq" className="py-12 sm:py-16">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
+    <section id="faq" className="bg-white">
+      <div className="max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
 
-        {/* ============================================ */}
-        {/* 🏷️ LEFT — Intro + supporting imagery         */}
-        {/* ============================================ */}
-        <div className="lg:col-span-2">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            Frequently Asked{" "}
-            <span className="text-orange-500">Questions</span>
-          </h2>
+          {/* ============================================ */}
+          {/* 🏷️ LEFT — Sticky intro + supporting imagery  */}
+          {/* ============================================ */}
+          <div className="w-full lg:w-[40%]">
+            <h2 className="font-bold leading-[1.15] mb-4 text-3xl sm:text-4xl lg:text-[38px] xl:text-[38px] lg:whitespace-nowrap">
+              <span className="text-[#0F2C3D]">Frequently Asked </span>
+              <span className="text-orange-500">Questions</span>
+            </h2>
 
-          <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-            Find answers to common questions about our services, therapy, and
-            mental well-being.
-          </p>
+            <p className="text-gray-500 text-sm sm:text-base leading-relaxed max-w-[420px] mb-6 lg:mb-8">
+              Find answers to common questions about our services,
+              therapy, and mental well-being.
+            </p>
 
-          {/* Image / Fallback */}
-          <div className="mt-6 rounded-2xl overflow-hidden border border-gray-100 h-auto">
-            {!imgError && imageSrc ? (
-              <img
-                src={imageSrc}
-                alt="Wellness"
-                className="w-full h-auto object-cover"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div
-                className="
-                  w-full h-full flex items-center justify-center
-                  bg-gradient-to-br from-emerald-50 via-orange-50 to-pink-50
-                "
-              >
-                <p className="text-xs text-gray-400 italic px-6 text-center">
-                  Wellness, guidance, and care — all in one place.
-                </p>
-              </div>
-            )}
+            {/* IMAGE / Fallback */}
+            <div className="rounded-[28px] overflow-hidden">
+              {!imgError && imageSrc ? (
+                <img
+                  src={imageSrc}
+                  alt="Wellness"
+                  className="w-full h-[240px] sm:h-[320px] lg:h-[380px] object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div
+                  className="
+                    w-full h-[240px] sm:h-[320px] lg:h-[380px]
+                    flex items-center justify-center
+                    bg-gradient-to-br from-emerald-50 via-orange-50 to-pink-50
+                  "
+                >
+                  <p className="text-xs text-gray-400 italic px-6 text-center">
+                    Wellness, guidance, and care — all in one place.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* ============================================ */}
-        {/* 📋 RIGHT — Accordion list                     */}
-        {/* ============================================ */}
-        <div className="lg:col-span-3">
-          <FAQAccordion items={FAQ_ITEMS} />
-        </div>
+          {/* ============================================ */}
+          {/* 📋 RIGHT — Accordion list                     */}
+          {/* ============================================ */}
+          <div className="w-full lg:flex-1">
+            <FAQAccordion items={FAQ_ITEMS} defaultOpenIndex={0} />
+          </div>
 
+        </div>
       </div>
     </section>
   );
-};
-
-export default FAQSection;
+}

@@ -204,48 +204,57 @@ const CustomerFooter = () => {
           </div>
 
           {/* RIGHT — CTA CARD */}
-          <div
-            className="
-                      relative overflow-hidden
-                      bg-[#0F3D38]
-                      rounded-bl-2xl rounded-br-2xl rounded-tl-2xl rounded-tr-none
-                      p-7 sm:p-8
-                    flex flex-col justify-between gap-6
-                    w-full lg:w-[500px]
-                    min-h-[340px]
-                  "
-          >
-            <img
-              src="/images/illustration_7.png"
-              alt=""
-              className="absolute top-0 right-0 w-32 sm:w-44 lg:w-48 pointer-events-none select-none"
-            />
+<div
+  className="
+    relative overflow-hidden
+    bg-[#0F3D38]
+    rounded-tl-3xl rounded-bl-3xl rounded-br-3xl rounded-tr-none
+    p-8 sm:p-10
+    flex flex-col justify-between gap-8
+    w-full lg:w-[500px]
+    min-h-[340px]
+    shadow-[0_8px_24px_rgba(15,61,56,0.15)]
+  "
+>
+  {/* Decorative illustration — flush to top-right */}
+  <img
+    src="/images/illustration_7.png"
+    alt=""
+    className="
+      absolute top-0 right-0
+      w-36 sm:w-44 lg:w-52
+      pointer-events-none select-none
+    "
+  />
 
-            <div className="relative z-10">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-                Find
-                <br />
-                Support,
-                <br />
-                Guidance,
-                <br />
-                and Balance.
-              </h2>
-            </div>
+  {/* Heading */}
+  <div className="relative z-10">
+    <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-white leading-[1.15] tracking-tight">
+      Find
+      <br />
+      Support,
+      <br />
+      Guidance,
+      <br />
+      and Balance.
+    </h2>
+  </div>
 
-            <Link
-              to="/book-doctor"
-              className="
-                relative z-10 inline-flex items-center justify-center
-                w-full px-6 py-3 rounded-full
-                text-sm font-semibold text-[#0F3D38]
-                bg-white hover:bg-gray-50
-                transition-colors
-              "
-            >
-              Find Support Now
-            </Link>
-          </div>
+  {/* CTA button */}
+  <Link
+    to="/book-doctor"
+    className="
+      relative z-10 inline-flex items-center justify-center
+      w-full px-6 py-3.5 rounded-full
+      text-sm sm:text-base font-bold text-[#0F3D38]
+      bg-white hover:bg-gray-50
+      shadow-[0_2px_8px_rgba(0,0,0,0.08)]
+      transition-colors
+    "
+  >
+    Find Support Now
+  </Link>
+</div>
         </div>
 
         {/* BOTTOM BAR */}

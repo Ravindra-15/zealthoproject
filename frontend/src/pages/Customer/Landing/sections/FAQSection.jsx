@@ -35,7 +35,7 @@ export default function FAQSection() {
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
           
           {/* LEFT */}
-          <div className="w-full lg:w-[40%] lg:sticky lg:top-8">
+          <div className="w-full lg:w-[40%]">
             <h2 className="font-bold leading-[1.15] mb-4 text-3xl sm:text-4xl lg:text-[38px] xl:text-[42px] lg:whitespace-nowrap">
               <span className="text-[#0F2C3D]">Frequently Asked </span>
               <span className="text-orange-500">Questions</span>

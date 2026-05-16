@@ -55,6 +55,7 @@ export default function CallbackSection() {
   return (
     <section id="callback" className="bg-white">
       <div className="max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 py-10 sm:py-12 lg:py-14">
+        {/* Heading */}
         <div className="text-center mb-8 sm:mb-10">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F2C3D] mb-2">
             Request a <span className="text-orange-500">Callback</span>
@@ -64,9 +65,11 @@ export default function CallbackSection() {
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-48 items-center justify-center">
-          {/* form */}
-          <div className="w-full lg:w-[42%] space-y-5 sm:space-y-6 max-w-md lg:max-w-none mx-auto lg:mx-0">
+        {/* Balanced row — centered inside the 1600px wrapper */}
+        <div className="flex flex-col lg:flex-row gap-10 lg:gap-32 items-center justify-center">
+
+          {/* FORM */}
+          <div className="w-full lg:w-1/2 space-y-5 sm:space-y-6 max-w-xl mx-auto lg:mx-0">
             <input
               name="name"
               value={form.name}
@@ -106,31 +109,30 @@ export default function CallbackSection() {
             </button>
           </div>
 
-          {/* image - bigger to match figma */}
-{/* image - bigger to match figma */}
-{/* image - bigger to match figma */}
-<div className="w-full lg:w-[52%] flex justify-center">
-  <div 
-    className="w-full max-w-xl h-72 sm:h-80 lg:h-[420px] overflow-hidden"
-    style={{ 
-      borderTopLeftRadius: "40px",
-      borderTopRightRadius: "40px",
-      borderBottomLeftRadius: "50px",
-      borderBottomRightRadius: "50px",
-    }}
-  >
-    <img
-      src="/images/callback.png"
-      alt="Wellness callback"
-      className="w-full h-full object-cover"
-      style={{ 
-        display: "block",
-        transform: "scale(1.05)",
-        transformOrigin: "center",
-      }}
-    />
-  </div>
-</div>
+          {/* IMAGE */}
+          <div className="w-full lg:w-1/2 flex justify-end">
+            <div
+              className="w-full max-w-2xl h-72 sm:h-80 lg:h-[440px] overflow-hidden lg:translate-x-[15px]"
+              style={{
+                borderTopLeftRadius: "40px",
+                borderTopRightRadius: "40px",
+                borderBottomLeftRadius: "50px",
+                borderBottomRightRadius: "50px",
+              }}
+            >
+              <img
+                src="/images/callback.png"
+                alt="Wellness callback"
+                className="w-full h-full object-cover"
+                style={{
+                  display: "block",
+                  transform: "scale(1.05)",
+                  transformOrigin: "center",
+                }}
+              />
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
