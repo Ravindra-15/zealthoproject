@@ -10,7 +10,7 @@ import { Link as LinkIcon, Clock, Loader2, Send, Video } from "lucide-react";
 
 import toast from "react-hot-toast";
 import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
-
+import { formatUtcTime24h } from "../../../../utils/time";
 import {
   setMeetingLink,
   sendMeetingLink,
@@ -19,16 +19,16 @@ import {
 // ============================================
 // 🛠️ HELPERS
 // ============================================
-const formatTime = (iso) => {
-  if (!iso) return "—";
+// const formatTime = (iso) => {
+//   if (!iso) return "—";
 
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  });
-};
+//   return new Date(iso).toLocaleTimeString("en-US", {
+//     hour: "numeric",
+//     minute: "2-digit",
+//     hour12: true,
+//     timeZone: "UTC",
+//   });
+// };
 
 const maskPhone = (phone) => {
   if (!phone || phone.length < 4) return phone || "—";
@@ -180,7 +180,8 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
           </div>
 
           <p className="text-sm font-bold text-gray-900 mt-1">
-            {formatTime(scheduledAt)}
+            {/* {formatTime(scheduledAt)} */}
+             {formatUtcTime24h(scheduledAt)}
           </p>
         </div>
 

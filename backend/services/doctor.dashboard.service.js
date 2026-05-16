@@ -32,26 +32,32 @@ const getDashboardData = async (doctorId) => {
     999
   );
 
-  // Today bounds
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
+  // // Today bounds
+  // const startOfToday = new Date(
+  //   now.getFullYear(),
+  //   now.getMonth(),
+  //   now.getDate(),
+  //   0,
+  //   0,
+  //   0,
+  //   0
+  // );
 
-  const endOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+  // const endOfToday = new Date(
+  //   now.getFullYear(),
+  //   now.getMonth(),
+  //   now.getDate(),
+  //   23,
+  //   59,
+  //   59,
+  //   999
+  // );
+
+  const startOfToday = new Date(now);
+startOfToday.setUTCHours(0, 0, 0, 0);
+
+const endOfToday = new Date(now);
+endOfToday.setUTCHours(23, 59, 59, 999);
 
   const [
     totalConsultations,

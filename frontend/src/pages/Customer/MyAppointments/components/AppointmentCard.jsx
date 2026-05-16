@@ -15,27 +15,32 @@ import {
 
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 
+import {
+  formatUtcDate,
+  formatUtcTime24h,
+} from "../../../../utils/time";
+
 // 🗓️ Format helpers
-const formatDate = (iso) => {
-  if (!iso) return "—";
+// const formatDate = (iso) => {
+//   if (!iso) return "—";
 
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
+//   return new Date(iso).toLocaleDateString("en-US", {
+//     month: "short",
+//     day: "numeric",
+//     year: "numeric",
+//   });
+// };
 
-const formatTime = (iso) => {
-  if (!iso) return "—";
+// const formatTime = (iso) => {
+//   if (!iso) return "—";
 
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  });
-};
+//   return new Date(iso).toLocaleTimeString("en-US", {
+//     hour: "numeric",
+//     minute: "2-digit",
+//     hour12: true,
+//     timeZone: "UTC",
+//   });
+// };
 
 // 🟢 STATUS PILL
 const StatusPill = ({ status }) => {
@@ -145,7 +150,8 @@ const AppointmentCard = ({ appointment, isUpcoming = false }) => {
               <Calendar size={11} />
 
               <span className="font-semibold text-gray-700">
-                {formatDate(scheduledAt)}
+                {/* {formatDate(scheduledAt)} */}
+                {formatUtcDate(scheduledAt)}
               </span>
             </div>
 
@@ -153,7 +159,8 @@ const AppointmentCard = ({ appointment, isUpcoming = false }) => {
               <Clock size={11} />
 
               <span className="font-semibold text-gray-700">
-                {formatTime(scheduledAt)}
+                {/* {formatTime(scheduledAt)} */}
+                {formatUtcTime24h(scheduledAt)}
               </span>
             </div>
           </div>

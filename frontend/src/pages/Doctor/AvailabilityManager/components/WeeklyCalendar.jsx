@@ -10,7 +10,7 @@ import React from "react";
 import { Lock, CheckCircle2 } from "lucide-react";
 
 import {
-  formatTime12h,
+  formatSlot24h,
   formatShortDay,
   formatMonthDay,
   isToday,
@@ -214,7 +214,8 @@ const WeeklyCalendar = ({
               {/* Time label */}
               <div className="pl-1">
                 <p className="text-xs font-medium text-gray-500">
-                  {formatTime12h(time)}
+                  {/* {formatTime12h(time)} */}
+                  {formatSlot24h(time)}
                 </p>
               </div>
 

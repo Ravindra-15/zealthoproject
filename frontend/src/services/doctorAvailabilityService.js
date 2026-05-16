@@ -106,12 +106,26 @@ export const addDays = (date, days) => {
 /**
  * Format "HH:MM" 24h → "9:00 AM" 12h with am/pm.
  */
-export const formatTime12h = (hhmm) => {
+// export const formatTime12h = (hhmm) => {
+//   if (!hhmm) return "";
+//   const [h, m] = hhmm.split(":").map(Number);
+//   const period = h >= 12 ? "PM" : "AM";
+//   const hour12 = h % 12 || 12;
+//   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+// };
+// export const formatTime12h = (hhmm) => {
+//   if (!hhmm) return "";
+
+//   const [h, m] = hhmm.split(":").map(Number);
+
+//   const period = h >= 12 ? "PM" : "AM";
+//   const hour12 = h % 12 || 12;
+
+//   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+// };
+export const formatSlot24h = (hhmm) => {
   if (!hhmm) return "";
-  const [h, m] = hhmm.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour12 = h % 12 || 12;
-  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+  return hhmm;
 };
 
 /**

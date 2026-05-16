@@ -8,7 +8,7 @@
 import React from "react";
 import { CalendarX } from "lucide-react";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
-
+import { formatUtcDateTime12h } from "../../../../utils/time";
 // ============================================
 // 🎨 STATUS PILL CONFIG
 // ============================================
@@ -64,16 +64,16 @@ const formatFee = (fee, currency = "USD") => {
 // ============================================
 // 🗓️ Format date
 // ============================================
-const formatDateTime = (date) => {
-  if (!date) return "—";
-  return new Date(date).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
+// const formatDateTime = (date) => {
+//   if (!date) return "—";
+//   return new Date(date).toLocaleString("en-US", {
+//     month: "short",
+//     day: "numeric",
+//     hour: "numeric",
+//     minute: "2-digit",
+//     hour12: true,
+//   });
+// };
 
 // ============================================
 // 📋 MAIN TABLE
@@ -154,7 +154,8 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700">
-                    {formatDateTime(apt.scheduledAt)}
+                    {/* {formatDateTime(apt.scheduledAt)} */}
+                    {formatUtcDateTime12h(apt.scheduledAt)}
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -187,7 +188,7 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
               with {apt.doctorName}
             </p>
             <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="text-gray-700">{formatDateTime(apt.scheduledAt)}</span>
+              <span className="text-gray-700">{formatUtcDateTime12h(apt.scheduledAt)}</span>
               <span className="font-semibold text-indigo-600">
                 {formatFee(apt.fee, apt.currency)}
               </span>

@@ -18,7 +18,7 @@ import {
   deleteTimeOff,
 } from "../../../services/doctorAvailabilityService";
 import toast from "react-hot-toast";
-
+import { formatUtcTime24h } from "../../../utils/time";
 // ============================================
 // 🌅 Greeting helper
 // ============================================
@@ -44,12 +44,16 @@ const formatToday = () => {
 const QuickActionSlot = ({ slot, onToggle }) => {
   const [loading, setLoading] = useState(false);
 
+  // const formatTime = (hhmm) => {
+  //   const [h, m] = hhmm.split(":").map(Number);
+  //   const period = h >= 12 ? "PM" : "AM";
+  //   const hour12 = h % 12 || 12;
+  //   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+  // };
   const formatTime = (hhmm) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    const period = h >= 12 ? "PM" : "AM";
-    const hour12 = h % 12 || 12;
-    return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
-  };
+  if (!hhmm) return "";
+  return hhmm;
+};
 
   const handleToggle = async () => {
     if (slot.isBooked) {
@@ -263,12 +267,13 @@ const Dashboard = () => {
                     <Clock className="w-4 h-4 text-gray-500" />
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {new Date(apt.scheduledAt).toLocaleTimeString("en-US", {
+                        {/* {new Date(apt.scheduledAt).toLocaleTimeString("en-US", {
                           hour: "2-digit",
                           minute: "2-digit",
                           hour12: true,
                           timeZone: "UTC",
-                        })}
+                        })} */}
+                        {formatUtcTime24h(apt.scheduledAt)}
                       </p>
                       <p className="text-xs text-gray-500">{apt.patientName}</p>
                     </div>

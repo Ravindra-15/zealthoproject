@@ -4,6 +4,10 @@
 
 import { CheckCircle2, Calendar, Clock } from "lucide-react";
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
+import {
+  formatUtcDate,
+  formatUtcTime24h,
+} from "../../../../utils/time";
 
 export default function PastAppointmentCard({ appointment }) {
   const doctor = appointment?.doctor || appointment?.doctorId || {};
@@ -17,15 +21,15 @@ export default function PastAppointmentCard({ appointment }) {
     )
   : null;
 
-  const scheduled = appointment?.scheduledAt
-    ? new Date(appointment.scheduledAt)
-    : null;
-  const dateStr = scheduled
-    ? scheduled.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
-    : "—";
-  const timeStr = scheduled
-    ? scheduled.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-    : "—";
+  // const scheduled = appointment?.scheduledAt
+  //   ? new Date(appointment.scheduledAt)
+  //   : null;
+  // const dateStr = scheduled
+  //   ? scheduled.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+  //   : "—";
+  // const timeStr = scheduled
+  //   ? scheduled.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+  //   : "—";
 
   return (
     <div className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-orange-200 transition-colors">
@@ -59,14 +63,14 @@ export default function PastAppointmentCard({ appointment }) {
             <Calendar size={12} className="text-gray-400" />
             <div className="leading-tight">
               <p className="text-[10px] text-gray-400">Date</p>
-              <p className="text-xs font-medium text-gray-700">{dateStr}</p>
+              <p className="text-xs font-medium text-gray-700">{formatUtcDate(appointment?.scheduledAt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
             <Clock size={12} className="text-gray-400" />
             <div className="leading-tight">
               <p className="text-[10px] text-gray-400">Time</p>
-              <p className="text-xs font-medium text-gray-700">{timeStr}</p>
+              <p className="text-xs font-medium text-gray-700">{formatUtcTime24h(appointment?.scheduledAt)}</p>
             </div>
           </div>
         </div>

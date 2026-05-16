@@ -166,9 +166,21 @@ const getDayAvailability = async (doctorId, dateStr) => {
   ]);
 
   // 🔧 Today-only: also block past time slots
-  const isToday = dayStart.getTime() === today.getTime();
-  const now = new Date();
+  // const isToday = dayStart.getTime() === today.getTime();
+  // const isToday =
+  // dateStr === new Date().toISOString().split("T")[0];
+  // const now = new Date();
+// 🔧 Today-only: also block past time slots
+// const now = new Date();
 
+// const currentDateStr = now.toISOString().split("T")[0];
+
+// const isToday = dateStr === currentDateStr;
+const nowUtc = new Date();
+
+const todayUtcDate = nowUtc.toISOString().split("T")[0];
+
+const isToday = dateStr === todayUtcDate;
   // 🪪 Lookup: which slots is the doctor open for on this dayOfWeek?
   const openSet = new Set(
     (template?.weekly?.find((d) => d.dayOfWeek === dayOfWeek) || { slots: [] })
@@ -184,8 +196,18 @@ const getDayAvailability = async (doctorId, dateStr) => {
     const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
 
     // ❌ Past slot today
-    if (isToday && slotStart < now) return { time: hhmm, isBookable: false };
+    // if (isToday && slotStart < now) 
+    //  if (isToday && slotEnd <= now) return { time: hhmm, isBookable: false };
+    // if (isToday && slotEnd <= nowUtc) return { time: hhmm, isBookable: false };
+console.log("TIME:", hhmm);
+console.log("SLOT START:", slotStart.toISOString());
+console.log("SLOT END:", slotEnd.toISOString());
+console.log("NOW UTC:", nowUtc.toISOString());
+console.log("IS TODAY:", isToday);
+console.log("IS PAST:", slotEnd <= nowUtc);
 
+if (isToday && slotEnd <= nowUtc)
+  return { time: hhmm, isBookable: false };
     // ❌ Doctor not open on this dayOfWeek
     if (!openSet.has(hhmm)) return { time: hhmm, isBookable: false };
 

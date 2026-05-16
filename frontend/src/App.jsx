@@ -14,6 +14,7 @@ import {
 import LandingPage from "./pages/Customer/Landing/LandingPage";
 // 👤 CUSTOMER PAGES
 import Signup from "./pages/Signup/Signup";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 import OtpVerification from "./pages/Signup/OtpVerification";
 import ProfileStepOne from "./pages/Signup/ProfileStepOne";
@@ -39,6 +40,9 @@ import MyProfile from "./pages/Customer/MyProfile/MyProfile";
 import CustomerNotifications from "./pages/Customer/Notifications/Notifications";
 import MyPlansAndBillings from "./pages/Customer/MyPlansAndBillings/MyPlansAndBillings";
 import Receipt from "./pages/Customer/Receipt/Receipt";
+
+import PrivacyPolicy from "./pages/Customer/PrivacyPolicy/PrivacyPolicy";
+import ReferAndEarnPage from "./pages/Customer/ReferAndEarn/ReferAndEarnPage";
 
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
@@ -79,6 +83,7 @@ import Settings from "./pages/Doctor/Settings/Settings";
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <Routes>
         {/* ============================================ */}
         {/* 👤 CUSTOMER ROUTES */}
@@ -87,6 +92,15 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/verify-otp" element={<OtpVerification />} />
+        {/* <Route path="/privacy-policy" element={<PrivacyPolicy />} /> */}
+        <Route
+          path="/refer-and-earn"
+          element={
+            <ProtectedRoute>
+              {/* <ReferAndEarnPage /> */}
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/profile-step-1"
           element={
@@ -217,14 +231,12 @@ function App() {
           <Route path="subscriptions" element={<SubscriptionConfigurator />} />
           <Route path="subscriptions/new" element={<AddEditPlan />} />
           <Route path="subscriptions/:id/edit" element={<AddEditPlan />} />
-          
+
           {/* 👥 USERS */}
           <Route path="users" element={<UserDirectory />} />
           <Route path="users/:id/edit" element={<EditUser />} />
           <Route path="users/:id" element={<UserProfile />} />
-       
-          
-          
+
           {/* 🗓️ APPOINTMENTS */}
           <Route path="appointments" element={<AppointmentLog />} />
         </Route>

@@ -13,15 +13,14 @@ export default function ReferAndEarnSection() {
       <div className="max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 pb-10 sm:pb-12 lg:pb-14">
         {/* Outer light-grey card */}
         <div className="relative bg-gray-100 rounded-[24px] sm:rounded-[28px] px-6 sm:px-10 lg:px-14 py-14 sm:py-16 lg:py-20">
-  
-  {/* Decorative image — top right corner, anchored to card edge */}
-  <div className="absolute top-0 right-0 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 pointer-events-none select-none rounded-tr-[24px] sm:rounded-tr-[28px] overflow-hidden">
-    <img
-      src="/images/referandearn.png"
-      alt=""
-      className="w-full h-full object-cover object-right-top"
-    />
-  </div>
+          {/* Decorative image — top right corner, anchored to card edge */}
+          <div className="absolute top-0 right-0 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 pointer-events-none select-none rounded-tr-[24px] sm:rounded-tr-[28px] overflow-hidden">
+            <img
+              src="/images/referandearn.png"
+              alt=""
+              className="absolute -top-6 -right-6 sm:-top-24 sm:-right-24 lg:-top-28 lg:-right-28 w-20 sm:w-64 lg:w-80 pointer-events-none select-none"
+            />
+          </div>
           {/* HEADING + CTA */}
           <div className="text-center relative z-10 max-w-2xl mx-auto">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F2C3D] mb-2">

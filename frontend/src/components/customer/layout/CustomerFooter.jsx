@@ -54,7 +54,7 @@ const RESOURCE_LINKS = [
   { label: "Find A Doctor", type: "page", to: "/book-doctor" },
   { label: "Our Programs", type: "section", to: "programs" },
   { label: "Pricing", type: "section", to: "pricing" },
-  { label: "Refer & Earn", type: "section", to: "refer" },
+  { label: "Refer & Earn", type: "page", to: "/refer-and-earn" },
 ];
 
 const SOCIAL_ICONS = [
@@ -102,7 +102,7 @@ const FooterLink = ({ link }) => {
       </a>
     );
   }
-
+  
   if (link.type === "section") {
     return (
       <a

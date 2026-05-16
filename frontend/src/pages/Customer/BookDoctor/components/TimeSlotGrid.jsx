@@ -6,7 +6,7 @@
 
 import React from "react";
 import { CalendarOff } from "lucide-react";
-import { formatTime12h } from "../../../../services/doctorAvailabilityService";
+import { formatSlot24h } from "../../../../services/doctorAvailabilityService";
 
 // ============================================
 // 📋 COMPONENT
@@ -63,7 +63,9 @@ const TimeSlotGrid = ({
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-      {slots.map((slot) => {
+      {slots
+  .filter((slot) => slot.isBookable)
+  .map((slot) => {
         const isSelected = selectedTime === slot.time;
         const disabled = !slot.isBookable;
 
@@ -87,7 +89,7 @@ const TimeSlotGrid = ({
             `}
             aria-pressed={isSelected}
           >
-            {formatTime12h(slot.time)}
+            {formatSlot24h(slot.time)}
           </button>
         );
       })}
