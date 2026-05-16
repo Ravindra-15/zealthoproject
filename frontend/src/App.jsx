@@ -96,7 +96,7 @@ function App() {
         <Route path="/verify-otp" element={<OtpVerification />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-use" element={<TermsOfUse />} />
-        {/* <Route path="/about" element={<About />} /> */}
+        <Route path="/about" element={<About />} />
         <Route
           path="/refer-and-earn"
           element={
