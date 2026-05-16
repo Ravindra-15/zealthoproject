@@ -112,7 +112,7 @@ export default function CallbackSection() {
           {/* IMAGE */}
           <div className="w-full lg:w-1/2 flex justify-end">
             <div
-              className="w-full max-w-2xl h-72 sm:h-80 lg:h-[440px] overflow-hidden lg:translate-x-[15px]"
+              className="w-full max-w-2xl h-72 sm:h-80 lg:h-[440px] overflow-hidden lg:translate-x-[10px]"
               style={{
                 borderTopLeftRadius: "40px",
                 borderTopRightRadius: "40px",
