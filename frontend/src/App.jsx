@@ -44,7 +44,7 @@ import Receipt from "./pages/Customer/Receipt/Receipt";
 import PrivacyPolicy from "./pages/Customer/PrivacyPolicy/PrivacyPolicy";
 import ReferAndEarnPage from "./pages/Customer/ReferAndEarn/ReferAndEarnPage";
 import TermsOfUse from "./pages/Customer/TermsOfUse/TermsOfUse";
-
+import About from "./pages/Customer/About/About";
 
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
@@ -96,6 +96,7 @@ function App() {
         <Route path="/verify-otp" element={<OtpVerification />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-use" element={<TermsOfUse />} />
+        {/* <Route path="/about" element={<About />} /> */}
         <Route
           path="/refer-and-earn"
           element={
