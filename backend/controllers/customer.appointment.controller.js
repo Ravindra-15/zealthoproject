@@ -139,9 +139,76 @@ const getMyAppointment = async (req, res) => {
   }
 };
 
+// ============================================
+// ❌ CANCEL MY APPOINTMENT
+// ============================================
+// PATCH /api/customer/appointments/:id/cancel
+const cancelMyAppointment = async (req, res) => {
+  try {
+    const result = await customerAppointmentService.cancelByUser(
+      req.user.id,
+      req.params.id
+    );
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Appointment cancelled",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[CUSTOMER CANCEL APPOINTMENT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel appointment",
+    });
+  }
+};
+
+// ============================================
+// ✅ MARK MY APPOINTMENT COMPLETE
+// ============================================
+// PATCH /api/customer/appointments/:id/complete
+const markMyAppointmentComplete = async (req, res) => {
+  try {
+    const result = await customerAppointmentService.markComplete({
+      appointmentId: req.params.id,
+      actorId: req.user.id,
+      actorType: "user",
+    });
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Consultation marked complete",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[CUSTOMER COMPLETE APPOINTMENT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark complete",
+    });
+  }
+};
+
 module.exports = {
   getDayAvailability,
   createBooking,
   listMyAppointments,
   getMyAppointment,
+  cancelMyAppointment,
+  markMyAppointmentComplete,
 };

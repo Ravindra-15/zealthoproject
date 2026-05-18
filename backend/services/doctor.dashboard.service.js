@@ -8,6 +8,11 @@ const Consultation = require("../models/Consultation");
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
 const TimeOff = require("../models/TimeOff");
 
+// 💰 Revenue split: Doctor keeps 60%, Admin/platform keeps 40%
+const DOCTOR_SHARE_PERCENT = 60;
+const calculateDoctorRevenue = (totalAmount) =>
+  Math.round((totalAmount * DOCTOR_SHARE_PERCENT) / 100);
+
 const getDashboardData = async (doctorId) => {
   const now = new Date();
 
@@ -191,8 +196,10 @@ endOfToday.setUTCHours(23, 59, 59, 999);
     totalAppointments:
       upcomingAppointments + completedAppointments,
 
-    revenueThisMonth:
-      revenueAgg[0]?.total || 0,
+    // revenueThisMonth:
+    //   revenueAgg[0]?.total || 0,
+
+    revenueThisMonth: calculateDoctorRevenue(revenueAgg[0]?.total || 0),
 
     todaySchedule: todaySchedule.map((a) => ({
       id: a._id,

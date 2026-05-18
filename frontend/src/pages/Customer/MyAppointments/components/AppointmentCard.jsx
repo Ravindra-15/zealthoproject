@@ -11,36 +11,22 @@ import {
   Video,
   CheckCircle2,
   User,
+  X,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
 
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 
+import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
+
+import { useState } from "react";
+
+import toast from "react-hot-toast";
 import {
-  formatUtcDate,
-  formatUtcTime24h,
-} from "../../../../utils/time";
-
-// 🗓️ Format helpers
-// const formatDate = (iso) => {
-//   if (!iso) return "—";
-
-//   return new Date(iso).toLocaleDateString("en-US", {
-//     month: "short",
-//     day: "numeric",
-//     year: "numeric",
-//   });
-// };
-
-// const formatTime = (iso) => {
-//   if (!iso) return "—";
-
-//   return new Date(iso).toLocaleTimeString("en-US", {
-//     hour: "numeric",
-//     minute: "2-digit",
-//     hour12: true,
-//     timeZone: "UTC",
-//   });
-// };
+  cancelMyAppointment,
+  markMyAppointmentComplete,
+} from "../../../../services/customerAppointmentService";
 
 // 🟢 STATUS PILL
 const StatusPill = ({ status }) => {
@@ -71,7 +57,7 @@ const StatusPill = ({ status }) => {
   );
 };
 
-const AppointmentCard = ({ appointment, isUpcoming = false }) => {
+const AppointmentCard = ({ appointment, isUpcoming = false, onUpdated }) => {
   const {
     doctor,
     doctorName,
@@ -80,24 +66,64 @@ const AppointmentCard = ({ appointment, isUpcoming = false }) => {
     meetingLink,
     meetingLinkSentAt,
   } = appointment;
+
+  const [cancelling, setCancelling] = useState(false);
+  const [completing, setCompleting] = useState(false);
+
+  const canCancel = isUpcoming && ["pending", "confirmed"].includes(status);
+
+  // const canMarkComplete =
+  //   ["pending", "confirmed"].includes(status) &&
+  //   new Date(scheduledAt) <= new Date();
   
+  const canMarkComplete =
+    ["pending", "confirmed"].includes(status) && !!meetingLinkSentAt;
+
+  const handleCancel = async () => {
+    if (!window.confirm("Cancel this appointment? This cannot be undone."))
+      return;
+    try {
+      setCancelling(true);
+      const updated = await cancelMyAppointment(appointment._id);
+      toast.success("Appointment cancelled");
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to cancel");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
+      setCompleting(true);
+      const updated = await markMyAppointmentComplete(appointment._id);
+      toast.success("Consultation marked complete");
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to mark complete");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const photoUrl = doctor
     ? buildDoctorPhotoUrl(doctor.photo, doctor.updatedAt)
     : null;
 
   // 🎯 Show "Join Video Call" only on upcoming + confirmed/pending + has link
   const canJoinVideo =
-  isUpcoming &&
-  ["pending", "confirmed"].includes(status) &&
-  !!meetingLink &&
-  !!meetingLinkSentAt;
+    isUpcoming &&
+    ["pending", "confirmed"].includes(status) &&
+    !!meetingLink &&
+    !!meetingLinkSentAt;
 
   // 🎯 Show "Awaiting link" if upcoming but no link yet
   const awaitingLink =
-  isUpcoming &&
-  ["pending", "confirmed"].includes(status) &&
-  !meetingLinkSentAt;
-  
+    isUpcoming &&
+    ["pending", "confirmed"].includes(status) &&
+    !meetingLinkSentAt;
+
   return (
     <div
       className="
@@ -132,16 +158,11 @@ const AppointmentCard = ({ appointment, isUpcoming = false }) => {
               {doctor?.fullName || doctorName}
             </p>
 
-            <CheckCircle2
-              size={13}
-              className="text-orange-500 flex-shrink-0"
-            />
+            <CheckCircle2 size={13} className="text-orange-500 flex-shrink-0" />
           </div>
 
           {doctor?.domain && (
-            <p className="text-xs text-gray-500 truncate">
-              {doctor.domain}
-            </p>
+            <p className="text-xs text-gray-500 truncate">{doctor.domain}</p>
           )}
 
           {/* 📅 Date + Time */}
@@ -194,6 +215,38 @@ const AppointmentCard = ({ appointment, isUpcoming = false }) => {
           <p className="text-[10px] text-gray-400 text-right max-w-[140px]">
             *Doctor will share the meeting link soon
           </p>
+        )}
+
+        {canMarkComplete && (
+          <button
+            type="button"
+            onClick={handleComplete}
+            disabled={completing}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {completing ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <CheckCircle size={12} />
+            )}
+            Consultation Completed
+          </button>
+        )}
+
+        {canCancel && (
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={cancelling}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            {cancelling ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <X size={12} />
+            )}
+            Cancel
+          </button>
         )}
       </div>
     </div>

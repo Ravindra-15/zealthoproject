@@ -84,6 +84,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Free appointment credits earned when a doctor cancels their booking
+    freeAppointmentCredits: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
 
     // 🔄 Admin-controlled status
     isActive: {

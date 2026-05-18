@@ -122,6 +122,25 @@ const appointmentSchema = new mongoose.Schema(
       default: "",
       maxlength: 500,
     },
+    // Who cancelled (user/doctor/admin)
+    cancelledBy: {
+      type: String,
+      enum: ["user", "doctor", "admin"],
+      default: null,
+    },
+
+    // Who marked it complete (user/doctor)
+    completedBy: {
+      type: String,
+      enum: ["user", "doctor"],
+      default: null,
+    },
+
+    // When it was marked complete
+    completedAt: {
+      type: Date,
+      default: null,
+    },
 
     // 🔗 Google Meet / Zoom link added by doctor before consultation
     meetingLink: {

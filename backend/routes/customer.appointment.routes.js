@@ -17,6 +17,8 @@ const {
   createBooking,
   listMyAppointments,
   getMyAppointment,
+  cancelMyAppointment,
+  markMyAppointmentComplete,
 } = require("../controllers/customer.appointment.controller");
 
 const {
@@ -99,6 +101,22 @@ appointmentRouter.get(
   authReadLimiter,
   validateObjectIdParam("id"),
   getMyAppointment
+);
+
+// ❌ Cancel my appointment
+appointmentRouter.patch(
+  "/:id/cancel",
+  authWriteLimiter,
+  validateObjectIdParam("id"),
+  cancelMyAppointment
+);
+
+// ✅ Mark my appointment complete
+appointmentRouter.patch(
+  "/:id/complete",
+  authWriteLimiter,
+  validateObjectIdParam("id"),
+  markMyAppointmentComplete
 );
 
 module.exports = {

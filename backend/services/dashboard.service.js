@@ -13,6 +13,7 @@ const Consultation = require("../models/Consultation");
 const ProgramSubscription = require("../models/ProgramSubscription");
 const cache = require("../utils/cache");
 const Doctor = require("../models/Doctor");
+const Appointment = require("../models/Appointment");
 
 // 🔧 Cache TTLs
 const STATS_CACHE_TTL = 300; // 5 minutes
@@ -121,8 +122,29 @@ const getRevenueThisMonth = async (programId) => {
     subscriptionTotal = subAgg[0]?.total || 0;
   }
 
-  const gross = consultationTotal + subscriptionTotal;
-  return calculateRevenue(gross);
+  // 💵 User-cancelled appointments → admin keeps the money
+const cancelledAgg = await Appointment.aggregate([
+  {
+    $match: {
+      platform: programId,
+      status: "cancelled",
+      cancelledBy: "user",
+      paymentStatus: "paid",
+      updatedAt: { $gte: startOfMonth, $lte: endOfMonth },
+    },
+  },
+  {
+    $group: {
+      _id: null,
+      total: { $sum: "$fee" },
+    },
+  },
+]);
+const cancelledTotal = cancelledAgg[0]?.total || 0;
+
+const gross = consultationTotal + subscriptionTotal;
+// 40% share on consultations/subs + 100% on cancellations
+return calculateRevenue(gross) + cancelledTotal;
 };
 
 // ============================================

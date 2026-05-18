@@ -157,27 +157,50 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   }
 
   // ============================================
-  // STEP 4 — Charge payment (isolated service)
+  // STEP 4 — Use free credit OR charge payment
   // ============================================
-  const paymentResult = await paymentService.charge({
-    userId,
-    amount: BOOKING_FEE,
-    currency: BOOKING_CURRENCY,
-    description: `Consultation with ${doctor.fullName}`,
-    metadata: { doctorId, scheduledAt: slotStart.toISOString() },
-  });
+  let paymentResult;
+  let usedFreeCredit = false;
 
-  if (!paymentResult.success) {
-    try {
-      await Notification.create({
-        userId,
-        type: "payment_failed",
-        title: "Payment Failed",
-        body: `Your payment for the $${BOOKING_FEE} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
-        metadata: { doctorId },
-      });
-    } catch (err) { }
-    return { error: { status: 402, message: paymentResult.message || "Payment failed" } };
+  // Re-fetch fresh user to check credits (avoid race conditions)
+  const freshUser = await User.findById(userId).select("freeAppointmentCredits");
+
+  if (freshUser?.freeAppointmentCredits > 0) {
+    // 🎁 Use free credit — money already paid earlier, redirect it to whichever doctor is booked now
+    usedFreeCredit = true;
+    paymentResult = {
+      success: true,
+      transactionId: `free_credit_${Date.now()}`,
+      amount: BOOKING_FEE,
+      currency: BOOKING_CURRENCY,
+      method: "free_credit",
+    };
+
+    // Decrement credit
+    freshUser.freeAppointmentCredits -= 1;
+    await freshUser.save();
+  } else {
+    // 💳 Charge payment normally
+    paymentResult = await paymentService.charge({
+      userId,
+      amount: BOOKING_FEE,
+      currency: BOOKING_CURRENCY,
+      description: `Consultation with ${doctor.fullName}`,
+      metadata: { doctorId, scheduledAt: slotStart.toISOString() },
+    });
+
+    if (!paymentResult.success) {
+      try {
+        await Notification.create({
+          userId,
+          type: "payment_failed",
+          title: "Payment Failed",
+          body: `Your payment for the $${BOOKING_FEE} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
+          metadata: { doctorId },
+        });
+      } catch (err) { }
+      return { error: { status: 402, message: paymentResult.message || "Payment failed" } };
+    }
   }
 
   // ============================================
@@ -215,30 +238,14 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     platform,
     scheduledAt: slotStart,
     durationMinutes: SLOT_DURATION_MINUTES,
-    fee: BOOKING_FEE,
+    fee: BOOKING_FEE,  // Doctor (same or different) still receives the original $20
     currency: BOOKING_CURRENCY,
     paymentStatus: "paid",
     status: "confirmed",
     notes,
   });
 
-  try {
-    await Consultation.create({
-      user: userId,
-      doctor: doctorId,
-      doctorName: doctor.fullName,
-      durationMinutes: SLOT_DURATION_MINUTES,
-      consultedAt: slotStart,
-      fee: BOOKING_FEE,
-      status: "completed",
-      paymentStatus: "paid",
-      paidAt: new Date(),
-      programSource: platform,
-      notes,
-    });
-  } catch (err) {
-    console.log("CONSULTATION CREATE ERROR:", err);
-  }
+
   // 🔔 Customer notification
   try {
     await Notification.create({
@@ -333,10 +340,103 @@ const getMyAppointmentById = async (userId, appointmentId) => {
     .lean();
 };
 
+// ============================================
+// ❌ CANCEL BY USER (no refund, no credit)
+// ============================================
+const cancelByUser = async (userId, appointmentId) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    user: userId,
+  });
+
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (["cancelled", "completed", "no_show"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot cancel a ${appointment.status} appointment` } };
+  }
+
+  appointment.status = "cancelled";
+  appointment.cancelledBy = "user";
+  appointment.cancelledReason = "Cancelled by user";
+  await appointment.save();
+
+  // 🔔 Notify doctor
+  try {
+    await Notification.create({
+      userId: appointment.doctor,
+      userType: "doctor",
+      type: "appointment_cancelled",
+      title: "Appointment Cancelled",
+      body: `${appointment.patientName} cancelled their appointment scheduled for ${new Date(appointment.scheduledAt).toLocaleString()}.`,
+      metadata: { appointmentId: appointment._id },
+    });
+  } catch (err) { }
+
+  return { appointment };
+};
+
+// ============================================
+// ✅ MARK CONSULTATION COMPLETE (creates Consultation → revenue counted)
+// ============================================
+const markComplete = async ({ appointmentId, actorId, actorType }) => {
+  // actorType: "user" | "doctor"
+  const query = { _id: appointmentId };
+  if (actorType === "user") query.user = actorId;
+  if (actorType === "doctor") query.doctor = actorId;
+
+  const appointment = await Appointment.findOne(query);
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (appointment.status === "completed") {
+    return { error: { status: 400, message: "Already marked complete" } };
+  }
+  if (["cancelled", "no_show"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot complete a ${appointment.status} appointment` } };
+  }
+
+  // // ⏰ Only allow completion after scheduled start time
+  // if (new Date(appointment.scheduledAt) > new Date()) {
+  //   return { error: { status: 400, message: "Cannot mark complete before scheduled time" } };
+  // }
+
+  // 🔗 Only allow completion after meeting link has been sent
+  if (!appointment.meetingLinkSentAt) {
+    return { error: { status: 400, message: "Meeting hasn't started yet" } };
+  }
+
+  appointment.status = "completed";
+  appointment.completedBy = actorType;
+  appointment.completedAt = new Date();
+  await appointment.save();
+
+  // 💰 Create Consultation record → revenue counted now
+  try {
+    await Consultation.create({
+      user: appointment.user,
+      doctor: appointment.doctor,
+      doctorName: appointment.doctorName,
+      durationMinutes: appointment.durationMinutes,
+      consultedAt: appointment.scheduledAt,
+      fee: appointment.fee,
+      status: "completed",
+      paymentStatus: appointment.paymentStatus,
+      paidAt: appointment.createdAt,
+      programSource: appointment.platform || "zealtho",
+      notes: appointment.notes,
+    });
+  } catch (err) {
+    console.log("CONSULTATION CREATE ERROR:", err);
+  }
+
+  return { appointment };
+};
+
 module.exports = {
   createBooking,
   listMyAppointments,
   getMyAppointmentById,
+  cancelByUser,
+  markComplete,
   BOOKING_FEE,
   BOOKING_CURRENCY,
 };

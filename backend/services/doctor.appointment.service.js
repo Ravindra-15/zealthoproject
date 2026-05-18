@@ -6,6 +6,9 @@
 
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
+ 
+const Consultation = require("../models/Consultation");
+const Notification = require("../models/Notification");
 
 // ============================================
 // 🗓️ HELPER — UTC day bounds for a YYYY-MM-DD
@@ -119,8 +122,124 @@ const markMeetingLinkSent = async (doctorId, appointmentId) => {
 return { appointment: populatedAppointment };
 };
 
+// ============================================
+// ❌ CANCEL BY DOCTOR (reason required → user gets free credit)
+// ============================================
+const cancelByDoctor = async (doctorId, appointmentId, reason) => {
+  if (!reason || !reason.trim()) {
+    return { error: { status: 400, message: "Cancellation reason is required" } };
+  }
+
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (["cancelled", "completed", "no_show"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot cancel a ${appointment.status} appointment` } };
+  }
+
+  appointment.status = "cancelled";
+  appointment.cancelledBy = "doctor";
+  appointment.cancelledReason = reason.trim();
+  await appointment.save();
+
+  // 🎁 Give user one free appointment credit
+  try {
+    await User.findByIdAndUpdate(appointment.user, {
+      $inc: { freeAppointmentCredits: 1 },
+    });
+  } catch (err) {
+    console.log("FREE CREDIT GRANT ERROR:", err);
+  }
+
+  // 🔔 Notify user with reason
+  try {
+    await Notification.create({
+      userId: appointment.user,
+      userType: "customer",
+      type: "appointment_cancelled",
+      title: "Appointment Cancelled by Doctor",
+      body: `Your appointment with Dr. ${appointment.doctorName} on ${new Date(appointment.scheduledAt).toLocaleString()} was cancelled. Reason: ${reason.trim()}. You have received 1 free appointment credit.`,
+      metadata: { appointmentId: appointment._id, reason: reason.trim() },
+    });
+  } catch (err) { }
+
+  return { appointment };
+};
+
+// ============================================
+// ✅ MARK COMPLETE BY DOCTOR (creates Consultation → revenue)
+// ============================================
+const markCompleteByDoctor = async (doctorId, appointmentId) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (appointment.status === "completed") {
+    return { error: { status: 400, message: "Already marked complete" } };
+  }
+  if (["cancelled", "no_show"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot complete a ${appointment.status} appointment` } };
+  }
+
+  // if (new Date(appointment.scheduledAt) > new Date()) {
+  //   return { error: { status: 400, message: "Cannot mark complete before scheduled time" } };
+  // }
+
+  if (!appointment.meetingLinkSentAt) {
+    return { error: { status: 400, message: "Meeting hasn't started yet" } };
+  }
+
+  appointment.status = "completed";
+  appointment.completedBy = "doctor";
+  appointment.completedAt = new Date();
+  await appointment.save();
+
+  // 💰 Create Consultation → revenue counted
+  try {
+    await Consultation.create({
+      user: appointment.user,
+      doctor: appointment.doctor,
+      doctorName: appointment.doctorName,
+      durationMinutes: appointment.durationMinutes,
+      consultedAt: appointment.scheduledAt,
+      fee: appointment.fee,
+      status: "completed",
+      paymentStatus: appointment.paymentStatus,
+      paidAt: appointment.createdAt,
+      programSource: appointment.platform || "zealtho",
+      notes: appointment.notes,
+    });
+  } catch (err) {
+    console.log("CONSULTATION CREATE ERROR:", err);
+  }
+
+  // 🔔 Notify user
+  try {
+    await Notification.create({
+      userId: appointment.user,
+      userType: "customer",
+      type: "general",
+      title: "Consultation Completed",
+      body: `Your consultation with Dr. ${appointment.doctorName} has been marked as completed.`,
+      metadata: { appointmentId: appointment._id },
+    });
+  } catch (err) { }
+
+  return { appointment };
+};
+
+
 module.exports = {
   listByDate,
   setMeetingLink,
   markMeetingLinkSent,
+  cancelByDoctor,
+  markCompleteByDoctor,
 };

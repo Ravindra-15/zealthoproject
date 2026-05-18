@@ -11,6 +11,8 @@ const {
   listAppointments,
   setMeetingLink,
   sendMeetingLink,
+  cancelAppointment,
+  markAppointmentComplete,
 } = require("../controllers/doctor.appointment.controller");
 
 const {
@@ -69,6 +71,22 @@ router.post(
   writeLimiter,
   validateObjectIdParam("id"),
   sendMeetingLink
+);
+
+// ❌ Cancel appointment (reason required)
+router.patch(
+  "/:id/cancel",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  cancelAppointment
+);
+
+// ✅ Mark appointment complete
+router.patch(
+  "/:id/complete",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  markAppointmentComplete
 );
 
 module.exports = router;

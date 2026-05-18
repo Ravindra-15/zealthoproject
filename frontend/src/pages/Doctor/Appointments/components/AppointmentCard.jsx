@@ -6,7 +6,15 @@
  */
 
 import React, { useState } from "react";
-import { Link as LinkIcon, Clock, Loader2, Send, Video } from "lucide-react";
+import {
+  Link as LinkIcon,
+  Clock,
+  Loader2,
+  Send,
+  Video,
+  X,
+  CheckCircle,
+} from "lucide-react";
 
 import toast from "react-hot-toast";
 import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
@@ -14,7 +22,11 @@ import { formatUtcTime24h } from "../../../../utils/time";
 import {
   setMeetingLink,
   sendMeetingLink,
+  cancelDoctorAppointment,
+  markAppointmentComplete,
 } from "../../../../services/doctorAppointmentService";
+
+import CancelReasonModal from "./CancelReasonModal";
 
 // ============================================
 // 🛠️ HELPERS
@@ -70,6 +82,47 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const [linkInput, setLinkInput] = useState(meetingLink || "");
   const [savingLink, setSavingLink] = useState(false);
   const [sending, setSending] = useState(false);
+
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [completing, setCompleting] = useState(false);
+
+  const status = appointment.status;
+
+  const canCancel = ["pending", "confirmed"].includes(status);
+  // const canMarkComplete =
+  //   ["pending", "confirmed"].includes(status) &&
+  //   new Date(scheduledAt) <= new Date();
+
+  const canMarkComplete =
+    ["pending", "confirmed"].includes(status) && !!meetingLinkSentAt;
+
+  const handleCancelConfirm = async (reason) => {
+    try {
+      setCancelling(true);
+      const updated = await cancelDoctorAppointment(_id, reason);
+      toast.success("Appointment cancelled");
+      setCancelModalOpen(false);
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to cancel");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
+      setCompleting(true);
+      const updated = await markAppointmentComplete(_id);
+      toast.success("Consultation marked complete");
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to mark complete");
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   // ============================================
   // 💾 SAVE LINK
@@ -181,7 +234,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
 
           <p className="text-sm font-bold text-gray-900 mt-1">
             {/* {formatTime(scheduledAt)} */}
-             {formatUtcTime24h(scheduledAt)}
+            {formatUtcTime24h(scheduledAt)}
           </p>
         </div>
 
@@ -322,6 +375,44 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
             Join
           </a>
         )}
+        {/* ✅ COMPLETE + ❌ CANCEL BUTTONS */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {canMarkComplete && (
+            <button
+              type="button"
+              onClick={handleComplete}
+              disabled={completing}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            >
+              {completing ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <CheckCircle size={12} />
+              )}
+              Mark Complete
+            </button>
+          )}
+
+          {canCancel && (
+            <button
+              type="button"
+              onClick={() => setCancelModalOpen(true)}
+              disabled={cancelling}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <X size={12} />
+              Cancel
+            </button>
+          )}
+        </div>
+
+        {/* ❌ CANCEL MODAL */}
+        <CancelReasonModal
+          open={cancelModalOpen}
+          onClose={() => setCancelModalOpen(false)}
+          onConfirm={handleCancelConfirm}
+          loading={cancelling}
+        />
       </div>
     </div>
   );

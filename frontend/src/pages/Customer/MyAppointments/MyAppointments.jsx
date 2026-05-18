@@ -150,6 +150,7 @@ const MyAppointments = () => {
                     key={apt._id}
                     appointment={apt}
                     isUpcoming
+                    onUpdated={() => { upcoming.refetch?.(); past.refetch?.(); }}
                   />
                 ))}
               </div>
@@ -181,6 +182,7 @@ const MyAppointments = () => {
                     key={apt._id}
                     appointment={apt}
                     isUpcoming={false}
+                    onUpdated={() => { upcoming.refetch?.(); past.refetch?.(); }}
                   />
                 ))}
               </div>

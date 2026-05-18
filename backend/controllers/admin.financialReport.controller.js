@@ -11,7 +11,7 @@
 
 const Consultation = require("../models/Consultation");
 const ProgramSubscription = require("../models/ProgramSubscription");
-
+const Appointment = require("../models/Appointment");
 // ============================================
 // 💰 REVENUE FORMULA — CHANGE THIS WHEN SENIOR DECIDES
 // ============================================
@@ -85,8 +85,31 @@ const getFinancialSummary = async (req, res) => {
             subscriptionFees = subAgg[0]?.total || 0;
         }
 
+        // const grossTotal = consultationFees + subscriptionFees;
+        // const totalRevenue = calculateRevenue(grossTotal);
+
+        // 💵 USER-CANCELLED APPOINTMENTS → admin keeps 100%
+        const cancelledAgg = await Appointment.aggregate([
+            {
+                $match: {
+                    platform: programId,
+                    status: "cancelled",
+                    cancelledBy: "user",
+                    paymentStatus: "paid",
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: "$fee" },
+                },
+            },
+        ]);
+        const cancelledRevenue = cancelledAgg[0]?.total || 0;
+
         const grossTotal = consultationFees + subscriptionFees;
-        const totalRevenue = calculateRevenue(grossTotal);
+        // 40% share from consultations/subs + 100% from cancellations
+        const totalRevenue = calculateRevenue(grossTotal) + cancelledRevenue;
 
         return res.status(200).json({
             success: true,
@@ -197,17 +220,49 @@ const getRevenueGrowth = async (req, res) => {
             dailyMap.set(d._id, (dailyMap.get(d._id) || 0) + d.total);
         });
 
+        // 💵 CANCELLED APPOINTMENTS — daily totals (100% revenue)
+        const cancelledDaily = await Appointment.aggregate([
+            {
+                $match: {
+                    platform: programId,
+                    status: "cancelled",
+                    cancelledBy: "user",
+                    paymentStatus: "paid",
+                    updatedAt: { $gte: startDate, $lte: endDate },
+                },
+            },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: {
+                            format: "%Y-%m-%d",
+                            date: "$updatedAt",
+                            timezone: "UTC",
+                        },
+                    },
+                    total: { $sum: "$fee" },
+                },
+            },
+        ]);
+
         // 📅 Build full date series, applying revenue % to each day
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const trend = [];
         const cursor = new Date(startDate);
 
+        // Build separate map for cancellations (100% revenue)
+        const cancelledMap = new Map();
+        cancelledDaily.forEach((d) => {
+            cancelledMap.set(d._id, d.total);
+        });
+
         for (let i = 0; i < days; i++) {
             const isoDate = cursor.toISOString().split("T")[0];
             const grossDay = dailyMap.get(isoDate) || 0;
+            const cancelledDay = cancelledMap.get(isoDate) || 0;
             trend.push({
                 date: `${months[cursor.getUTCMonth()]} ${cursor.getUTCDate()}`,
-                revenue: calculateRevenue(grossDay),
+                revenue: calculateRevenue(grossDay) + cancelledDay,
             });
             cursor.setUTCDate(cursor.getUTCDate() + 1);
         }
@@ -265,6 +320,18 @@ const listRecentTransactions = async (req, res) => {
                 .lean();
         }
 
+        // 💵 CANCELLED APPOINTMENTS (admin keeps full money)
+        const cancelledAppts = await Appointment.find({
+            platform: programId,
+            status: "cancelled",
+            cancelledBy: "user",
+            paymentStatus: "paid",
+        })
+            .populate("user", "fullName nickName email")
+            .sort({ updatedAt: -1 })
+            .limit(100)
+            .lean();
+
         // 🔀 Normalize both into a single transaction shape
         const consultationRows = consultations.map((c) => ({
             id: c._id.toString(),
@@ -286,8 +353,17 @@ const listRecentTransactions = async (req, res) => {
             receiptType: "subscription",
         }));
 
+        const cancelledRows = cancelledAppts.map((a) => ({
+            id: a._id.toString(),
+            type: "Cancellation",
+            customerName: a.user?.fullName || a.user?.nickName || a.patientName || "Unknown",
+            amount: a.fee || 0,
+            date: a.updatedAt,
+            receiptType: "cancellation",
+        }));
+
         // 🔁 Merge + sort by date desc
-        const allRows = [...consultationRows, ...subscriptionRows].sort(
+        const allRows = [...consultationRows, ...subscriptionRows, ...cancelledRows].sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
 

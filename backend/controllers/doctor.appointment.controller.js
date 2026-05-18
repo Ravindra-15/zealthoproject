@@ -103,8 +103,76 @@ const sendMeetingLink = async (req, res) => {
   }
 };
 
+// ============================================
+// ❌ CANCEL APPOINTMENT BY DOCTOR (reason required)
+// ============================================
+// PATCH /api/doctor/appointments/:id/cancel
+const cancelAppointment = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.cancelByDoctor(
+      req.doctorId,
+      req.params.id,
+      req.body.reason
+    );
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Appointment cancelled",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR CANCEL APPOINTMENT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel appointment",
+    });
+  }
+};
+
+// ============================================
+// ✅ MARK APPOINTMENT COMPLETE BY DOCTOR
+// ============================================
+// PATCH /api/doctor/appointments/:id/complete
+const markAppointmentComplete = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.markCompleteByDoctor(
+      req.doctorId,
+      req.params.id
+    );
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Consultation marked complete",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR COMPLETE APPOINTMENT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark complete",
+    });
+  }
+};
+
+
 module.exports = {
   listAppointments,
   setMeetingLink,
   sendMeetingLink,
+  cancelAppointment,
+  markAppointmentComplete,
 };

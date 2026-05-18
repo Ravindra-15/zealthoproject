@@ -40,3 +40,24 @@ export const sendMeetingLink = async (appointmentId) => {
   );
   return response.data.data.appointment;
 };
+
+// ============================================
+// ❌ CANCEL APPOINTMENT (reason required)
+// ============================================
+export const cancelDoctorAppointment = async (appointmentId, reason) => {
+  const response = await doctorApi.patch(
+    `/doctor/appointments/${appointmentId}/cancel`,
+    { reason }
+  );
+  return response.data.data.appointment;
+};
+
+// ============================================
+// ✅ MARK APPOINTMENT COMPLETE
+// ============================================
+export const markAppointmentComplete = async (appointmentId) => {
+  const response = await doctorApi.patch(
+    `/doctor/appointments/${appointmentId}/complete`
+  );
+  return response.data.data.appointment;
+};
