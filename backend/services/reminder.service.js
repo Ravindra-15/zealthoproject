@@ -24,6 +24,10 @@ const send24hReminders = async () => {
     const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
     const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000);
 
+    //     //For testing
+    // const windowStart = new Date(now.getTime());
+    // const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
     const appointments = await Appointment.find({
         status: { $in: ["pending", "confirmed"] },
         scheduledAt: { $gte: windowStart, $lte: windowEnd },
@@ -78,7 +82,7 @@ const send1hReminders = async () => {
     const windowStart = new Date(now.getTime() + 45 * 60 * 1000);
     const windowEnd = new Date(now.getTime() + 75 * 60 * 1000);
 
-    //Testing Purpose -> Uncomment next two lines and Comment above two lines then move to server.js -> uncomment the temp setTimeout block
+    // //Testing Purpose -> Uncomment next two lines and Comment above two lines then move to server.js -> uncomment the temp setTimeout block
     // const windowStart = new Date(now.getTime());
     // const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 

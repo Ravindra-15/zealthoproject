@@ -12,10 +12,12 @@ const startServer = async () => {
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       startReminderCron();
-  
-      // 🧪 TEMP TEST — remove after confirming
+
       // setTimeout(() => {
-      //   require("./services/reminder.service").send1hReminders();
+      //   const reminderService = require("./services/reminder.service");
+
+      //   reminderService.send1hReminders();
+      //   reminderService.send24hReminders();
       // }, 3000);
     });
 
