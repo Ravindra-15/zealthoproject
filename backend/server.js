@@ -1,5 +1,5 @@
 require("dotenv").config();
-
+const { startReminderCron } = require("./services/reminder.service");
 const app = require("./app");
 const connectDB = require("./config/db");
 
@@ -11,6 +11,12 @@ const startServer = async () => {
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      startReminderCron();
+  
+      // 🧪 TEMP TEST — remove after confirming
+      // setTimeout(() => {
+      //   require("./services/reminder.service").send1hReminders();
+      // }, 3000);
     });
 
     // Handle unhandled promise rejections

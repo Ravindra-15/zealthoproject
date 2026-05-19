@@ -162,6 +162,16 @@ const appointmentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // 📧 Email reminder tracking — prevents duplicate sends
+    reminded24hAt: {
+      type: Date,
+      default: null,
+    },
+
+    reminded1hAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true, versionKey: false }
 );
