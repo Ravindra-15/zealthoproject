@@ -86,6 +86,7 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
+      <div className="pt-16">
       <Routes>
         {/* ============================================ */}
         {/* 👤 CUSTOMER ROUTES */}
@@ -306,6 +307,7 @@ function App() {
         {/* ============================================ */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </div>
     </Router>
   );
 }

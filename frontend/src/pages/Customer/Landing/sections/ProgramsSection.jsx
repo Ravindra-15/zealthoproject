@@ -9,7 +9,7 @@ const programs = [
     bg: "bg-[#FFF3E8]",
     accent: "bg-[#FFD8B5]",
     textSide: "left",
-    image: "/images/yogaT20.png",
+    image: "/images/yoga-hero.png",
     btnBg:
       "bg-orange-500 hover:bg-orange-600 shadow-[0_4px_14px_rgba(249,115,22,0.35)]",
     url: import.meta.env.VITE_YOGAT20_URL || "http://localhost:5174",
@@ -62,7 +62,7 @@ export default function ProgramsSection() {
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-14">
         {/* Heading */}
         <div className="text-center mb-10 lg:mb-14">
-          <h2 className="text-3xl sm:text-4xl lg:text-[44px] font-bold text-[#0F172A] mb-3">
+          <h2 className="text-3xl sm:text-3xl lg:text-[40px] font-bold text-[#0F172A] mb-3">
             Tailored Programs <span className="text-orange-500">for you !</span>
           </h2>
 
@@ -101,7 +101,7 @@ export default function ProgramsSection() {
                         ? `
                           w-[180px] h-[180px]
                           sm:w-[240px] sm:h-[240px]
-                          lg:w-[420px] lg:h-[420px]
+                          lg:w-[520px] lg:h-[520px]
                           right-[-20px] lg:right-[40px]
                         `
                         : ""
@@ -112,8 +112,8 @@ export default function ProgramsSection() {
                         ? `
                           w-[190px] h-[190px]
                           sm:w-[250px] sm:h-[250px]
-                          lg:w-[430px] lg:h-[430px]
-                          left-[-30px] lg:left-[10px]
+                          lg:w-[520px] lg:h-[520px]
+                          left-[-30px] lg:left-[40px]
                         `
                         : ""
                     }
@@ -121,10 +121,10 @@ export default function ProgramsSection() {
                     ${
                       prog.id === "mommyfit"
                         ? `
-                          w-[190px] h-[190px]
+                          w-[180px] h-[180px]
                           sm:w-[240px] sm:h-[240px]
-                          lg:w-[400px] lg:h-[400px]
-                          right-[0px] lg:right-[70px]
+                          lg:w-[520px] lg:h-[520px]
+                          right-[-20px] lg:right-[40px]
                         `
                         : ""
                     }
@@ -132,10 +132,10 @@ export default function ProgramsSection() {
                     ${
                       prog.id === "slimfitter"
                         ? `
-                          w-[200px] h-[200px]
-                          sm:w-[260px] sm:h-[260px]
-                          lg:w-[430px] lg:h-[430px]
-                          left-[-60px] lg:left-[-20px]
+                          w-[190px] h-[190px]
+                          sm:w-[250px] sm:h-[250px]
+                          lg:w-[520px] lg:h-[520px]
+                          left-[-30px] lg:left-[40px]
                         `
                         : ""
                     }
@@ -157,7 +157,7 @@ export default function ProgramsSection() {
                   `}
                 >
                   <div className="max-w-[520px]">
-                    <h3 className="text-[32px] lg:text-[42px] font-bold text-[#0F172A] leading-tight mb-4">
+                    <h3 className="text-[30px] lg:text-[35px] font-bold text-[#0F172A] leading-tight mb-4">
                       {prog.title}
                     </h3>
 
@@ -212,21 +212,21 @@ export default function ProgramsSection() {
                   ${
                     prog.id === "yogat20"
                       ? `
-                        w-[210px]
-                        sm:w-[280px]
-                        md:w-[360px]
+                       w-[360px]
+                        sm:w-[420px]
+                        md:w-[480px]
                         lg:w-[560px]
-                        xl:w-[640px]
+                        xl:w-[600px]
 
                         right-[-10px]
                         sm:right-[10px]
                         lg:right-auto
 
-                        translate-y-4
+                        translate-y-1
                         lg:translate-y-6
 
                         lg:translate-x-16
-                        xl:translate-x-20
+                        xl:translate-x-13
                       `
                       : ""
                   }
@@ -234,10 +234,11 @@ export default function ProgramsSection() {
                   ${
                     prog.id === "diabmukt"
                       ? `
-                        w-[220px]
-                        sm:w-[300px]
-                        md:w-[380px]
-                        lg:w-[520px]
+                       w-[360px]
+                        sm:w-[420px]
+                        md:w-[480px]
+                        lg:w-[560px]
+                        xl:w-[600px]
 
                         left-[-20px]
                         sm:left-[0px]
@@ -254,10 +255,11 @@ export default function ProgramsSection() {
                   ${
                     prog.id === "mommyfit"
                       ? `
-                        w-[230px]
-                        sm:w-[300px]
-                        md:w-[380px]
-                        lg:w-[520px]
+                        w-[360px]
+                        sm:w-[420px]
+                        md:w-[480px]
+                        lg:w-[560px]
+                        xl:w-[600px]
 
                         right-[-15px]
                         sm:right-[10px]
@@ -274,10 +276,11 @@ export default function ProgramsSection() {
                   ${
                     prog.id === "slimfitter"
                       ? `
-                        w-[240px]
-                        sm:w-[320px]
-                        md:w-[390px]
-                        lg:w-[520px]
+                       w-[360px]
+                        sm:w-[420px]
+                        md:w-[480px]
+                        lg:w-[560px]
+                        xl:w-[600px]
 
                         left-[-25px]
                         sm:left-[0px]
