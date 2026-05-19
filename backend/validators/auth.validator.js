@@ -201,8 +201,17 @@ exports.validateVerifyOtp = (req, res, next) => {
   }
 
   // OTP must be exactly 6 digits
-  if (!/^\d{6}$/.test(otp)) {
-    return res.status(400).json({ success: false, message: "OTP must be 6 digits" });
+  // if (!/^\d{6}$/.test(otp)) {
+  //   return res.status(400).json({ success: false, message: "OTP must be 6 digits" });
+  // }
+  // OTP must be exactly 4 digits
+  // if (!/^\d{4}$/.test(otp)) {
+  //   return res.status(400).json({ success: false, message: "OTP must be 4 digits" });
+  // }
+
+  // OTP must be exactly 3 digits
+  if (!/^\d{3}$/.test(otp)) {
+    return res.status(400).json({ success: false, message: "OTP must be 3 digits" });
   }
 
   next();

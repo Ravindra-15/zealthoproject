@@ -14,7 +14,7 @@ const OtpVerification = () => {
 
   const email = location.state?.email;
 
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", ""]);
   const [timer, setTimer] = useState(30);
   const [loading, setLoading] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
@@ -48,7 +48,7 @@ const OtpVerification = () => {
   }, [timer]);
 
   useEffect(() => {
-    if (otp.join("").length === 6 && !verifyingRef.current) {
+    if (otp.join("").length === 3 && !verifyingRef.current) {
       handleVerify();
     }
     // eslint-disable-next-line
@@ -61,7 +61,7 @@ const OtpVerification = () => {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    if (value && index < 5) {
+    if (value && index < 2) {
       document.getElementById(`otp-${index + 1}`)?.focus();
     }
   };
@@ -76,15 +76,15 @@ const OtpVerification = () => {
     const paste = e.clipboardData.getData("text").trim();
     if (!/^\d+$/.test(paste)) return;
 
-    const newOtp = paste.slice(0, 6).split("");
-    while (newOtp.length < 6) newOtp.push("");
+    const newOtp = paste.slice(0, 3).split("");
+    while (newOtp.length < 3) newOtp.push("");
     setOtp(newOtp);
   };
 
   const handleVerify = async () => {
     const code = otp.join("");
 
-    if (code.length !== 6) {
+    if (code.length !== 3) {
       return toast.error("Enter full OTP");
     }
 
@@ -131,7 +131,7 @@ const OtpVerification = () => {
       await resendOtp({ email });
       toast.success("OTP sent successfully 📩", { id: toastId });
       setTimer(30);
-      setOtp(["", "", "", "", "", ""]);
+      setOtp(["", "", ""]);
       verifyingRef.current = false;
     } catch (err) {
       toast.error("Failed to resend OTP", { id: toastId });
