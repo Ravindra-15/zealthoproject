@@ -101,11 +101,17 @@ const bioSnippet =
         </div>
 
         <div className="flex items-center gap-1 mt-3">
-          <h3 className="text-sm font-bold text-gray-900">
-            {doctor.fullName}
-          </h3>
-          <CheckCircle2 size={14} className="text-orange-500" aria-label="Verified" />
-        </div>
+  <h3 className="text-sm font-bold text-gray-900">
+    {doctor.fullName}
+  </h3>
+  <CheckCircle2 size={14} className="text-orange-500" aria-label="Verified" />
+</div>
+
+{doctor.isFeatured && (
+  <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+    ⭐ Featured
+  </span>
+)}
         {doctor.domain && (
           <p className="text-xs text-gray-500 mt-0.5">{doctor.domain}</p>
         )}

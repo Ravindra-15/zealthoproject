@@ -19,7 +19,9 @@ const PUBLIC_FIELDS = [
   "photo",
   "qualifications",
   "yearsOfExperience",
-  "updatedAt", // for cache-busting photo URLs
+  "updatedAt",
+  "isFeatured",
+  "featuredUntil",
 ].join(" ");
 
 // ============================================
@@ -59,6 +61,26 @@ const listPublicDoctors = async ({
     query.specializations = { $regex: new RegExp(`^${escaped}$`, "i") };
   }
 
+  // 🌟 FETCH FEATURED DOCTORS FIRST (ignores search/filter — always on top)
+  const now = new Date();
+  const featuredDoctors = await Doctor.find({
+    isActive: true,
+    isProfileComplete: true,
+    isFeatured: true,
+    $or: [
+      { featuredUntil: null },          // permanent
+      { featuredUntil: { $gt: now } },  // still within featured window
+    ],
+  })
+    .select(PUBLIC_FIELDS)
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const featuredIds = featuredDoctors.map((d) => d._id);
+
+  // 🔒 Exclude featured doctors from normal results (avoid duplicates)
+  query._id = { $nin: featuredIds };
+
   const [total, doctors] = await Promise.all([
     Doctor.countDocuments(query),
     Doctor.find(query)
@@ -69,13 +91,17 @@ const listPublicDoctors = async ({
       .lean(),
   ]);
 
+  // 🌟 Prepend featured doctors ONLY on page 1
+  const finalDoctors =
+    safePage === 1 ? [...featuredDoctors, ...doctors] : doctors;
+
   return {
-    doctors,
+    doctors: finalDoctors,
     pagination: {
       page: safePage,
       limit: safeLimit,
-      total,
-      totalPages: Math.ceil(total / safeLimit),
+      total: total + featuredDoctors.length,
+      totalPages: Math.ceil((total + featuredDoctors.length) / safeLimit),
       hasMore: safePage * safeLimit < total,
     },
   };
@@ -170,17 +196,17 @@ const getDayAvailability = async (doctorId, dateStr) => {
   // const isToday =
   // dateStr === new Date().toISOString().split("T")[0];
   // const now = new Date();
-// 🔧 Today-only: also block past time slots
-// const now = new Date();
+  // 🔧 Today-only: also block past time slots
+  // const now = new Date();
 
-// const currentDateStr = now.toISOString().split("T")[0];
+  // const currentDateStr = now.toISOString().split("T")[0];
 
-// const isToday = dateStr === currentDateStr;
-const nowUtc = new Date();
+  // const isToday = dateStr === currentDateStr;
+  const nowUtc = new Date();
 
-const todayUtcDate = nowUtc.toISOString().split("T")[0];
+  const todayUtcDate = nowUtc.toISOString().split("T")[0];
 
-const isToday = dateStr === todayUtcDate;
+  const isToday = dateStr === todayUtcDate;
   // 🪪 Lookup: which slots is the doctor open for on this dayOfWeek?
   const openSet = new Set(
     (template?.weekly?.find((d) => d.dayOfWeek === dayOfWeek) || { slots: [] })
@@ -199,15 +225,15 @@ const isToday = dateStr === todayUtcDate;
     // if (isToday && slotStart < now) 
     //  if (isToday && slotEnd <= now) return { time: hhmm, isBookable: false };
     // if (isToday && slotEnd <= nowUtc) return { time: hhmm, isBookable: false };
-console.log("TIME:", hhmm);
-console.log("SLOT START:", slotStart.toISOString());
-console.log("SLOT END:", slotEnd.toISOString());
-console.log("NOW UTC:", nowUtc.toISOString());
-console.log("IS TODAY:", isToday);
-console.log("IS PAST:", slotEnd <= nowUtc);
+    console.log("TIME:", hhmm);
+    console.log("SLOT START:", slotStart.toISOString());
+    console.log("SLOT END:", slotEnd.toISOString());
+    console.log("NOW UTC:", nowUtc.toISOString());
+    console.log("IS TODAY:", isToday);
+    console.log("IS PAST:", slotEnd <= nowUtc);
 
-if (isToday && slotEnd <= nowUtc)
-  return { time: hhmm, isBookable: false };
+    if (isToday && slotEnd <= nowUtc)
+      return { time: hhmm, isBookable: false };
     // ❌ Doctor not open on this dayOfWeek
     if (!openSet.has(hhmm)) return { time: hhmm, isBookable: false };
 

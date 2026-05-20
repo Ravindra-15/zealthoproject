@@ -193,6 +193,8 @@ const updateDoctor = async (doctorId, updates) => {
     "specializations",
     "shortBio",
     "photo",
+    "isFeatured",
+    "featuredUntil",
   ];
 
   const safeUpdates = {};

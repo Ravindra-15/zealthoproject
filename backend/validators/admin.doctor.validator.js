@@ -286,6 +286,37 @@ const validateUpdateDoctor = (req, res, next) => {
     }
   }
 
+  // ============================================
+  // 🌟 FEATURING FIELDS
+  // ============================================
+  const { isFeatured, featuredUntil } = req.body;
+
+  if (isFeatured !== undefined) {
+    // Accept boolean or string "true"/"false" (multipart sends strings)
+    if (typeof isFeatured === "string") {
+      req.body.isFeatured = isFeatured === "true";
+    } else if (typeof isFeatured !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "isFeatured must be a boolean",
+      });
+    }
+  }
+
+  if (featuredUntil !== undefined && featuredUntil !== null && featuredUntil !== "") {
+    // Empty string means permanent → convert to null
+    const date = new Date(featuredUntil);
+    if (isNaN(date.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "featuredUntil must be a valid date",
+      });
+    }
+    req.body.featuredUntil = date;
+  } else if (featuredUntil === null || featuredUntil === "") {
+    req.body.featuredUntil = null; // Permanent
+  }
+
   next();
 };
 

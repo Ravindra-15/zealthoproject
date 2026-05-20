@@ -147,6 +147,21 @@ const doctorSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    // ============================================
+    // 🌟 FEATURING (admin-controlled premium placement)
+    // ============================================
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    // null = permanent (forever on top)
+    // Date = featured until this date (auto-expires)
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
 
     loginAttempts: {
       type: Number,

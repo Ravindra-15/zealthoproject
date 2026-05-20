@@ -79,6 +79,14 @@ export const updateDoctor = async (doctorId, data, options = {}) => {
     formData.append("specializations", JSON.stringify(data.specializations));
   }
   if (data.shortBio !== undefined) formData.append("shortBio", data.shortBio);
+  // 🌟 Featuring fields
+  if (data.isFeatured !== undefined) {
+    formData.append("isFeatured", data.isFeatured ? "true" : "false");
+  }
+  if (data.featuredUntil !== undefined) {
+    // null = permanent; otherwise ISO date string
+    formData.append("featuredUntil", data.featuredUntil === null ? "" : data.featuredUntil);
+  }
 
   // 🖼️ Handle photo: file upload OR explicit removal
   if (data.photo instanceof File) {
