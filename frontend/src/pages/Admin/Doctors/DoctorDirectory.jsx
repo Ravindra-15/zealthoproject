@@ -16,7 +16,6 @@ import useDoctors from "../../../hooks/useDoctors";
 
 const DoctorDirectory = () => {
   const navigate = useNavigate();
-
   const {
     doctors,
     pagination,

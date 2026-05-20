@@ -25,7 +25,6 @@ import { createDoctor } from "../../../services/doctorService";
 
 const AddDoctor = () => {
   const navigate = useNavigate();
-
   // ============================================
   // 📝 STATE
   // ============================================

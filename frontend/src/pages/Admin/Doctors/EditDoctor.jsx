@@ -357,7 +357,6 @@ const EditDoctor = () => {
             )}
           </div>
         )}
-
         <button
           type="button"
           onClick={handleSaveFeature}

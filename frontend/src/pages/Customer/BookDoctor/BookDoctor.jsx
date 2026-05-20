@@ -70,7 +70,6 @@ const BookDoctor = () => {
 
           {/* 📋 How to book */}
           <HowToBook />
-
           {/* 🩺 Doctor list */}
           <DoctorList
             doctors={doctors}
