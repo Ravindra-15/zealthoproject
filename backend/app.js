@@ -64,7 +64,11 @@ app.use(helmet());
 // Allow both Zealtho and YogaT20 frontends (and any other program frontends added later)
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
-  : ["https://zealthoproject.vercel.app", "https://yogat20.vercel.app", "http://localhost:5173", "http://localhost:5174"];
+  : ["https://zealthoproject.vercel.app", "https://yogat20.vercel.app", "https://diabmukt.vercel.app", "https://mommyfit.vercel.app/", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177"];
+
+//   "https://diabmukt.vercel.app",
+// "https://mommyfit.vercel.app",
+// "https://slimfitter.vercel.app",
 
 app.use(
   cors({
@@ -78,11 +82,6 @@ app.use(
   })
 );
 
-// ============================================
-// 📦 BODY PARSER
-// ============================================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.use(
   "/uploads",
