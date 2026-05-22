@@ -2,18 +2,28 @@
  * ============================================
  * ProgramPlan — Subscription Plan Configuration
  * ============================================
- * Admin-editable pricing plans per program.
- * Replaces hardcoded `programPrices` lookup in customer.program.controller.js.
+ * Supports TWO pricing types:
+ *  - "fixed"  → yogat20 style (planName + originalPrice + offerPrice)
+ *  - "weekly" → diabmukt/mommyfit/slimfitter style
+ *               (baseRatePerWeek + minWeeks/maxWeeks + discount breakpoints)
  *
- * - Each program (yogat20, diabmukt, etc.) can have multiple plans.
- * - Admin chooses which 2 plans show on landing page via `isVisibleOnLanding`.
- * - Plan with `displayOrder: 1` is rendered as the "Bestseller" highlight card.
- * - Existing subscriptions snapshot the price into ProgramSubscription.amount,
- *   so editing a plan price NEVER affects past purchases.
+ * For "weekly" programs, admin keeps ONE plan per program.
+ * Existing fixed plans are untouched — all weekly fields are optional.
  * ============================================
  */
 
 const mongoose = require("mongoose");
+
+// 🏷️ Discount breakpoint sub-schema (weekly pricing only)
+// e.g. { minWeeks: 18, discountPercent: 10, badgeText: "10% off" }
+const breakpointSchema = new mongoose.Schema(
+  {
+    minWeeks: { type: Number, required: true, min: 1 },
+    discountPercent: { type: Number, required: true, min: 0, max: 100 },
+    badgeText: { type: String, trim: true, maxlength: 30, default: "" },
+  },
+  { _id: false }
+);
 
 const programPlanSchema = new mongoose.Schema(
   {
@@ -25,29 +35,40 @@ const programPlanSchema = new mongoose.Schema(
       index: true,
     },
 
-    // 📛 Display name e.g. "12 Months", "3 Months", "Lifetime"
+    // 🧭 Pricing model — "fixed" (default, yogat20) or "weekly"
+    pricingType: {
+      type: String,
+      enum: ["fixed", "weekly"],
+      default: "fixed",
+    },
+
+    // ════════════════════════════════════════
+    // FIXED PRICING FIELDS (yogat20)
+    // ════════════════════════════════════════
+
+    // 📛 Display name e.g. "12 Months", "3 Months"
     planName: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 50,
+      default: "",
     },
 
-    // 💰 Original full price (shown struck-through, e.g. $84)
+    // 💰 Original full price (struck-through)
     originalPrice: {
       type: Number,
-      required: true,
       min: 0,
+      default: 0,
     },
 
-    // 💵 Discounted price (what user actually pays, e.g. $45)
+    // 💵 Discounted price (what user pays)
     offerPrice: {
       type: Number,
-      required: true,
       min: 0,
+      default: 0,
     },
 
-    // 🏷️ Badge text e.g. "50% Off" — admin types whatever they want
+    // 🏷️ Badge text e.g. "50% Off"
     offerBadge: {
       type: String,
       trim: true,
@@ -55,44 +76,76 @@ const programPlanSchema = new mongoose.Schema(
       default: "",
     },
 
-    // 📊 Lower number = shown first
-    // Plan with displayOrder: 1 gets the "Bestseller" highlight
+    // 📊 Lower number shown first; #1 gets "Bestseller"
     displayOrder: {
       type: Number,
       default: 99,
       min: 1,
     },
 
-    // 👁️ Toggle: should this plan render on the public landing page?
-    // Landing page shows top 2 visible plans ordered by displayOrder.
-    isVisibleOnLanding: {
-      type: Boolean,
-      default: true,
-    },
-
-    // 🟢 Admin can soft-delete a plan by setting this false
-    // Hidden from landing AND blocked from new subscription purchases.
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-
-    // 🩺 Useful for subscription enforcement: months covered by this plan
-    // Parsed from planName if not given. Falls back to 12 for "12 Months" etc.
-    // Used to calculate endDate when user subscribes.
+    // 🩺 Months covered (used to compute endDate)
     durationMonths: {
       type: Number,
       default: null,
       min: 1,
     },
+
+    // ════════════════════════════════════════
+    // WEEKLY PRICING FIELDS (diabmukt/mommyfit/slimfitter)
+    // ════════════════════════════════════════
+
+    // 💵 Price per single week (base rate)
+    baseRatePerWeek: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    // 📅 Slider range — min & max weeks user can pick
+    minWeeks: {
+      type: Number,
+      min: 1,
+      default: 5,
+    },
+    maxWeeks: {
+      type: Number,
+      min: 1,
+      default: 24,
+    },
+
+    // 🏷️ Discount tiers — applied when weeks >= minWeeks of a breakpoint
+    breakpoints: {
+      type: [breakpointSchema],
+      default: [],
+    },
+
+    // ════════════════════════════════════════
+    // SHARED FIELDS
+    // ════════════════════════════════════════
+
+    // 👁️ Show on public landing page
+    isVisibleOnLanding: {
+      type: Boolean,
+      default: true,
+    },
+
+    // 🟢 Soft-delete toggle
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
 
-// 🚫 Prevent duplicate plan names within the same program
-programPlanSchema.index({ programId: 1, planName: 1 }, { unique: true });
+// 🚫 Prevent duplicate plan names within the same program.
+// `sparse` so weekly plans (empty planName) don't collide.
+programPlanSchema.index(
+  { programId: 1, planName: 1 },
+  { unique: true, sparse: true }
+);
 
-// ⚡ Fast sort-by-display-order queries for the landing page
+// ⚡ Fast sort-by-display-order queries
 programPlanSchema.index({ programId: 1, displayOrder: 1 });
 
 module.exports = mongoose.model("ProgramPlan", programPlanSchema);

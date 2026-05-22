@@ -3,14 +3,8 @@
  * ADMIN MODULE — Program Plan Controller
  * ============================================
  * Manages subscription plans per program.
+ * Supports both "fixed" (yogat20) and "weekly" (diabmukt etc.) pricing.
  * Admin-only. All routes require admin JWT.
- *
- * Endpoints:
- *  - GET    /api/admin/program-plans?programId=yogat20
- *  - GET    /api/admin/program-plans/:id
- *  - POST   /api/admin/program-plans
- *  - PUT    /api/admin/program-plans/:id
- *  - DELETE /api/admin/program-plans/:id
  * ============================================
  */
 
@@ -18,14 +12,12 @@ const ProgramPlan = require("../models/ProgramPlan");
 
 const ALLOWED_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
 
+// Programs that use weekly (slider) pricing
+const WEEKLY_PROGRAMS = ["diabmukt", "mommyfit", "slimfitter"];
+
 // ============================================
 // 🔎 Helpers
 // ============================================
-
-/**
- * Parse "12 Months", "3 Months", "1 Month" → months (number).
- * Returns null if can't parse.
- */
 const parseMonthsFromPlanName = (planName) => {
   if (!planName) return null;
   const match = String(planName).match(/(\d+)\s*month/i);
@@ -38,6 +30,26 @@ const sanitizeProgramId = (programId) => {
   return programId;
 };
 
+// 🧹 Validate + clean a breakpoints array
+const sanitizeBreakpoints = (raw) => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((bp) => ({
+      minWeeks: Number(bp.minWeeks),
+      discountPercent: Number(bp.discountPercent),
+      badgeText: String(bp.badgeText || "").trim().slice(0, 30),
+    }))
+    .filter(
+      (bp) =>
+        !isNaN(bp.minWeeks) &&
+        bp.minWeeks >= 1 &&
+        !isNaN(bp.discountPercent) &&
+        bp.discountPercent >= 0 &&
+        bp.discountPercent <= 100
+    )
+    .sort((a, b) => a.minWeeks - b.minWeeks);
+};
+
 // ============================================
 // 📋 LIST PLANS — filter by programId
 // ============================================
@@ -47,7 +59,8 @@ const listPlans = async (req, res) => {
     if (!programId) {
       return res.status(400).json({
         success: false,
-        message: "Valid programId is required (yogat20/diabmukt/mommyfit/slimfitter)",
+        message:
+          "Valid programId is required (yogat20/diabmukt/mommyfit/slimfitter)",
       });
     }
 
@@ -101,8 +114,89 @@ const getPlanById = async (req, res) => {
 // ============================================
 const createPlan = async (req, res) => {
   try {
+    const { programId, pricingType } = req.body;
+
+    const safeProgramId = sanitizeProgramId(programId);
+    if (!safeProgramId) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid programId is required",
+      });
+    }
+
+    // 🧭 Decide pricing type — default by program if not given
+    const resolvedType =
+      pricingType === "weekly" || pricingType === "fixed"
+        ? pricingType
+        : WEEKLY_PROGRAMS.includes(safeProgramId)
+        ? "weekly"
+        : "fixed";
+
+    // ════════════════════════════════════════
+    // 🟦 WEEKLY PRICING
+    // ════════════════════════════════════════
+    if (resolvedType === "weekly") {
+      const baseRatePerWeek = Number(req.body.baseRatePerWeek);
+      const minWeeks = Number(req.body.minWeeks);
+      const maxWeeks = Number(req.body.maxWeeks);
+
+      if (isNaN(baseRatePerWeek) || baseRatePerWeek < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid base rate per week is required",
+        });
+      }
+      if (isNaN(minWeeks) || minWeeks < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid minimum weeks is required",
+        });
+      }
+      if (isNaN(maxWeeks) || maxWeeks < minWeeks) {
+        return res.status(400).json({
+          success: false,
+          message: "Maximum weeks must be greater than or equal to minimum weeks",
+        });
+      }
+
+      // 🛡️ Only ONE weekly plan per program
+      const existing = await ProgramPlan.findOne({
+        programId: safeProgramId,
+        pricingType: "weekly",
+      });
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "A weekly plan already exists for this program. Edit it instead of creating a new one.",
+        });
+      }
+
+      const newPlan = await ProgramPlan.create({
+        programId: safeProgramId,
+        pricingType: "weekly",
+        baseRatePerWeek,
+        minWeeks,
+        maxWeeks,
+        breakpoints: sanitizeBreakpoints(req.body.breakpoints),
+        isVisibleOnLanding:
+          req.body.isVisibleOnLanding === undefined
+            ? true
+            : Boolean(req.body.isVisibleOnLanding),
+        isActive: true,
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: { plan: newPlan },
+        message: "Weekly plan created successfully",
+      });
+    }
+
+    // ════════════════════════════════════════
+    // 🟧 FIXED PRICING (yogat20) — unchanged behavior
+    // ════════════════════════════════════════
     const {
-      programId,
       planName,
       originalPrice,
       offerPrice,
@@ -111,15 +205,6 @@ const createPlan = async (req, res) => {
       isVisibleOnLanding,
       durationMonths,
     } = req.body;
-
-    // 🛡️ Validate
-    const safeProgramId = sanitizeProgramId(programId);
-    if (!safeProgramId) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid programId is required",
-      });
-    }
 
     if (!planName || typeof planName !== "string" || !planName.trim()) {
       return res.status(400).json({
@@ -159,7 +244,6 @@ const createPlan = async (req, res) => {
       });
     }
 
-    // 🛡️ Compute duration if not provided
     const parsedMonths =
       durationMonths && Number(durationMonths) > 0
         ? Number(durationMonths)
@@ -167,6 +251,7 @@ const createPlan = async (req, res) => {
 
     const newPlan = await ProgramPlan.create({
       programId: safeProgramId,
+      pricingType: "fixed",
       planName: planName.trim(),
       originalPrice: Number(originalPrice),
       offerPrice: Number(offerPrice),
@@ -183,7 +268,6 @@ const createPlan = async (req, res) => {
       message: "Plan created successfully",
     });
   } catch (err) {
-    // 🚫 Duplicate plan name for same program
     if (err.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -204,6 +288,92 @@ const createPlan = async (req, res) => {
 const updatePlan = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const plan = await ProgramPlan.findById(id);
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: "Plan not found",
+      });
+    }
+
+    // ════════════════════════════════════════
+    // 🟦 WEEKLY PLAN UPDATE
+    // ════════════════════════════════════════
+    if (plan.pricingType === "weekly") {
+      const {
+        baseRatePerWeek,
+        minWeeks,
+        maxWeeks,
+        breakpoints,
+        isVisibleOnLanding,
+        isActive,
+      } = req.body;
+
+      if (baseRatePerWeek !== undefined) {
+        const v = Number(baseRatePerWeek);
+        if (isNaN(v) || v < 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid base rate per week",
+          });
+        }
+        plan.baseRatePerWeek = v;
+      }
+
+      if (minWeeks !== undefined) {
+        const v = Number(minWeeks);
+        if (isNaN(v) || v < 1) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid minimum weeks",
+          });
+        }
+        plan.minWeeks = v;
+      }
+
+      if (maxWeeks !== undefined) {
+        const v = Number(maxWeeks);
+        if (isNaN(v) || v < 1) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid maximum weeks",
+          });
+        }
+        plan.maxWeeks = v;
+      }
+
+      if (plan.maxWeeks < plan.minWeeks) {
+        return res.status(400).json({
+          success: false,
+          message: "Maximum weeks must be >= minimum weeks",
+        });
+      }
+
+      if (breakpoints !== undefined) {
+        plan.breakpoints = sanitizeBreakpoints(breakpoints);
+      }
+
+      if (isVisibleOnLanding !== undefined) {
+        plan.isVisibleOnLanding = Boolean(isVisibleOnLanding);
+      }
+
+      if (isActive !== undefined) {
+        plan.isActive = Boolean(isActive);
+      }
+
+      await plan.save();
+
+      return res.status(200).json({
+        success: true,
+        data: { plan },
+        message: "Weekly plan updated successfully",
+      });
+    }
+
+    // ════════════════════════════════════════
+    // 🟧 FIXED PLAN UPDATE — unchanged behavior
+    // ════════════════════════════════════════
     const {
       planName,
       originalPrice,
@@ -215,15 +385,6 @@ const updatePlan = async (req, res) => {
       durationMonths,
     } = req.body;
 
-    const plan = await ProgramPlan.findById(id);
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        message: "Plan not found",
-      });
-    }
-
-    // 🛡️ Apply only provided fields (partial update)
     if (planName !== undefined) {
       if (typeof planName !== "string" || !planName.trim()) {
         return res.status(400).json({
@@ -232,7 +393,6 @@ const updatePlan = async (req, res) => {
         });
       }
       plan.planName = planName.trim();
-      // Auto-update duration if name changed and durationMonths not explicitly given
       if (durationMonths === undefined) {
         const parsed = parseMonthsFromPlanName(planName);
         if (parsed) plan.durationMonths = parsed;
@@ -259,7 +419,6 @@ const updatePlan = async (req, res) => {
       plan.offerPrice = Number(offerPrice);
     }
 
-    // 🛡️ Cross-field validation
     if (plan.offerPrice > plan.originalPrice) {
       return res.status(400).json({
         success: false,
@@ -339,9 +498,6 @@ const deletePlan = async (req, res) => {
   }
 };
 
-// ============================================
-// 📦 EXPORTS
-// ============================================
 module.exports = {
   listPlans,
   getPlanById,

@@ -2,20 +2,18 @@
  * ============================================
  * ADMIN MODULE — Subscription Price Configurator
  * ============================================
- * Lists all plans for the currently selected program.
- * Admin can create, edit, delete, and toggle landing visibility.
+ * FIXED programs (yogat20): list of plan cards (create/edit/delete).
+ * WEEKLY programs (diabmukt/mommyfit/slimfitter): single weekly config
+ *   (base rate per week + min/max weeks + discount breakpoints).
  *
- * Auto-blocks Zealtho (parent has no subscriptions).
- * Pulls programId from SelectedProgramContext.
- *
+ * Auto-blocks Zealtho. Pulls programId from SelectedProgramContext.
  * Route: /admin/subscriptions
- * Access: Super Admin only
  * ============================================
  */
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Eye, EyeOff, Star } from "lucide-react";
+import { Plus, Star } from "lucide-react";
 import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
@@ -26,8 +24,11 @@ import {
   updatePlan,
 } from "../../../services/adminProgramPlanService";
 import PlanCard from "./components/PlanCard";
+import WeeklyPlanEditor from "./components/WeeklyPlanEditor";
 
-// 💵 Format price
+// 🗓️ Programs that use weekly (slider) pricing
+const WEEKLY_PROGRAMS = ["diabmukt", "mommyfit", "slimfitter"];
+
 const formatPrice = (n) => `$${Number(n || 0).toLocaleString("en-US")}`;
 
 const SubscriptionConfigurator = () => {
@@ -39,8 +40,8 @@ const SubscriptionConfigurator = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // 🛡️ Block Zealtho — no subscriptions there
   const isZealtho = selectedProgramId === "zealtho";
+  const isWeekly = WEEKLY_PROGRAMS.includes(selectedProgramId);
 
   // 📥 Load plans
   const loadPlans = useCallback(async () => {
@@ -54,9 +55,7 @@ const SubscriptionConfigurator = () => {
       const data = await listPlans(selectedProgramId);
       setPlans(data.plans || []);
     } catch (err) {
-      toast.error(
-        err?.response?.data?.message || "Failed to load plans"
-      );
+      toast.error(err?.response?.data?.message || "Failed to load plans");
       setPlans([]);
     } finally {
       setLoading(false);
@@ -67,7 +66,7 @@ const SubscriptionConfigurator = () => {
     loadPlans();
   }, [loadPlans]);
 
-  // 👁️ Toggle landing visibility
+  // 👁️ Toggle landing visibility (fixed plans)
   const handleToggleVisibility = async (plan) => {
     setUpdatingId(plan._id);
     try {
@@ -81,15 +80,13 @@ const SubscriptionConfigurator = () => {
       );
       loadPlans();
     } catch (err) {
-      toast.error(
-        err?.response?.data?.message || "Failed to update plan"
-      );
+      toast.error(err?.response?.data?.message || "Failed to update plan");
     } finally {
       setUpdatingId(null);
     }
   };
 
-  // 🗑️ Delete plan with confirmation
+  // 🗑️ Delete plan (fixed plans)
   const handleDelete = async (plan) => {
     const ok = window.confirm(
       `Delete "${plan.planName}"? This cannot be undone.`
@@ -102,20 +99,16 @@ const SubscriptionConfigurator = () => {
       toast.success("Plan deleted");
       loadPlans();
     } catch (err) {
-      toast.error(
-        err?.response?.data?.message || "Failed to delete plan"
-      );
+      toast.error(err?.response?.data?.message || "Failed to delete plan");
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ✏️ Edit
   const handleEdit = (plan) => {
     navigate(`/admin/subscriptions/${plan._id}/edit`);
   };
 
-  // ➕ Add new
   const handleAdd = () => {
     navigate("/admin/subscriptions/new");
   };
@@ -133,17 +126,48 @@ const SubscriptionConfigurator = () => {
             Subscription plans not available for Zealtho
           </p>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Zealtho is the parent platform and only offers doctor consultations,
-            not subscription plans. Switch to a child program (Yoga T20,
-            Diabmukt, MommyFit, or Slimfitter) using the sidebar dropdown to
-            manage subscription plans.
+            Zealtho is the parent platform and only offers doctor
+            consultations, not subscription plans. Switch to a child program
+            using the sidebar dropdown to manage subscription plans.
           </p>
         </div>
       </div>
     );
   }
 
-  // 🎨 Preview: top 2 plans marked visible (matches landing page logic)
+  // ════════════════════════════════════════
+  // 🟦 WEEKLY PROGRAM VIEW
+  // ════════════════════════════════════════
+  if (isWeekly) {
+    const weeklyPlan =
+      plans.find((p) => (p.pricingType || "fixed") === "weekly") || null;
+
+    return (
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Subscription Price Configurator"
+          subtitle={`Configure weekly pricing for ${selectedProgram.label}`}
+        />
+
+        {loading ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-10 text-center">
+            <p className="text-sm text-gray-400">Loading configuration...</p>
+          </div>
+        ) : (
+          <WeeklyPlanEditor
+            programId={selectedProgramId}
+            programLabel={selectedProgram.label}
+            existingPlan={weeklyPlan}
+            onSaved={loadPlans}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════
+  // 🟧 FIXED PROGRAM VIEW (yogat20) — unchanged
+  // ════════════════════════════════════════
   const previewPlans = plans
     .filter((p) => p.isVisibleOnLanding && p.isActive)
     .slice(0, 2);
@@ -155,9 +179,7 @@ const SubscriptionConfigurator = () => {
         subtitle={`Configure dynamic pricing tiers for ${selectedProgram.label}`}
       />
 
-      {/* ============================================ */}
-      {/* 👁️ PREVIEW SECTION (matches landing page)    */}
-      {/* ============================================ */}
+      {/* PREVIEW */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6">
         <p className="text-sm font-semibold text-gray-700 mb-4">Preview</p>
 
@@ -201,12 +223,12 @@ const SubscriptionConfigurator = () => {
         )}
       </div>
 
-      {/* ============================================ */}
-      {/* 📋 PLANS LIST + ADD BUTTON                    */}
-      {/* ============================================ */}
+      {/* PLANS LIST + ADD */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3 mb-5">
-          <p className="text-sm font-semibold text-gray-700">Price Breakpoints</p>
+          <p className="text-sm font-semibold text-gray-700">
+            Price Breakpoints
+          </p>
           <button
             type="button"
             onClick={handleAdd}

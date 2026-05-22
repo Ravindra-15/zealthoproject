@@ -52,10 +52,27 @@ const programSubscriptionSchema = new mongoose.Schema(
     // ============================================
     // 📅 SUBSCRIPTION PLAN
     // ============================================
+    // 📅 Tenure label — free text now (e.g. "12 Months", "14 Weeks").
+    // Enum removed so weekly programs can store week-based tenures.
     tenure: {
       type: String,
-      enum: ["3 Months", "12 Months"],
       required: true,
+      trim: true,
+    },
+
+    // 📅 Weeks count — only set for weekly-pricing programs.
+    // Null for fixed (month-based) programs like yogat20.
+    weeks: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+
+    // 🧭 Pricing model used at purchase time — "fixed" or "weekly"
+    pricingType: {
+      type: String,
+      enum: ["fixed", "weekly"],
+      default: "fixed",
     },
 
     amount: {

@@ -50,12 +50,18 @@ const getPublicPlans = async (req, res) => {
       .sort({ displayOrder: 1, createdAt: -1 })
       .lean();
 
-    // 🏷️ Auto-mark the first plan (by displayOrder) as Bestseller for the frontend.
-    // Frontend uses this flag to render the highlight card.
-    const enriched = plans.map((p, idx) => ({
-      ...p,
-      isBestseller: idx === 0,
-    }));
+    // 🏷️ Auto-mark the first FIXED plan as Bestseller for the frontend.
+    // Weekly plans don't use bestseller highlighting.
+    let fixedSeen = false;
+    const enriched = plans.map((p) => {
+      const isFixed = (p.pricingType || "fixed") === "fixed";
+      let isBestseller = false;
+      if (isFixed && !fixedSeen) {
+        isBestseller = true;
+        fixedSeen = true;
+      }
+      return { ...p, isBestseller };
+    });
 
     return res.status(200).json({
       success: true,

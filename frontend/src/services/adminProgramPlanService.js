@@ -41,13 +41,23 @@ export const getPlanById = async (id) => {
 /**
  * @param {Object} payload
  * @param {string} payload.programId
- * @param {string} payload.planName
- * @param {number} payload.originalPrice
- * @param {number} payload.offerPrice
+ * @param {string} [payload.pricingType] - "fixed" | "weekly"
+ *
+ * FIXED pricing fields:
+ * @param {string} [payload.planName]
+ * @param {number} [payload.originalPrice]
+ * @param {number} [payload.offerPrice]
  * @param {string} [payload.offerBadge]
  * @param {number} [payload.displayOrder]
- * @param {boolean} [payload.isVisibleOnLanding]
  * @param {number} [payload.durationMonths]
+ *
+ * WEEKLY pricing fields:
+ * @param {number} [payload.baseRatePerWeek]
+ * @param {number} [payload.minWeeks]
+ * @param {number} [payload.maxWeeks]
+ * @param {Array}  [payload.breakpoints] - [{ minWeeks, discountPercent, badgeText }]
+ *
+ * @param {boolean} [payload.isVisibleOnLanding]
  */
 export const createPlan = async (payload) => {
   const response = await adminApi.post("/admin/program-plans", payload);
