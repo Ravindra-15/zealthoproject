@@ -86,7 +86,8 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
-      <div className="pt-16">
+      <div>
+      {/* <div className="pt-16"> */}
       <Routes>
         {/* ============================================ */}
         {/* 👤 CUSTOMER ROUTES */}
