@@ -2,28 +2,24 @@
  * ============================================
  * CUSTOMER MODULE — Clinical Video Controller
  * ============================================
- * Powers the YogaT20 dashboard video section.
+ * Powers the program dashboard video section.
  *
- * Endpoints:
- *  GET  /api/customer/clinical-videos/current?programId=yogat20&yogaType=normal_yoga
- *  POST /api/customer/clinical-videos/:videoId/complete
+ * 🔒 ISOLATION: a user can only fetch videos for a program
+ *    they have an ACTIVE subscription for.
  *
- * Logic for "current video":
- *  1. If there's a video scheduled for today → return that (overrides queue)
- *  2. Otherwise, find next unwatched video in queue (by displayOrder)
- *  3. If user already completed a video for this queue today → return same
- *     video with completedToday flag (24hr cooldown)
- *  4. If no videos left in queue → return null
+ * yogaType is OPTIONAL — defaults to "normal_yoga".
+ * Weekly programs (diabmukt/mommyfit/slimfitter) don't send it.
  * ============================================
  */
 
 const ClinicalVideo = require("../models/ClinicalVideo");
 const UserVideoProgress = require("../models/UserVideoProgress");
+const ProgramSubscription = require("../models/ProgramSubscription");
 
 const ALLOWED_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
 const ALLOWED_YOGA_TYPES = ["normal_yoga", "chair_yoga", "high_intensity"];
 
-// 🕒 Get start + end of "today" in UTC
+// 🕒 Start + end of "today" in UTC
 const getTodayBounds = () => {
   const now = new Date();
   const start = new Date(
@@ -35,6 +31,18 @@ const getTodayBounds = () => {
   return { start, end };
 };
 
+// 🔒 Verify the user has an active subscription for this program.
+// Returns true/false. Works for both customer and doctor purchasers.
+const hasActiveSubscription = async (userId, programId) => {
+  const sub = await ProgramSubscription.findOne({
+    programId,
+    status: "active",
+    endDate: { $gt: new Date() },
+    $or: [{ customer: userId }, { doctor: userId }],
+  }).lean();
+  return !!sub;
+};
+
 // ============================================
 // 🎬 GET CURRENT VIDEO FOR USER
 // ============================================
@@ -42,13 +50,12 @@ const getCurrentVideo = async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { programId, yogaType } = req.query;
+    const { programId } = req.query;
+    // 🧘 yogaType optional — default to normal_yoga
+    const yogaType = req.query.yogaType || "normal_yoga";
 
     if (!programId || !ALLOWED_PROGRAMS.includes(programId)) {
       return res.status(400).json({
@@ -57,19 +64,25 @@ const getCurrentVideo = async (req, res) => {
       });
     }
 
-    if (!yogaType || !ALLOWED_YOGA_TYPES.includes(yogaType)) {
+    if (!ALLOWED_YOGA_TYPES.includes(yogaType)) {
       return res.status(400).json({
         success: false,
-        message: "Valid yogaType is required",
+        message: "Invalid yogaType",
+      });
+    }
+
+    // 🔒 ISOLATION GUARD — must own an active subscription for this program
+    const allowed = await hasActiveSubscription(userId, programId);
+    if (!allowed) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have an active subscription for this program.",
       });
     }
 
     const { start: todayStart, end: todayEnd } = getTodayBounds();
 
-    // ============================================
-    // 1️⃣  CHECK FOR SCHEDULED-DATE VIDEO TODAY
-    // ============================================
-    // Special-day video overrides the queue for everyone.
+    // 1️⃣ Scheduled-date video for today (overrides queue)
     const scheduledToday = await ClinicalVideo.findOne({
       programId,
       yogaType,
@@ -80,7 +93,6 @@ const getCurrentVideo = async (req, res) => {
       .lean();
 
     if (scheduledToday) {
-      // Has user already marked this special video complete?
       const progress = await UserVideoProgress.findOne({
         user: userId,
         video: scheduledToday._id,
@@ -96,9 +108,7 @@ const getCurrentVideo = async (req, res) => {
       });
     }
 
-    // ============================================
-    // 2️⃣  CHECK 24HR COOLDOWN — did user complete any video today?
-    // ============================================
+    // 2️⃣ 24hr cooldown — completed any video today?
     const completedToday = await UserVideoProgress.findOne({
       user: userId,
       programId,
@@ -110,7 +120,6 @@ const getCurrentVideo = async (req, res) => {
       .lean();
 
     if (completedToday && completedToday.video) {
-      // User already finished today's video. Show the same video with completed flag.
       return res.status(200).json({
         success: true,
         data: {
@@ -121,10 +130,7 @@ const getCurrentVideo = async (req, res) => {
       });
     }
 
-    // ============================================
-    // 3️⃣  FIND NEXT UNWATCHED VIDEO IN QUEUE
-    // ============================================
-    // Get all video IDs user has already completed
+    // 3️⃣ Next unwatched video in queue
     const completedVideos = await UserVideoProgress.find({
       user: userId,
       programId,
@@ -139,7 +145,7 @@ const getCurrentVideo = async (req, res) => {
       programId,
       yogaType,
       isActive: true,
-      scheduledDate: null, // only queue videos, not special-day
+      scheduledDate: null,
       _id: { $nin: completedIds },
     })
       .sort({ displayOrder: 1, createdAt: 1 })
@@ -181,10 +187,7 @@ const markComplete = async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const { videoId } = req.params;
@@ -197,7 +200,17 @@ const markComplete = async (req, res) => {
       });
     }
 
-    // 🚫 Already completed? Return existing record (idempotent)
+    // 🔒 ISOLATION GUARD — user must own an active subscription for the
+    // program this video belongs to.
+    const allowed = await hasActiveSubscription(userId, video.programId);
+    if (!allowed) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have an active subscription for this program.",
+      });
+    }
+
+    // Idempotent — already completed?
     const existing = await UserVideoProgress.findOne({
       user: userId,
       video: videoId,
@@ -211,7 +224,6 @@ const markComplete = async (req, res) => {
       });
     }
 
-    // ✅ Create progress record
     const progress = await UserVideoProgress.create({
       user: userId,
       video: videoId,
@@ -226,7 +238,6 @@ const markComplete = async (req, res) => {
       data: { progress },
     });
   } catch (err) {
-    // 🚫 Duplicate key (unique index) — treat as success
     if (err.code === 11000) {
       return res.status(200).json({
         success: true,
