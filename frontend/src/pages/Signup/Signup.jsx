@@ -62,6 +62,7 @@ const Signup = () => {
   const [form, setForm] = useState({ email: "", password: "", phone: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -74,6 +75,11 @@ const Signup = () => {
   };
 
   const handleSignup = async () => {
+    if (!agreed) {
+      return toast.error(
+        "Please accept the Terms of Service and Privacy Policy.",
+      );
+    }
     const error = validateSignup(form);
     if (error) return toast.error(error);
 
@@ -100,7 +106,7 @@ const Signup = () => {
     <div className="min-h-screen bg-[#f4efe8]">
       <CustomerNavbar />
 
-      <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-20 py-10 md:py-16 gap-10 md:gap-0">
+      <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-20 pt-24 md:pt-28 pb-10 md:pb-16 gap-10 md:gap-0">
         {/* LEFT */}
         <div className="max-w-md mx-auto md:mx-0 text-center md:text-left px-2">
           <h1 className="text-[38px] md:text-[52px] font-semibold text-teal-900 leading-[1.15]">
@@ -166,10 +172,36 @@ const Signup = () => {
             </div>
 
             {/* Button */}
+            {/* TERMS CHECKBOX */}
+            <label className="flex items-start gap-2.5 text-[12px] text-[#6B7280] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 accent-orange-400 w-4 h-4 flex-shrink-0"
+              />
+              <span>
+                I agree to Zealtho's{" "}
+                <Link
+                  to="/terms-of-use"
+                  className="text-orange-500 hover:underline"
+                >
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy-policy"
+                  className="text-orange-500 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+
             <button
               onClick={handleSignup}
-              disabled={loading}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-full text-[14px] font-medium transition"
+              disabled={loading || !agreed}
+              className="w-full bg-orange-400 hover:bg-orange-600 text-white py-3 rounded-full text-[14px] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Creating..." : "Create Account"}
             </button>
@@ -200,11 +232,6 @@ const Signup = () => {
               >
                 Log in
               </Link>
-            </p>
-
-            <p className="text-xs text-gray-500 text-center mt-2">
-              By continuing, you agree to Zealtho’s Terms of Service and Privacy
-              Policy
             </p>
           </div>
         </div>
