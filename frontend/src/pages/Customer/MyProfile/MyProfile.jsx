@@ -168,14 +168,7 @@ export default function MyProfile() {
       )
     : "—";
 
-  const maskedPhone = user?.whatsapp
-    ? `+${user.whatsapp.slice(
-        0,
-        2
-      )} ${"*".repeat(
-        Math.max(0, user.whatsapp.length - 4)
-      )}${user.whatsapp.slice(-2)}`
-    : "—";
+  const fullPhone = user?.whatsapp ? `+${user.whatsapp}` : "—";
 
   // ============================================
   // ⏳ LOADING
@@ -308,7 +301,7 @@ export default function MyProfile() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="text-gray-400">Whatsapp</span>
 
-                    <span>{maskedPhone}</span>
+                    <span>{fullPhone}</span>
                   </div>
                 </div>
               </div>
