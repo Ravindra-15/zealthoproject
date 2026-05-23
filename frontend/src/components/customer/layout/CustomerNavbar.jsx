@@ -109,7 +109,7 @@ const profileCompleted = !!(
 
   return (
     <div ref={drawerRef}>
-     <header className="fixed top-0 left-0 w-full z-40 bg-white border-b border-gray-100">
+     <header className="sticky top-0 left-0 w-full z-40 bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between gap-4">
             {/* 🏷️ BRAND */}
