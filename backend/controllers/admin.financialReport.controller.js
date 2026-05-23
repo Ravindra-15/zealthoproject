@@ -12,6 +12,7 @@
 const Consultation = require("../models/Consultation");
 const ProgramSubscription = require("../models/ProgramSubscription");
 const Appointment = require("../models/Appointment");
+const User = require("../models/User");
 // ============================================
 // 💰 REVENUE FORMULA — CHANGE THIS WHEN SENIOR DECIDES
 // ============================================
@@ -107,9 +108,14 @@ const getFinancialSummary = async (req, res) => {
         ]);
         const cancelledRevenue = cancelledAgg[0]?.total || 0;
 
-        const grossTotal = consultationFees + subscriptionFees;
-        // 40% share from consultations/subs + 100% from cancellations
-        const totalRevenue = calculateRevenue(grossTotal) + cancelledRevenue;
+        // 💰 Revenue split:
+        //  - consultations → 40% share
+        //  - subscriptions → 100% to admin
+        //  - user cancellations → 100% to admin
+        const totalRevenue =
+            calculateRevenue(consultationFees) +
+            subscriptionFees +
+            cancelledRevenue;
 
         return res.status(200).json({
             success: true,
@@ -211,13 +217,16 @@ const getRevenueGrowth = async (req, res) => {
             ]);
         }
 
-        // 🗺️ Merge into single map: date → total gross
-        const dailyMap = new Map();
+        // 🗺️ Consultations map (40% share applied later)
+        const consultationMap = new Map();
         consultationDaily.forEach((d) => {
-            dailyMap.set(d._id, (dailyMap.get(d._id) || 0) + d.total);
+            consultationMap.set(d._id, (consultationMap.get(d._id) || 0) + d.total);
         });
+
+        // 🗺️ Subscriptions map (100% to admin)
+        const subscriptionMap = new Map();
         subscriptionDaily.forEach((d) => {
-            dailyMap.set(d._id, (dailyMap.get(d._id) || 0) + d.total);
+            subscriptionMap.set(d._id, (subscriptionMap.get(d._id) || 0) + d.total);
         });
 
         // 💵 CANCELLED APPOINTMENTS — daily totals (100% revenue)
@@ -258,11 +267,16 @@ const getRevenueGrowth = async (req, res) => {
 
         for (let i = 0; i < days; i++) {
             const isoDate = cursor.toISOString().split("T")[0];
-            const grossDay = dailyMap.get(isoDate) || 0;
+            const consultationDay = consultationMap.get(isoDate) || 0;
+            const subscriptionDay = subscriptionMap.get(isoDate) || 0;
             const cancelledDay = cancelledMap.get(isoDate) || 0;
             trend.push({
                 date: `${months[cursor.getUTCMonth()]} ${cursor.getUTCDate()}`,
-                revenue: calculateRevenue(grossDay) + cancelledDay,
+                // 40% of consultations + 100% subscriptions + 100% cancellations
+                revenue:
+                    calculateRevenue(consultationDay) +
+                    subscriptionDay +
+                    cancelledDay,
             });
             cursor.setUTCDate(cursor.getUTCDate() + 1);
         }
@@ -396,10 +410,161 @@ const listRecentTransactions = async (req, res) => {
 };
 
 // ============================================
+// 🧾 GET /api/admin/financial-reports/receipt/:id?type=...
+// ============================================
+/**
+ * Returns a unified receipt for any transaction type:
+ *  - consultation  → from Consultation
+ *  - subscription  → from ProgramSubscription
+ *  - cancellation  → from Appointment (user-cancelled)
+ */
+const getReceipt = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const type = req.query.type || "consultation";
+
+        // ════════ SUBSCRIPTION RECEIPT ════════
+        if (type === "subscription") {
+            const sub = await ProgramSubscription.findById(id)
+                .populate("customer", "fullName nickName email")
+                .lean();
+
+            if (!sub) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Receipt not found",
+                });
+            }
+
+            const customer = sub.customer || {};
+            const receipt = {
+                receiptNumber: `SUB-${sub._id.toString().slice(-8).toUpperCase()}`,
+                date: sub.startDate || sub.createdAt,
+                solution: sub.programId || "zealtho",
+                kind: "subscription",
+                billedTo: {
+                    nickname: customer.nickName || customer.fullName || "User",
+                    email: customer.email || "",
+                },
+                item: {
+                    label: `${sub.programName || sub.programId} — ${sub.tenure} Plan`,
+                },
+                summary: {
+                    consultationFee: sub.amount || 0,
+                    processingFee: 0,
+                    total: sub.amount || 0,
+                    currency: "USD",
+                },
+                appointment: {
+                    scheduledAt: sub.startDate || sub.createdAt,
+                },
+            };
+
+            return res.status(200).json({ success: true, data: { receipt } });
+        }
+
+        // ════════ CANCELLATION RECEIPT ════════
+        if (type === "cancellation") {
+            const appt = await Appointment.findById(id)
+                .populate("user", "fullName nickName email")
+                .lean();
+
+            if (!appt) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Receipt not found",
+                });
+            }
+
+            const user = appt.user || {};
+            const receipt = {
+                receiptNumber: `CXL-${appt._id.toString().slice(-8).toUpperCase()}`,
+                date: appt.updatedAt || appt.createdAt,
+                solution: appt.platform || "zealtho",
+                kind: "cancellation",
+                billedTo: {
+                    nickname:
+                        user.nickName || user.fullName || appt.patientName || "User",
+                    email: user.email || "",
+                },
+                item: {
+                    label: "Cancelled Appointment Fee (non-refundable)",
+                },
+                summary: {
+                    consultationFee: appt.fee || 0,
+                    processingFee: 0,
+                    total: appt.fee || 0,
+                    currency: "USD",
+                },
+                appointment: {
+                    scheduledAt: appt.scheduledAt || appt.createdAt,
+                },
+            };
+
+            return res.status(200).json({ success: true, data: { receipt } });
+        }
+
+        // ════════ CONSULTATION RECEIPT (default) ════════
+        const consultation = await Consultation.findById(id)
+            .populate("doctor", "fullName domain")
+            .populate("user", "fullName nickName email")
+            .lean();
+
+        if (!consultation) {
+            return res.status(404).json({
+                success: false,
+                message: "Receipt not found",
+            });
+        }
+
+        const user = consultation.user || {};
+        const receipt = {
+            receiptNumber: `TXN-${consultation._id.toString().slice(-8).toUpperCase()}`,
+            date:
+                consultation.paidAt ||
+                consultation.consultedAt ||
+                consultation.createdAt,
+            solution: consultation.programSource || "zealtho",
+            kind: "consultation",
+            billedTo: {
+                nickname: user.nickName || user.fullName || "User",
+                email: user.email || "",
+            },
+            professional: {
+                name:
+                    consultation.doctorName ||
+                    consultation.doctor?.fullName ||
+                    "Doctor",
+                specialization: consultation.doctor?.domain || "",
+                registrationNumber: "",
+            },
+            summary: {
+                consultationFee: consultation.fee || 0,
+                processingFee: 0,
+                total: consultation.fee || 0,
+                currency: "USD",
+            },
+            appointment: {
+                scheduledAt: consultation.consultedAt || consultation.createdAt,
+            },
+        };
+
+        return res.status(200).json({ success: true, data: { receipt } });
+    } catch (err) {
+        console.error("[ADMIN RECEIPT ERROR]:", err);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch receipt",
+        });
+    }
+};
+
+// ============================================
 // 📦 EXPORTS
 // ============================================
 module.exports = {
     getFinancialSummary,
     getRevenueGrowth,
     listRecentTransactions,
+    getReceipt,
 };

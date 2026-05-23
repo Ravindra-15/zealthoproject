@@ -79,7 +79,14 @@ export const listRecentTransactions = async ({
   return response.data.data;
 };
 
-export const getAdminReceipt = async (consultationId) => {
-  const response = await adminApi.get(`/admin/billing/receipt/${consultationId}`);
+/**
+ * Fetch a receipt for any transaction type.
+ * @param {string} id - transaction _id
+ * @param {string} type - "consultation" | "subscription" | "cancellation"
+ */
+export const getAdminReceipt = async (id, type = "consultation") => {
+  const response = await adminApi.get(`/admin/financial-reports/receipt/${id}`, {
+    params: { type },
+  });
   return response.data.data.receipt;
 };

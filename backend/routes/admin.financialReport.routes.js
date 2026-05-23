@@ -14,6 +14,7 @@ const {
   getFinancialSummary,
   getRevenueGrowth,
   listRecentTransactions,
+  getReceipt,
 } = require("../controllers/admin.financialReport.controller");
 
 const { protectAdmin } = require("../middleware/admin.auth.middleware");
@@ -44,5 +45,8 @@ router.get("/revenue-growth", getRevenueGrowth);
 
 // 📋 Recent transactions table (Consultation + Subscription combined)
 router.get("/transactions", listRecentTransactions);
+
+// 🧾 Single receipt by id + type (consultation | subscription | cancellation)
+router.get("/receipt/:id", getReceipt);
 
 module.exports = router;

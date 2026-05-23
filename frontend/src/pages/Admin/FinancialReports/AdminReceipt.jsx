@@ -1,10 +1,10 @@
 /**
  * ADMIN MODULE — Receipt Viewer
- * Route: /admin/billing/receipt/:id
+ * Route: /admin/billing/receipt/:id?type=consultation|subscription|cancellation
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { ArrowLeft, Printer } from "lucide-react";
 import { getAdminReceipt } from "../../../services/adminFinancialReportService";
@@ -12,13 +12,16 @@ import { getAdminReceipt } from "../../../services/adminFinancialReportService";
 export default function AdminReceipt() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const type = searchParams.get("type") || "consultation";
+
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await getAdminReceipt(id);
+        const data = await getAdminReceipt(id, type);
         setReceipt(data);
       } catch {
         toast.error("Failed to load receipt");
@@ -26,7 +29,7 @@ export default function AdminReceipt() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, type]);
 
   const formatDate = (d) =>
     d
@@ -72,8 +75,20 @@ export default function AdminReceipt() {
     );
   }
 
-//   const symbol = receipt.summary?.currency === "INR" ? "₹" : "$";
-const symbol = "$";
+  const symbol = "$";
+  const kind = receipt.kind || "consultation";
+  const isConsultation = kind === "consultation";
+
+  // Section title + line-item label adapt to receipt type
+  const sectionTitle = isConsultation
+    ? "Consultations Summary"
+    : kind === "subscription"
+    ? "Subscription Summary"
+    : "Transaction Summary";
+
+  const lineItemLabel = isConsultation
+    ? "Doctor Consultation Fee"
+    : receipt.item?.label || "Amount";
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-10 print:bg-white print:py-0">
@@ -104,13 +119,19 @@ const symbol = "$";
           <div className="px-6 sm:px-8 pt-7 pb-6 border-b border-gray-100">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-indigo-700 leading-tight">Zealtho</h1>
-                <p className="text-xs text-gray-400 mt-0.5 tracking-wide uppercase">Admin Invoice</p>
+                <h1 className="text-2xl font-bold text-indigo-700 leading-tight">
+                  Zealtho
+                </h1>
+                <p className="text-xs text-gray-400 mt-0.5 tracking-wide uppercase">
+                  Admin Invoice
+                </p>
               </div>
               <div className="text-sm text-gray-600 sm:text-right space-y-1">
                 <p>
                   <span className="text-gray-400">Receipt Number: </span>
-                  <span className="font-semibold text-gray-800">#{receipt.receiptNumber}</span>
+                  <span className="font-semibold text-gray-800">
+                    #{receipt.receiptNumber}
+                  </span>
                 </p>
                 <p>
                   <span className="text-gray-400">Date: </span>
@@ -118,13 +139,15 @@ const symbol = "$";
                 </p>
                 <p>
                   <span className="text-gray-400">Solution: </span>
-                  <span className="font-medium capitalize">{receipt.solution}</span>
+                  <span className="font-medium capitalize">
+                    {receipt.solution}
+                  </span>
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Billed To + Professional */}
+          {/* Billed To + (Professional — consultation only) */}
           <div className="px-6 sm:px-8 py-6 border-b border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
@@ -145,36 +168,38 @@ const symbol = "$";
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
                   Contact details:{" "}
-                  <span className="font-medium text-gray-500">masked for privacy</span>
+                  <span className="font-medium text-gray-500">
+                    masked for privacy
+                  </span>
                 </p>
               </div>
 
-              <div className="sm:text-right">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Healthcare Professional:
-                </p>
-                <p className="text-sm font-semibold text-gray-900">
-                  {receipt.professional?.name}
-                </p>
-                {receipt.professional?.specialization && (
-                  <p className="text-sm text-gray-700">
-                    Specialization:{" "}
-                    <span className="font-medium">{receipt.professional.specialization}</span>
+              {isConsultation && receipt.professional && (
+                <div className="sm:text-right">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Healthcare Professional:
                   </p>
-                )}
-                {receipt.professional?.registrationNumber && (
-                  <p className="text-sm text-gray-700">
-                    Reg No:{" "}
-                    <span className="font-medium">{receipt.professional.registrationNumber}</span>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {receipt.professional.name}
                   </p>
-                )}
-              </div>
+                  {receipt.professional.specialization && (
+                    <p className="text-sm text-gray-700">
+                      Specialization:{" "}
+                      <span className="font-medium">
+                        {receipt.professional.specialization}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Consultations Summary Table */}
+          {/* Summary Table */}
           <div className="px-6 sm:px-8 py-6 border-b border-gray-100">
-            <h3 className="text-base font-bold text-gray-800 mb-4">Consultations Summary</h3>
+            <h3 className="text-base font-bold text-gray-800 mb-4">
+              {sectionTitle}
+            </h3>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -188,9 +213,10 @@ const symbol = "$";
               </thead>
               <tbody>
                 <tr className="border-b border-gray-50">
-                  <td className="py-3 text-gray-700">Doctor Consultation Fee</td>
+                  <td className="py-3 text-gray-700">{lineItemLabel}</td>
                   <td className="py-3 text-gray-700 text-right">
-                    {symbol}{Number(receipt.summary?.consultationFee || 0).toFixed(2)}
+                    {symbol}
+                    {Number(receipt.summary?.consultationFee || 0).toFixed(2)}
                   </td>
                 </tr>
                 <tr>
@@ -199,7 +225,9 @@ const symbol = "$";
                   </td>
                   <td className="py-3 text-gray-700 text-right">
                     {receipt.summary?.processingFee
-                      ? `${symbol}${Number(receipt.summary.processingFee).toFixed(2)}`
+                      ? `${symbol}${Number(
+                          receipt.summary.processingFee
+                        ).toFixed(2)}`
                       : "Included"}
                   </td>
                 </tr>
@@ -209,17 +237,24 @@ const symbol = "$";
 
           {/* Total */}
           <div className="px-6 sm:px-8 py-5 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-base font-bold text-gray-900">Total Paid</span>
             <span className="text-base font-bold text-gray-900">
-              {symbol}{Number(receipt.summary?.total || 0).toFixed(2)}
+              Total Paid
+            </span>
+            <span className="text-base font-bold text-gray-900">
+              {symbol}
+              {Number(receipt.summary?.total || 0).toFixed(2)}
             </span>
           </div>
 
-          {/* Appointment Footer */}
+          {/* Footer */}
           <div className="px-6 sm:px-8 py-5">
             <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-center">
               <p className="text-sm text-gray-700">
-                Appointment Details Scheduled for{" "}
+                {isConsultation
+                  ? "Appointment Details Scheduled for "
+                  : kind === "subscription"
+                  ? "Subscription Start Date "
+                  : "Original Appointment Date "}
                 <span className="font-semibold text-gray-900">
                   {formatDateTime(receipt.appointment?.scheduledAt)}
                 </span>

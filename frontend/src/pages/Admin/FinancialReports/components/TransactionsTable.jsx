@@ -42,8 +42,8 @@ const TransactionsTable = ({
 
   
   const handleDownload = (txn) => {
-  navigate(`/admin/billing/receipt/${txn.id}`);
-};
+    navigate(`/admin/billing/receipt/${txn.id}?type=${txn.receiptType}`);
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] overflow-hidden">
