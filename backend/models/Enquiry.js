@@ -36,6 +36,25 @@ const enquirySchema = new mongoose.Schema(
       default: "",
     },
 
+    // 🔗 Linked user — set ONLY when a logged-in user submits.
+    // Null for public landing-form enquiries (unaffected, unlimited).
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    // 🏷️ Enquiry type:
+    //  - "general"      → public landing callback form (no limit)
+    //  - "subscription" → logged-in subscription tenure callback (one per user/program)
+    type: {
+      type: String,
+      enum: ["general", "subscription"],
+      default: "general",
+      index: true,
+    },
+
     source: {
       type: String,
       enum: ["zealtho", "yogat20", "diabmukt", "mommyfit", "slimfitter"],

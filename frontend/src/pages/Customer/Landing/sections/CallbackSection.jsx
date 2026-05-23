@@ -28,6 +28,10 @@ export default function CallbackSection() {
       toast.error("Please enter a valid email address.");
       return;
     }
+    if (!form.message.trim()) {
+      toast.error("Message is required.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -74,7 +78,7 @@ export default function CallbackSection() {
               name="name"
               value={form.name}
               onChange={handle}
-              placeholder="Name"
+              placeholder="Name *"
               className={inputClass}
             />
             <input
@@ -89,7 +93,7 @@ export default function CallbackSection() {
               name="phone"
               value={form.phone}
               onChange={handle}
-              placeholder="Mobile Number"
+              placeholder="Mobile Number *"
               type="tel"
               className={inputClass}
             />
@@ -97,7 +101,7 @@ export default function CallbackSection() {
               name="message"
               value={form.message}
               onChange={handle}
-              placeholder="Message"
+              placeholder="Message *"
               className={inputClass}
             />
             <button
