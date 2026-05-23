@@ -23,7 +23,7 @@ import { useDoctorAuth } from "../../../context/DoctorAuthContext";
 const NAV_ITEMS = [
   { to: "/doctor/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/doctor/appointments", label: "Appointments", icon: Calendar },
-  { to: "/doctor/my-patients", label: "My Patients", icon: Users },
+  // { to: "/doctor/my-patients", label: "My Patients", icon: Users },
   { to: "/doctor/availability", label: "Availability Manager", icon: Clock },
   { to: "/doctor/notifications", label: "Notifications", icon: Bell },
   { to: "/doctor/settings", label: "Settings", icon: SettingsIcon },
