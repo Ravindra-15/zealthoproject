@@ -2,7 +2,7 @@
 const Consultation = require("../models/Consultation");
 const User = require("../models/User");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
-
+const ProgramSubscription = require("../models/ProgramSubscription");
 const getSummary = async (req, res) => {
   try {
     const totalCompleted = await Consultation.countDocuments({
@@ -85,4 +85,99 @@ const getReceipt = async (req, res) => {
   }
 };
 
-module.exports = { getSummary, listTransactions, getReceipt };
+// ============================================
+// 📦 GET MY SUBSCRIPTION (for one program)
+// ============================================
+// Returns the user's most recent subscription for a program,
+// with computed current-week / total-weeks / progress for the UI.
+const getMySubscription = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { programId } = req.query;
+
+    // 🛡️ Validate programId
+    const ALLOWED = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
+    if (!programId || !ALLOWED.includes(programId)) {
+      return errorResponse(res, "Valid programId is required", 400);
+    }
+
+    // 📥 Most recent subscription for this user + program
+    const sub = await ProgramSubscription.findOne({
+      programId,
+      $or: [{ customer: userId }, { doctor: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // No subscription — user never bought this program
+    if (!sub) {
+      return successResponse(
+        res,
+        { subscription: null },
+        "No subscription found",
+        200
+      );
+    }
+
+    // 🕒 Compute time progress
+    const now = new Date();
+    const start = new Date(sub.startDate);
+    const end = new Date(sub.endDate);
+
+    // Total + elapsed days
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const totalDays = Math.max(1, Math.round((end - start) / msPerDay));
+    const elapsedDays = Math.min(
+      totalDays,
+      Math.max(0, Math.round((now - start) / msPerDay))
+    );
+
+    // Total weeks — use `weeks` field if present, else derive from days
+    const totalWeeks = sub.weeks || Math.ceil(totalDays / 7);
+    // Current week — 1-based, capped at totalWeeks
+    const currentWeek = Math.min(
+      totalWeeks,
+      Math.max(1, Math.ceil((elapsedDays + 1) / 7))
+    );
+
+    // Progress % of time elapsed
+    const progressPercent = Math.min(
+      100,
+      Math.max(0, Math.round((elapsedDays / totalDays) * 100))
+    );
+
+    // Weeks remaining
+    const weeksRemaining = Math.max(0, totalWeeks - currentWeek);
+
+    // Is it still usable (active + not past end date)
+    const isActive = sub.status === "active" && end > now;
+
+    return successResponse(
+      res,
+      {
+        subscription: {
+          id: sub._id,
+          programId: sub.programId,
+          programName: sub.programName,
+          tenure: sub.tenure,
+          amount: sub.amount,
+          status: sub.status,
+          isActive,
+          startDate: sub.startDate,
+          endDate: sub.endDate,
+          currentWeek,
+          totalWeeks,
+          weeksRemaining,
+          progressPercent,
+        },
+      },
+      "Subscription fetched",
+      200
+    );
+  } catch (err) {
+    console.error("[GET MY SUBSCRIPTION ERROR]:", err);
+    return errorResponse(res, "Failed to fetch subscription", 500);
+  }
+};
+
+module.exports = { getSummary, listTransactions, getReceipt, getMySubscription };

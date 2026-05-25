@@ -57,6 +57,22 @@ export const toggleUserStatus = async (userId) => {
 };
 
 // ============================================
+// 📊 GET USER HABIT REPORT (per program)
+// ============================================
+/**
+ * Fetches a user's habit report ("Overall" averages) for one program.
+ * @param {string} userId
+ * @param {string} programId - yogat20 | diabmukt | mommyfit | slimfitter
+ * @returns {Promise<Array>} report rows
+ */
+export const getUserHabitReport = async (userId, programId) => {
+  const response = await adminApi.get(`/admin/habit-reports/${userId}`, {
+    params: { programId },
+  });
+  return response.data.data.report;
+};
+
+// ============================================
 // 🆔 BUILD DISPLAY ID (USxx)
 // ============================================
 /**

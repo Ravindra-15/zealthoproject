@@ -8,21 +8,34 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, MessageSquare } from "lucide-react";
+import { ArrowLeft, ClipboardList, MessageSquare, LineChart } from "lucide-react";
 
 import { getUserDetails } from "../../../services/userService";
 import UserProfileHeader from "./components/UserProfileHeader";
 import BodyProfileTab from "./components/BodyProfileTab";
 import ConsultationsTab from "./components/ConsultationsTab";
+import ReportsTab from "./components/ReportsTab";
+import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 
-const TABS = [
+
+// Base tabs shown for every program
+const BASE_TABS = [
   { id: "body", label: "27-Point Body Profile", icon: ClipboardList },
   { id: "consultations", label: "Consultations", icon: MessageSquare },
 ];
 
+// Reports tab — only for child programs (Zealtho has no habits)
+const REPORTS_TAB = { id: "reports", label: "Reports", icon: LineChart };
+
 const UserProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const { selectedProgramId } = useSelectedProgram();
+  const isZealtho = selectedProgramId === "zealtho";
+
+  // Reports tab appears only for child programs
+  const TABS = isZealtho ? BASE_TABS : [...BASE_TABS, REPORTS_TAB];
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +68,11 @@ const UserProfile = () => {
       isMountedRef.current = false;
     };
   }, [id]);
+
+  // Reset to body tab if Reports tab disappears (e.g. switched to Zealtho)
+  useEffect(() => {
+    if (isZealtho && activeTab === "reports") setActiveTab("body");
+  }, [isZealtho, activeTab]);
 
   // 🔄 Update local state when status toggles (no refetch needed)
   const handleUserUpdated = (updatedUser) => {
@@ -193,6 +211,8 @@ const UserProfile = () => {
       {activeTab === "consultations" && (
         <ConsultationsTab consultations={consultations} />
       )}
+
+      {activeTab === "reports" && !isZealtho && <ReportsTab userId={user._id} />}
     </div>
   );
 };
