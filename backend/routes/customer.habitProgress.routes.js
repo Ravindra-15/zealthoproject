@@ -13,6 +13,7 @@ const rateLimit = require("express-rate-limit");
 const {
   getHabitsWithProgress,
   saveHabitProgress,
+  getProgressReport,
 } = require("../controllers/customer.habitProgress.controller");
 
 const { protect } = require("../middleware/auth.middleware");
@@ -42,5 +43,9 @@ router.get("/", getHabitsWithProgress);
 // 💾 SAVE / UPDATE today's value for one habit
 // POST /api/customer/habit-progress  body: { habitId, value }
 router.post("/", saveHabitProgress);
+
+// 📊 GET progress report — historical averages + monthly day-grid
+// GET /api/customer/habit-progress/report?programId=diabmukt
+router.get("/report", getProgressReport);
 
 module.exports = router;
