@@ -274,7 +274,6 @@ function App() {
                     </ProtectedDoctorRoute>
                   }
                 />
-
                 {/* 🏠 Main app (with sidebar layout) */}
                 <Route
                   element={
