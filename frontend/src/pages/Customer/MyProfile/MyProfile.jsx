@@ -29,7 +29,6 @@ import {
 
 import { listMyAppointments } from "../../../services/customerAppointmentService";
 
-
 import EditProfileModal from "./components/EditProfileModal";
 import ChangePasswordForm from "./components/ChangePasswordForm";
 import PastAppointmentCard from "./components/PastAppointmentCard";
@@ -82,10 +81,7 @@ export default function MyProfile() {
     (async () => {
       setLoading(true);
 
-      await Promise.all([
-        loadProfile(),
-        loadPastAppointments(),
-      ]);
+      await Promise.all([loadProfile(), loadPastAppointments()]);
 
       setLoading(false);
     })();
@@ -128,10 +124,7 @@ export default function MyProfile() {
 
       toast.success("Photo updated");
     } catch (err) {
-      toast.error(
-        err?.response?.data?.message ||
-          "Failed to upload photo"
-      );
+      toast.error(err?.response?.data?.message || "Failed to upload photo");
     } finally {
       setUploadingPhoto(false);
 
@@ -141,44 +134,43 @@ export default function MyProfile() {
   };
 
   const handleDeletePhoto = async (e) => {
-  e.stopPropagation(); // prevent triggering file picker
-  if (!window.confirm("Remove your profile photo?")) return;
-  try {
-    setUploadingPhoto(true);
-    const updated = await deleteProfilePhoto();
-    setUser(updated);
-    toast.success("Photo removed");
-  } catch (err) {
-    toast.error(err?.response?.data?.message || "Failed to delete photo");
-  } finally {
-    setUploadingPhoto(false);
-  }
-};
+    e.stopPropagation(); // prevent triggering file picker
+    if (!window.confirm("Remove your profile photo?")) return;
+    try {
+      setUploadingPhoto(true);
+      const updated = await deleteProfilePhoto();
+      setUser(updated);
+      toast.success("Photo removed");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   // ============================================
   // 📅 COMPUTED VALUES
   // ============================================
   const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleString(
-        "en-US",
-        {
-          month: "short",
-          year: "numeric",
-        }
-      )
+    ? new Date(user.createdAt).toLocaleString("en-US", {
+        month: "short",
+        year: "numeric",
+      })
     : "—";
 
-  const fullPhone = user?.whatsapp ? `+${user.whatsapp}` : "—";
-
+  // const fullPhone = user?.whatsapp ? `+${user.whatsapp}` : "—";
+  const fullPhone = user?.whatsapp
+    ? `+${user.whatsapp}`
+    : user?.phone
+      ? `+${user.phone}`
+      : "—";
   // ============================================
   // ⏳ LOADING
   // ============================================
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500 text-sm">
-          Loading your profile...
-        </div>
+        <div className="text-gray-500 text-sm">Loading your profile...</div>
       </div>
     );
   }
