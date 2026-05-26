@@ -7,7 +7,15 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Check,
+  Activity,
+  Leaf,
+  Heart,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
@@ -27,54 +35,86 @@ import {
 // 📑 STEP META
 // ============================================
 const STEPS = [
-  { id: 1, title: "Physical Attributes", subtitle: "Body measurements & metabolic markers" },
-  { id: 2, title: "Lifestyle & Habits", subtitle: "Sleep, stress, activity, hydration" },
-  { id: 3, title: "Symptoms & Family", subtitle: "Well-being and medical history" },
+  {
+    id: 1,
+    title: "Physical Attributes",
+    subtitle: "Body measurements & metabolic markers",
+    icon: Activity,
+  },
+  {
+    id: 2,
+    title: "Lifestyle & Habits",
+    subtitle: "Sleep, stress, activity, hydration",
+    icon: Leaf,
+  },
+  {
+    id: 3,
+    title: "Symptoms & Family",
+    subtitle: "Well-being and medical history",
+    icon: Heart,
+  },
 ];
 
 // ============================================
-// 🧭 STEP INDICATOR
+// 🧭 STEP INDICATOR — Figma styled
 // ============================================
 const StepIndicator = ({ currentStep }) => (
-  <div className="flex items-center justify-between max-w-md mx-auto mb-8 relative">
-    {/* Connecting line */}
-    <div className="absolute top-4 left-8 right-8 h-0.5 bg-gray-200 -z-0" aria-hidden="true">
-      <div
-        className="h-full bg-orange-500 transition-all duration-300"
-        style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
-      />
-    </div>
-
-    {STEPS.map((step) => {
+  <div className="flex items-start justify-between max-w-3xl mx-auto mb-10 relative px-2">
+    {STEPS.map((step, idx) => {
       const isCompleted = step.id < currentStep;
       const isActive = step.id === currentStep;
+      const Icon = step.icon;
+      const isLast = idx === STEPS.length - 1;
+
       return (
-        <div key={step.id} className="flex flex-col items-center relative z-10">
-          <div
-            className={`
-              w-9 h-9 rounded-full flex items-center justify-center
-              text-xs font-bold border-2
-              transition-colors
-              ${
-                isCompleted
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : isActive
-                  ? "bg-white text-orange-600 border-orange-500"
-                  : "bg-white text-gray-400 border-gray-200"
-              }
-            `}
-          >
-            {isCompleted ? <CheckCircle2 size={16} /> : step.id}
+        <React.Fragment key={step.id}>
+          {/* Node + label */}
+          <div className="flex flex-col items-center relative z-10 shrink-0">
+            <div
+              className={`
+                w-12 h-12 rounded-full flex items-center justify-center
+                border-2 transition-all duration-300
+                ${
+                  isCompleted
+                    ? "bg-orange-500 border-orange-500 text-white"
+                    : isActive
+                    ? "bg-orange-500 border-orange-500 text-white shadow-[0_6px_18px_rgba(249,115,22,0.35)]"
+                    : "bg-white border-gray-200 text-gray-300"
+                }
+              `}
+            >
+              {isCompleted ? (
+                <Check size={20} strokeWidth={3} />
+              ) : (
+                <Icon size={20} />
+              )}
+            </div>
+            <p
+              className={`
+                mt-2.5 text-[11px] sm:text-xs font-semibold text-center
+                leading-tight max-w-[110px]
+                ${
+                  isActive || isCompleted
+                    ? "text-orange-500"
+                    : "text-gray-400"
+                }
+              `}
+            >
+              {step.title}
+            </p>
           </div>
-          <p
-            className={`
-              mt-2 text-[10px] font-semibold tracking-wide uppercase text-center
-              ${isActive ? "text-orange-600" : "text-gray-400"}
-            `}
-          >
-            Step {step.id}
-          </p>
-        </div>
+
+          {/* Connecting line (between nodes only) */}
+          {!isLast && (
+            <div className="flex-1 h-0.5 mt-6 mx-1 sm:mx-2 rounded-full overflow-hidden bg-gray-200">
+              <div
+                className={`h-full bg-orange-500 transition-all duration-300 ${
+                  step.id < currentStep ? "w-full" : "w-0"
+                }`}
+              />
+            </div>
+          )}
+        </React.Fragment>
       );
     })}
   </div>
@@ -87,7 +127,8 @@ const BodyProfileWizard = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { profile, loading: profileLoading, saving, save, complete } = useMyBodyProfile();
+  const { profile, loading: profileLoading, saving, save, complete } =
+    useMyBodyProfile();
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({});
@@ -126,9 +167,8 @@ const BodyProfileWizard = () => {
   // ⏭️ NEXT
   // ============================================
   const handleNext = async () => {
-    // Save partial progress
     const result = await save(formData);
-    if (!result) return; // toast already shown by hook
+    if (!result) return;
 
     if (step < STEPS.length) {
       setStep(step + 1);
@@ -174,7 +214,7 @@ const BodyProfileWizard = () => {
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors"
             disabled={saving}
           >
             <ArrowLeft size={16} />
@@ -218,7 +258,10 @@ const BodyProfileWizard = () => {
             {profileLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-12 bg-gray-100 rounded-xl animate-pulse"
+                  />
                 ))}
               </div>
             ) : (
@@ -279,7 +322,7 @@ const BodyProfileWizard = () => {
                     </>
                   ) : (
                     <>
-                      Step {step + 1}
+                      {STEPS[step].title}
                       <ArrowRight size={14} />
                     </>
                   )}
@@ -307,7 +350,7 @@ const BodyProfileWizard = () => {
                   ) : (
                     <>
                       Done
-                      <CheckCircle2 size={14} />
+                      <Check size={14} strokeWidth={3} />
                     </>
                   )}
                 </button>
