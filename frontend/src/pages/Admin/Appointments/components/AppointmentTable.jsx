@@ -150,7 +150,9 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-sm text-gray-700">{apt.doctorName}</span>
+                  <span className="text-sm text-gray-700">
+                    {apt.doctorName}
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700">
@@ -159,9 +161,15 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-sm font-semibold text-indigo-600">
-                    {formatFee(apt.fee, apt.currency)}
-                  </span>
+                  {apt.paidWithCredit ? (
+                    <span className="text-sm font-semibold text-emerald-600">
+                      Free (Credit)
+                    </span>
+                  ) : (
+                    <span className="text-sm font-semibold text-indigo-600">
+                      {formatFee(apt.fee, apt.currency)}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-center">
                   <StatusPill status={apt.status} />
@@ -188,10 +196,18 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
               with {apt.doctorName}
             </p>
             <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="text-gray-700">{formatUtcDateTime12h(apt.scheduledAt)}</span>
-              <span className="font-semibold text-indigo-600">
-                {formatFee(apt.fee, apt.currency)}
+              <span className="text-gray-700">
+                {formatUtcDateTime12h(apt.scheduledAt)}
               </span>
+              {apt.paidWithCredit ? (
+                <span className="font-semibold text-emerald-600">
+                  Free (Credit)
+                </span>
+              ) : (
+                <span className="font-semibold text-indigo-600">
+                  {formatFee(apt.fee, apt.currency)}
+                </span>
+              )}
             </div>
           </div>
         ))}

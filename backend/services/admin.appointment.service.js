@@ -35,7 +35,7 @@ const listAppointments = async ({
   const [total, appointments] = await Promise.all([
     Appointment.countDocuments(query),
     Appointment.find(query)
-      .sort({ scheduledAt: -1 })
+      .sort({ createdAt: -1 })
       .skip((safePage - 1) * safeLimit)
       .limit(safeLimit)
       .lean(),

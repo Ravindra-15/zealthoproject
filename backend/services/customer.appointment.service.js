@@ -239,6 +239,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     scheduledAt: slotStart,
     durationMinutes: SLOT_DURATION_MINUTES,
     fee: BOOKING_FEE,  // Doctor (same or different) still receives the original $20
+    paidWithCredit: usedFreeCredit,
     currency: BOOKING_CURRENCY,
     paymentStatus: "paid",
     status: "confirmed",

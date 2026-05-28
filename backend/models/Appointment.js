@@ -85,6 +85,11 @@ const appointmentSchema = new mongoose.Schema(
       min: 0,
     },
 
+    paidWithCredit: {
+      type: Boolean,
+      default: false,
+    },
+
     currency: {
       type: String,
       default: "USD",
