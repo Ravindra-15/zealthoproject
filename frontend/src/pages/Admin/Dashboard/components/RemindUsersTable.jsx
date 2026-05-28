@@ -9,7 +9,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown, User } from "lucide-react";
 import AdminCard from "../../../../components/admin/common/AdminCard";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
-
+import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
 // 🎨 ADMIN: Filter dropdown options
 const FILTER_OPTIONS = [
   { value: "expiring-soon", label: "Expiring soon" },
@@ -106,16 +106,48 @@ const FilterDropdown = ({ value, onChange }) => {
 };
 
 // 👤 ADMIN: Avatar component with fallback
+// const UserAvatar = ({ user }) => {
+//   if (user.avatar) {
+//     return (
+//       <img
+//         src={user.avatar}
+//         alt={`${user.name} avatar`}
+//         className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+//       />
+//     );
+//   }
+
+
+// 👤 ADMIN: Avatar component with fallback
 const UserAvatar = ({ user }) => {
-  if (user.avatar) {
+  const photoUrl = user.avatar ? buildUserPhotoUrl(user.avatar) : null;
+
+  if (photoUrl) {
     return (
       <img
-        src={user.avatar}
+        src={photoUrl}
         alt={`${user.name} avatar`}
         className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
       />
     );
   }
+
+  // return (
+  //   <div
+  //     className="
+  //       w-10 h-10 rounded-full flex-shrink-0
+  //       bg-gradient-to-br from-gray-200 to-gray-300
+  //       flex items-center justify-center
+  //     "
+  //     aria-hidden="true"
+  //   >
+  //     <User size={18} className="text-gray-400" />
+  //   </div>
+  // );
+
 
   return (
     <div

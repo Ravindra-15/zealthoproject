@@ -123,28 +123,28 @@ const getRevenueThisMonth = async (programId) => {
   }
 
   // 💵 User-cancelled appointments → admin keeps the money
-const cancelledAgg = await Appointment.aggregate([
-  {
-    $match: {
-      platform: programId,
-      status: "cancelled",
-      cancelledBy: "user",
-      paymentStatus: "paid",
-      updatedAt: { $gte: startOfMonth, $lte: endOfMonth },
+  const cancelledAgg = await Appointment.aggregate([
+    {
+      $match: {
+        platform: programId,
+        status: "cancelled",
+        cancelledBy: "user",
+        paymentStatus: "paid",
+        updatedAt: { $gte: startOfMonth, $lte: endOfMonth },
+      },
     },
-  },
-  {
-    $group: {
-      _id: null,
-      total: { $sum: "$fee" },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: "$fee" },
+      },
     },
-  },
-]);
-const cancelledTotal = cancelledAgg[0]?.total || 0;
+  ]);
+  const cancelledTotal = cancelledAgg[0]?.total || 0;
 
-const gross = consultationTotal + subscriptionTotal;
-// 40% share on consultations/subs + 100% on cancellations
-return calculateRevenue(gross) + cancelledTotal;
+  const gross = consultationTotal + subscriptionTotal;
+  // 40% share on consultations/subs + 100% on cancellations
+  return calculateRevenue(gross) + cancelledTotal;
 };
 
 // ============================================
@@ -305,7 +305,7 @@ const getExpiringSubscriptions = async (
   }
 
   const subscriptions = await ProgramSubscription.find(matchClause)
-    .populate("customer", "fullName nickName email")
+    .populate("customer", "fullName nickName email profilePhoto updatedAt")
     .sort({ endDate: 1 })
     .limit(safeLimit)
     .lean();
@@ -320,7 +320,7 @@ const getExpiringSubscriptions = async (
       "Unknown Customer",
     plan: sub.programName || sub.programId,
     subscription: formatExpiry(sub.endDate, safeFilter),
-    avatar: null,
+    avatar: sub.customer?.profilePhoto || null,
   }));
 };
 
