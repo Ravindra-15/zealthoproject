@@ -134,7 +134,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/booking/confirmation/:id"
           element={
