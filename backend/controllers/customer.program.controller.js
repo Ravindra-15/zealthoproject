@@ -119,7 +119,7 @@ const subscribeToProgram = async (req, res) => {
       resolvedWeeks = w;
       resolvedTenure = `${w} Weeks`;
       amount = computeWeeklyAmount(weeklyPlan, w);
-      months = Math.max(1, Math.round(w / 4)); // for endDate
+      // months = Math.max(1, Math.round(w / 4)); // for endDate
     } else {
       // ════════════════════════════════════════
       // 🟧 FIXED PROGRAM (yogat20) — unchanged behavior
@@ -148,9 +148,21 @@ const subscribeToProgram = async (req, res) => {
     }
 
     // 📆 DATES
+    // const startDate = new Date();
+    // const endDate = new Date();
+    // endDate.setMonth(endDate.getMonth() + months);
+
+    // 📆 DATES
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + months);
+    const endDate = new Date(startDate);
+
+    if (pricingType === "weekly") {
+      // Add exact weeks (7 days each) — no month rounding
+      endDate.setDate(endDate.getDate() + resolvedWeeks * 7);
+    } else {
+      // Fixed plans (yogat20) — add calendar months
+      endDate.setMonth(endDate.getMonth() + months);
+    }
 
     // 💳 TRANSACTION
     const transactionId = "TXN_" + Date.now();
