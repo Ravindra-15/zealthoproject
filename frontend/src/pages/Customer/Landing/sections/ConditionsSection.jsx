@@ -55,7 +55,11 @@ export default function ConditionsSection() {
                 i === 1 ? "border-orange-300 scale-105" : "border-gray-100"
               }`}
             >
-              <img src={c.image} alt={c.title} className="w-full h-44 object-cover grayscale" />
+              <img
+                src={c.image}
+                alt={c.title}
+                className="w-full aspect-[16/9] object-cover grayscale"
+              />
               <div className="p-5 text-left">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-orange-500 text-xl">{c.icon}</span>
