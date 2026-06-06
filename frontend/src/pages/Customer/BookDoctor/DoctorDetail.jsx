@@ -16,6 +16,11 @@ import DoctorDetailHeader from "./components/DoctorDetailHeader";
 import DateCalendar from "./components/DateCalendar";
 import TimeSlotGrid from "./components/TimeSlotGrid";
 
+import {
+  isCustomerLoggedIn,
+  buildLoginRedirect,
+} from "../../../utils/customerAuthHelper";
+
 import { getPublicDoctor } from "../../../services/customerDoctorService";
 import useDoctorDayAvailability from "../../../hooks/useDoctorDayAvailability";
 
@@ -72,7 +77,7 @@ const DoctorDetail = () => {
   // ============================================
   const { data: dayData, loading: slotsLoading } = useDoctorDayAvailability(
     id,
-    selectedDate
+    selectedDate,
   );
 
   // 🔄 Reset selected time when date changes
@@ -96,10 +101,16 @@ const DoctorDetail = () => {
       scheduledTime: selectedTime,
       // Build full ISO timestamp (UTC)
       scheduledAt: new Date(
-        `${selectedDate}T${selectedTime}:00.000Z`
+        `${selectedDate}T${selectedTime}:00.000Z`,
       ).toISOString(),
     };
     sessionStorage.setItem("bookingIntent", JSON.stringify(intent));
+
+    // 🔒 Not logged in → send to login, return to checkout after
+    if (!isCustomerLoggedIn()) {
+      navigate(buildLoginRedirect("/checkout"));
+      return;
+    }
 
     navigate("/checkout");
   };
@@ -125,8 +136,7 @@ const DoctorDetail = () => {
 
           {/* 🏷️ Page title */}
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 text-center tracking-tight">
-            Book Doctor{" "}
-            <span className="text-orange-500">Consultations</span>
+            Book Doctor <span className="text-orange-500">Consultations</span>
           </h1>
 
           {/* ============================================ */}
