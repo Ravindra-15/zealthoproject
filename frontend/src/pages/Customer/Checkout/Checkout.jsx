@@ -148,7 +148,7 @@ const Checkout = () => {
       <CustomerNavbar />
 
       <main className="flex-1">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-10 space-y-6">
+        <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-10 space-y-6">
           {/* 🔙 Back link */}
           <button
             type="button"
