@@ -161,7 +161,7 @@ const Login = () => {
             <span className="text-orange-500">Back to Zealtho</span>
           </h1>
 
-          <p className="mt-4 text-gray-600 text-[14px] leading-[1.6] max-w-[420px] mx-auto md:mx-0">
+          <p className="mt-4 text-gray-600 text-[20px] leading-[1.6] max-w-[420px] mx-auto md:mx-0">
             Pick up right where you left off — your wellness goals are waiting
           </p>
         </div>
