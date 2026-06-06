@@ -16,20 +16,20 @@ export const validateSignup = ({ email, password, phone }) => {
   if (blockedDomains.some((d) => email.includes(d)))
     return "Disposable emails are not allowed";
 
-  const passwordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,32}$/;
-  if (!passwordRegex.test(password))
-    return "Password must be 8–32 chars with uppercase, lowercase, number & special character";
-
   // No spaces in password
   if (/\s/.test(password)) return "Password cannot contain spaces";
 
-  // No repeated chars like "aaaa1234A@"
-  if (/(.)\1{3,}/.test(password))
-    return "Password cannot have 4+ repeated characters";
+  if (password.length < 8)
+    return "Password must be at least 8 characters";
+
+  if (!/\d/.test(password))
+    return "Password must contain at least 1 number";
+
+  if (!/[^a-zA-Z0-9]/.test(password))
+    return "Password must contain at least 1 special character";
 
   const phoneRegex = /^[6-9]\d{9}$/;
-  if (!phoneRegex.test(phone.trim())) return "Invalid Indian phone number";
+  if (!phoneRegex.test(phone.trim())) return "Invalid phone number";
 
   return null;
 };

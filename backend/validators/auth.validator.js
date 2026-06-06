@@ -39,20 +39,16 @@ exports.validateSignup = (req, res, next) => {
     return res.status(400).json({ success: false, message: "Password cannot contain spaces" });
   }
 
-  if (password.length > 32) {
-    return res.status(400).json({ success: false, message: "Password cannot exceed 32 characters" });
+  if (password.length < 8) {
+    return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
   }
 
-  if (/(.)\1{3,}/.test(password)) {
-    return res.status(400).json({ success: false, message: "Password cannot have 4+ repeated characters" });
+  if (!/\d/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 number" });
   }
 
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,32}$/;
-  if (!passwordRegex.test(password)) {
-    return res.status(400).json({
-      success: false,
-      message: "Password must be 8–32 chars with uppercase, lowercase, number & special character",
-    });
+  if (!/[^a-zA-Z0-9]/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 special character" });
   }
 
   // Phone
