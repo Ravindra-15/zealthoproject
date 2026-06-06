@@ -31,26 +31,27 @@ const CustomerNavbar = () => {
 
   const auth = useContext(AuthContext) || {};
 
-const isLoggedIn = !!auth?.token;
+  const isLoggedIn = !!auth?.token;
 
-// Safe parse with try-catch (prevents crash on bad/null storage values)
-const getStoredUser = () => {
-  try {
-    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
+  // Safe parse with try-catch (prevents crash on bad/null storage values)
+  const getStoredUser = () => {
+    try {
+      const raw =
+        localStorage.getItem("user") || sessionStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
 
-const storedUser = useMemo(() => getStoredUser(), [auth?.token]);
+  const storedUser = useMemo(() => getStoredUser(), [auth?.token]);
 
-const profileCompleted = !!(
-  storedUser?.fullName &&
-  storedUser?.dob &&
-  storedUser?.country &&
-  storedUser?.city
-);
+  const profileCompleted = !!(
+    storedUser?.fullName &&
+    storedUser?.dob &&
+    storedUser?.country &&
+    storedUser?.city
+  );
   // ============================================
   // 🚫 HIDE AUTH UI ON AUTH PAGES
   // ============================================
@@ -70,6 +71,35 @@ const profileCompleted = !!(
   const links = isLoggedIn && profileCompleted ? PRIVATE_LINKS : PUBLIC_LINKS;
 
   const closeMobile = () => setMobileOpen(false);
+
+  // Scroll to #programs after we've landed on /home
+  useEffect(() => {
+    if (location.pathname === "/home" && location.hash === "#programs") {
+      // wait a tick so the section is mounted
+      const id = setTimeout(() => {
+        document
+          .getElementById("programs")
+          ?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
+      return () => clearTimeout(id);
+    }
+  }, [location.pathname, location.hash]);
+
+  const handleProgramsClick = (e) => {
+    e.preventDefault();
+    closeMobile();
+    if (location.pathname === "/home") {
+      // already on home → just scroll
+      document
+        .getElementById("programs")
+        ?.scrollIntoView({ behavior: "smooth" });
+      // keep hash in sync (optional)
+      navigate("/home#programs", { replace: true });
+    } else {
+      // different page → navigate, effect above handles the scroll
+      navigate("/home#programs");
+    }
+  };
 
   // ============================================
   // ✅ CLOSE ON SCROLL
@@ -109,7 +139,7 @@ const profileCompleted = !!(
 
   return (
     <div ref={drawerRef}>
-     <header className="sticky top-0 left-0 w-full z-40 bg-white border-b border-gray-100">
+      <header className="sticky top-0 left-0 w-full z-40 bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between gap-4">
             {/* 🏷️ BRAND */}
@@ -128,18 +158,19 @@ const profileCompleted = !!(
                   <a
                     key={link.to}
                     href={link.to}
+                    onClick={handleProgramsClick}
                     className="
-                      relative text-sm font-medium tracking-wide
-                      text-gray-600 hover:text-teal-700
-                      transition-all duration-300
-                      hover:-translate-y-[1px]
-                      after:absolute after:left-0 after:-bottom-1
-                      after:h-[2px] after:w-0
-                      after:bg-orange-500
-                      after:rounded-full
-                      after:transition-all after:duration-300
-                      hover:after:w-full
-                    "
+                    relative text-sm font-medium tracking-wide
+                    text-gray-600 hover:text-teal-700
+                    transition-all duration-300
+                    hover:-translate-y-[1px]
+                    after:absolute after:left-0 after:-bottom-1
+                    after:h-[2px] after:w-0
+                    after:bg-orange-500
+                    after:rounded-full
+                    after:transition-all after:duration-300
+                    hover:after:w-full
+                  "
                   >
                     {link.label}
                   </a>
@@ -241,7 +272,7 @@ const profileCompleted = !!(
                   <a
                     key={link.to}
                     href={link.to}
-                    onClick={closeMobile}
+                    onClick={handleProgramsClick}
                     className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     {link.label}
