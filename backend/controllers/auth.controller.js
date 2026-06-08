@@ -42,14 +42,15 @@ exports.signup = async (req, res) => {
 
     // 🔢 Generate OTP
     const otpCode = generateOtp();
-
+ 
     // 🧹 Remove old OTP
-    await Otp.findOneAndDelete({ email });
+    await Otp.findOneAndDelete({ email, purpose: "signup" });
 
-    // 💾 Save new OTP
+   // 💾 Save new OTP
     await Otp.create({
       email,
       otp: otpCode,
+      purpose: "signup",
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
@@ -93,12 +94,13 @@ exports.resendOtp = async (req, res) => {
     const otpCode = generateOtp();
 
     // 🧹 Remove old OTP
-    await Otp.findOneAndDelete({ email });
+    await Otp.findOneAndDelete({ email, purpose: "signup" });
 
     // 💾 Save new OTP
     await Otp.create({
       email,
       otp: otpCode,
+      purpose: "signup",
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
@@ -153,6 +155,135 @@ exports.login = async (req, res) => {
   "Login successful"
 );
 
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+// 🔑 FORGOT PASSWORD — send reset OTP
+exports.forgotPassword = async (req, res) => {
+  try {
+    let { email } = req.body;
+    email = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email });
+
+    // Don't reveal whether the email exists
+    if (!user || !user.isVerified) {
+      return successResponse(
+        res,
+        { email },
+        "If an account exists, an OTP has been sent"
+      );
+    }
+
+    const otpCode = generateOtp();
+
+    await Otp.findOneAndDelete({ email, purpose: "reset" });
+
+    await Otp.create({
+      email,
+      otp: otpCode,
+      purpose: "reset",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    await sendEmail(email, otpCode);
+
+    return successResponse(
+      res,
+      { email },
+      "If an account exists, an OTP has been sent"
+    );
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+// 🔑 VERIFY RESET OTP — returns short-lived reset token
+exports.verifyResetOtp = async (req, res) => {
+  try {
+    let { email, otp } = req.body;
+    email = email.toLowerCase().trim();
+    otp = otp.toString().trim();
+
+    const record = await Otp.findOne({ email, purpose: "reset" });
+
+    if (!record) {
+      return errorResponse(res, "OTP expired or not found", 400);
+    }
+
+    if (record.expiresAt < new Date()) {
+      await Otp.deleteOne({ _id: record._id });
+      return errorResponse(res, "OTP has expired, please request a new one", 400);
+    }
+
+    if (record.otp.toString().trim() !== otp) {
+      return errorResponse(res, "Invalid OTP", 400);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return errorResponse(res, "User not found", 404);
+    }
+
+    // OTP consumed
+    await Otp.deleteOne({ _id: record._id });
+
+    const jwt = require("jsonwebtoken");
+    const resetToken = jwt.sign(
+      { id: user._id, purpose: "reset" },
+      process.env.JWT_SECRET,
+      { expiresIn: "10m" }
+    );
+
+    return successResponse(res, { resetToken }, "OTP verified");
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+// 🔑 RESET PASSWORD — using reset token
+exports.resetPassword = async (req, res) => {
+  try {
+    const { resetToken, password } = req.body;
+
+    if (!resetToken) {
+      return errorResponse(res, "Reset token is required", 400);
+    }
+
+    const jwt = require("jsonwebtoken");
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+    } catch {
+      return errorResponse(res, "Reset link expired. Please try again.", 400);
+    }
+
+    if (decoded.purpose !== "reset") {
+      return errorResponse(res, "Invalid reset token", 400);
+    }
+
+    const user = await User.findById(decoded.id).select("+password");
+    if (!user) {
+      return errorResponse(res, "User not found", 404);
+    }
+
+    // 🚫 New password cannot be the same as the old one
+    const isSame = await bcrypt.compare(password, user.password);
+    if (isSame) {
+      return errorResponse(
+        res,
+        "New password cannot be the same as your old password",
+        400
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    return successResponse(res, {}, "Password reset successful");
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }

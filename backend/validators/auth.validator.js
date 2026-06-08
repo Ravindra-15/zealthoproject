@@ -255,3 +255,76 @@ exports.validateLogin = (req, res, next) => {
 
   next();
 };
+
+
+exports.validateForgotPassword = (req, res, next) => {
+  let { email } = req.body;
+  email = email?.toLowerCase().trim();
+  req.body.email = email;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Email is required" });
+  }
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ success: false, message: "Invalid email format" });
+  }
+
+  next();
+};
+
+exports.validateVerifyResetOtp = (req, res, next) => {
+  let { email, otp } = req.body;
+  email = email?.toLowerCase().trim();
+  otp = otp?.toString().trim();
+  req.body.email = email;
+  req.body.otp = otp;
+
+  if (!email || !otp) {
+    return res.status(400).json({ success: false, message: "Email and OTP are required" });
+  }
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ success: false, message: "Invalid email format" });
+  }
+
+  if (!/^\d{3}$/.test(otp)) {
+    return res.status(400).json({ success: false, message: "OTP must be 3 digits" });
+  }
+
+  next();
+};
+
+exports.validateResetPassword = (req, res, next) => {
+  let { resetToken, password } = req.body;
+  password = password?.trim();
+  req.body.password = password;
+
+  if (!resetToken) {
+    return res.status(400).json({ success: false, message: "Reset token is required" });
+  }
+
+  if (!password) {
+    return res.status(400).json({ success: false, message: "Password is required" });
+  }
+
+  if (/\s/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password cannot contain spaces" });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+  }
+
+  if (!/\d/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 number" });
+  }
+
+  if (!/[^a-zA-Z0-9]/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 special character" });
+  }
+
+  next();
+};

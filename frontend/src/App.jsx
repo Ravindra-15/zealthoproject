@@ -21,6 +21,9 @@ import ProfileStepOne from "./pages/Signup/ProfileStepOne";
 import ProfileStepTwo from "./pages/Signup/ProfileStepTwo";
 
 import Login from "./pages/Customer/Login/Login";
+import ForgotPassword from "./pages/Customer/ForgotPassword/ForgotPassword";
+import ResetOtp from "./pages/Customer/ForgotPassword/ResetOtp";
+import ResetPassword from "./pages/Customer/ForgotPassword/ResetPassword";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import BookDoctor from "./pages/Customer/BookDoctor/BookDoctor";
 
@@ -96,6 +99,9 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/verify-otp" element={<OtpVerification />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-otp" element={<ResetOtp />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-use" element={<TermsOfUse />} />
         <Route path="/about" element={<About />} />
