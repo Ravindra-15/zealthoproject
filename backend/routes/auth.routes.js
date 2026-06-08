@@ -9,6 +9,7 @@ const {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  googleAuth,
 } = require("../controllers/auth.controller");
 const { otpLimiter, authLoginLimiter } = require("../middleware/rateLimit.middleware");
 const {
@@ -25,5 +26,6 @@ router.post("/login", authLoginLimiter, validateLogin, login);
 router.post("/forgot-password", otpLimiter, validateForgotPassword, forgotPassword);
 router.post("/verify-reset-otp", otpLimiter, validateVerifyResetOtp, verifyResetOtp);
 router.post("/reset-password", validateResetPassword, resetPassword);
+router.post("/google", googleAuth);
 
 module.exports = router;

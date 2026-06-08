@@ -16,15 +16,38 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: [
+        function () {
+          return this.provider === "local";
+        },
+        "Password is required",
+      ],
       minlength: [8, "Password must be at least 8 characters"],
       select: false,
     },
 
-    phone: {
+   phone: {
       type: String,
-      required: [true, "Phone is required"],
+      required: [
+        function () {
+          return this.provider === "local";
+        },
+        "Phone is required",
+      ],
       match: [/^[0-9]{10}$/, "Phone must be 10 digits"],
+    },
+
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+      index: true,
+    },
+
+    googleId: {
+      type: String,
+      default: null,
+      index: true,
     },
 
     isVerified: {

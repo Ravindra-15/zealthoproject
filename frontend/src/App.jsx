@@ -15,7 +15,7 @@ import LandingPage from "./pages/Customer/Landing/LandingPage";
 // 👤 CUSTOMER PAGES
 import Signup from "./pages/Signup/Signup";
 import ScrollToTop from "./components/common/ScrollToTop";
-
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import OtpVerification from "./pages/Signup/OtpVerification";
 import ProfileStepOne from "./pages/Signup/ProfileStepOne";
 import ProfileStepTwo from "./pages/Signup/ProfileStepTwo";
@@ -87,6 +87,7 @@ import Settings from "./pages/Doctor/Settings/Settings";
 
 function App() {
   return (
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
     <Router>
       <ScrollToTop />
       <div>
@@ -313,6 +314,7 @@ function App() {
       </Routes>
       </div>
     </Router>
+    </GoogleOAuthProvider>
   );
 }
 

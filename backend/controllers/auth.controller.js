@@ -9,6 +9,9 @@ const sendEmail = require("../services/email.service");
 const { generateOtp } = require("../utils/generateOtp");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
+const { OAuth2Client } = require("google-auth-library");
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 // 🔹 SIGNUP
 exports.signup = async (req, res) => {
   try {
@@ -284,6 +287,111 @@ exports.resetPassword = async (req, res) => {
     await user.save();
 
     return successResponse(res, {}, "Password reset successful");
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+// 🔵 GOOGLE AUTH — signup + login via Google ID token
+exports.googleAuth = async (req, res) => {
+  try {
+   const { credential, accessToken } = req.body;
+
+    if (!credential && !accessToken) {
+      return errorResponse(res, "Google credential is required", 400);
+    }
+
+    let payload;
+
+    if (credential) {
+      // 🔐 ID-token flow — verify it's from Google + for our app
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken: credential,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } catch {
+        return errorResponse(res, "Invalid Google token", 401);
+      }
+    } else {
+      // 🔐 Access-token flow — fetch verified profile from Google
+      try {
+        const r = await fetch(
+          "https://www.googleapis.com/oauth2/v3/userinfo",
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!r.ok) throw new Error("bad token");
+        payload = await r.json();
+      } catch {
+        return errorResponse(res, "Invalid Google token", 401);
+      }
+    }
+    // 🛡️ Reject unverified Google emails
+    if (!payload || !payload.email || !payload.email_verified) {
+      return errorResponse(res, "Google account email not verified", 401);
+    }
+
+    const email = payload.email.toLowerCase().trim();
+    const googleId = payload.sub;
+    // Google name may contain dots/accents/numbers — model only allows letters+spaces.
+    // Strip invalid chars; if nothing valid remains, leave empty for profile step.
+    const rawName = payload.name || "";
+    const fullName = rawName.replace(/[^a-zA-Z\s]/g, "").replace(/\s+/g, " ").trim();
+
+    // 🔍 Find existing user by email
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // 🚫 Block deactivated accounts
+      if (user.isActive === false) {
+        return errorResponse(res, "Account is deactivated", 403);
+      }
+
+      // Link Google to an existing local account (first Google login)
+      if (user.provider !== "google" || !user.googleId) {
+        user.provider = "google";
+        user.googleId = googleId;
+        if (!user.fullName && fullName) user.fullName = fullName;
+      }
+
+      // Google emails are verified — mark account verified
+      if (!user.isVerified) user.isVerified = true;
+
+      await user.save();
+    } else {
+      // 🆕 Create a fresh Google user (no password / phone needed)
+      user = await User.create({
+        email,
+        provider: "google",
+        googleId,
+        fullName: fullName || undefined,
+        isVerified: true,
+      });
+    }
+
+    // 🎫 Issue OUR jwt — same shape as normal login
+    const jwt = require("jsonwebtoken");
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    return successResponse(
+      res,
+      {
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          nickName: user.nickName,
+          dob: user.dob,
+          country: user.country,
+          city: user.city,
+        },
+      },
+      "Google authentication successful"
+    );
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }

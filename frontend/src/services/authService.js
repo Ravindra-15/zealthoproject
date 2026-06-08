@@ -20,6 +20,9 @@ export const verifyResetOtp = (data) => API.post("/auth/verify-reset-otp", data)
 // Reset Password — using reset token
 export const resetPassword = (data) => API.post("/auth/reset-password", data);
 
+// Google Auth — signup + login
+export const googleAuth = (data) => API.post("/auth/google", data);
+
 // Profile Step 1
 export const profileStepOne = (data) =>
   API.put("/users/profile-step-1", data);
