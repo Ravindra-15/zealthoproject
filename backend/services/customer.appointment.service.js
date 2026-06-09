@@ -432,12 +432,46 @@ const markComplete = async ({ appointmentId, actorId, actorType }) => {
   return { appointment };
 };
 
+// ============================================
+// ✏️ UPDATE NOTES (patient edits their problem — only before consult)
+// ============================================
+const updateMyNotes = async (userId, appointmentId, notes) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    user: userId,
+  });
+
+  if (!appointment) {
+    return { error: { status: 404, message: "Appointment not found" } };
+  }
+
+  // 🛡️ Only editable while still upcoming
+  if (!["pending", "confirmed"].includes(appointment.status)) {
+    return {
+      error: {
+        status: 400,
+        message: `Cannot edit problem for a ${appointment.status} appointment`,
+      },
+    };
+  }
+
+  appointment.notes = notes;
+  await appointment.save();
+
+  const populated = await Appointment.findById(appointment._id)
+    .populate("doctor", "fullName domain photo updatedAt")
+    .lean();
+
+  return { appointment: populated };
+};
+
 module.exports = {
   createBooking,
   listMyAppointments,
   getMyAppointmentById,
   cancelByUser,
   markComplete,
+  updateMyNotes,
   BOOKING_FEE,
   BOOKING_CURRENCY,
 };

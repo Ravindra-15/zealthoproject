@@ -19,6 +19,7 @@ const {
   getMyAppointment,
   cancelMyAppointment,
   markMyAppointmentComplete,
+  updateMyNotes,
 } = require("../controllers/customer.appointment.controller");
 
 const {
@@ -26,6 +27,7 @@ const {
   validateCreateBooking,
   validateListQuery,
   validateObjectIdParam,
+  validateUpdateNotes,
 } = require("../validators/customer.appointment.validator");
 
 const { protect } = require("../middleware/auth.middleware");
@@ -117,6 +119,15 @@ appointmentRouter.patch(
   authWriteLimiter,
   validateObjectIdParam("id"),
   markMyAppointmentComplete
+);
+
+// ✏️ Update my appointment problem/notes (only while upcoming)
+appointmentRouter.patch(
+  "/:id/notes",
+  authWriteLimiter,
+  validateObjectIdParam("id"),
+  validateUpdateNotes,
+  updateMyNotes
 );
 
 module.exports = {

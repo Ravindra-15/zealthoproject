@@ -13,11 +13,15 @@ const {
   sendMeetingLink,
   cancelAppointment,
   markAppointmentComplete,
+  getPatientBodyProfile,
+  setPrescription,
+  sendPrescription,
 } = require("../controllers/doctor.appointment.controller");
 
 const {
   validateDateQuery,
   validateSetMeetingLink,
+  validateSetPrescription,
   validateObjectIdParam,
 } = require("../validators/doctor.appointment.validator");
 
@@ -87,6 +91,31 @@ router.patch(
   writeLimiter,
   validateObjectIdParam("id"),
   markAppointmentComplete
+);
+
+// 🧬 Get patient's 27-point body profile
+router.get(
+  "/:id/body-profile",
+  readLimiter,
+  validateObjectIdParam("id"),
+  getPatientBodyProfile
+);
+
+// 💊 Set / update prescription
+router.patch(
+  "/:id/prescription",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  validateSetPrescription,
+  setPrescription
+);
+
+// 📤 Send prescription to patient
+router.post(
+  "/:id/send-prescription",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  sendPrescription
 );
 
 module.exports = router;

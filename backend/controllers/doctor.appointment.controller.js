@@ -168,6 +168,110 @@ const markAppointmentComplete = async (req, res) => {
   }
 };
 
+// ============================================
+// 🧬 GET PATIENT BODY PROFILE
+// ============================================
+// GET /api/doctor/appointments/:id/body-profile
+const getPatientBodyProfile = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.getPatientBodyProfile(
+      req.doctorId,
+      req.params.id
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: { profile: result.profile },
+    });
+  } catch (err) {
+    console.error("[DOCTOR GET BODY PROFILE ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch body profile",
+    });
+  }
+};
+
+// ============================================
+// 💊 SET PRESCRIPTION
+// ============================================
+// PATCH /api/doctor/appointments/:id/prescription
+const setPrescription = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.setPrescription(
+      req.doctorId,
+      req.params.id,
+      req.body.prescription
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Prescription saved",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR SET PRESCRIPTION ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save prescription",
+    });
+  }
+};
+
+// ============================================
+// 📤 SEND PRESCRIPTION
+// ============================================
+// POST /api/doctor/appointments/:id/send-prescription
+const sendPrescription = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.markPrescriptionSent(
+      req.doctorId,
+      req.params.id
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Prescription sent to patient",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR SEND PRESCRIPTION ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send prescription",
+    });
+  }
+};
+
 
 module.exports = {
   listAppointments,
@@ -175,4 +279,7 @@ module.exports = {
   sendMeetingLink,
   cancelAppointment,
   markAppointmentComplete,
+  getPatientBodyProfile,
+  setPrescription,
+  sendPrescription,
 };

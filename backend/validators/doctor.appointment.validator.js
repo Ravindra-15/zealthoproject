@@ -72,6 +72,40 @@ const validateSetMeetingLink = (req, res, next) => {
 };
 
 // ============================================
+// 💊 SET PRESCRIPTION
+// ============================================
+// PATCH /api/doctor/appointments/:id/prescription
+// Body: { prescription: "..." }
+const validateSetPrescription = (req, res, next) => {
+  const { prescription } = req.body;
+
+  if (typeof prescription !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "prescription must be a string",
+    });
+  }
+
+  const trimmed = prescription.trim();
+  if (!trimmed) {
+    return res.status(400).json({
+      success: false,
+      message: "prescription cannot be empty",
+    });
+  }
+
+  if (trimmed.length > 5000) {
+    return res.status(400).json({
+      success: false,
+      message: "prescription too long (max 5000 chars)",
+    });
+  }
+
+  req.body = { prescription: trimmed };
+  next();
+};
+
+// ============================================
 // 🆔 OBJECT ID PARAM
 // ============================================
 const validateObjectIdParam = (paramName = "id") => (req, res, next) => {
@@ -88,5 +122,6 @@ const validateObjectIdParam = (paramName = "id") => (req, res, next) => {
 module.exports = {
   validateDateQuery,
   validateSetMeetingLink,
+  validateSetPrescription,
   validateObjectIdParam,
 };

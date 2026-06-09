@@ -61,3 +61,34 @@ export const markAppointmentComplete = async (appointmentId) => {
   );
   return response.data.data.appointment;
 };
+
+// ============================================
+// 🧬 GET PATIENT BODY PROFILE
+// ============================================
+export const fetchPatientBodyProfile = async (appointmentId) => {
+  const response = await doctorApi.get(
+    `/doctor/appointments/${appointmentId}/body-profile`
+  );
+  return response.data.data.profile; // null if not created
+};
+
+// ============================================
+// 💊 SET / UPDATE PRESCRIPTION (saves but does not send)
+// ============================================
+export const setPrescription = async (appointmentId, prescription) => {
+  const response = await doctorApi.patch(
+    `/doctor/appointments/${appointmentId}/prescription`,
+    { prescription }
+  );
+  return response.data.data.appointment;
+};
+
+// ============================================
+// 📤 SEND PRESCRIPTION TO PATIENT
+// ============================================
+export const sendPrescription = async (appointmentId) => {
+  const response = await doctorApi.post(
+    `/doctor/appointments/${appointmentId}/send-prescription`
+  );
+  return response.data.data.appointment;
+};

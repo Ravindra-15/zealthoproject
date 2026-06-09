@@ -140,9 +140,43 @@ const validateObjectIdParam = (paramName = "id") => (req, res, next) => {
   next();
 };
 
+// ============================================
+// ✏️ UPDATE NOTES
+// ============================================
+// Body: { notes }
+const validateUpdateNotes = (req, res, next) => {
+  const { notes } = req.body;
+
+  if (typeof notes !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "notes must be a string",
+    });
+  }
+
+  const trimmed = notes.trim();
+  if (!trimmed) {
+    return res.status(400).json({
+      success: false,
+      message: "Problem cannot be empty",
+    });
+  }
+
+  if (trimmed.length > 1000) {
+    return res.status(400).json({
+      success: false,
+      message: "notes too long (max 1000 chars)",
+    });
+  }
+
+  req.body = { notes: trimmed };
+  next();
+};
+
 module.exports = {
   validateDayAvailabilityQuery,
   validateCreateBooking,
   validateListQuery,
   validateObjectIdParam,
+  validateUpdateNotes,
 };

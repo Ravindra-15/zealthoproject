@@ -204,6 +204,39 @@ const markMyAppointmentComplete = async (req, res) => {
   }
 };
 
+// ============================================
+// ✏️ UPDATE MY NOTES (problem)
+// ============================================
+// PATCH /api/customer/appointments/:id/notes
+const updateMyNotes = async (req, res) => {
+  try {
+    const result = await customerAppointmentService.updateMyNotes(
+      req.user.id,
+      req.params.id,
+      req.body.notes
+    );
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Problem updated",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[CUSTOMER UPDATE NOTES ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update problem",
+    });
+  }
+};
+
 module.exports = {
   getDayAvailability,
   createBooking,
@@ -211,4 +244,5 @@ module.exports = {
   getMyAppointment,
   cancelMyAppointment,
   markMyAppointmentComplete,
+  updateMyNotes,
 };

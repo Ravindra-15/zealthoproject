@@ -6,6 +6,7 @@
 
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
+const BodyProfile = require("../models/BodyProfile"); // patient 27-point profile
  
 const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
@@ -235,6 +236,97 @@ const markCompleteByDoctor = async (doctorId, appointmentId) => {
   return { appointment };
 };
 
+// ============================================
+// 🧬 GET PATIENT BODY PROFILE (scoped to doctor)
+// ============================================
+// Doctor can only view profile of a patient who has an appointment with them
+const getPatientBodyProfile = async (doctorId, appointmentId) => {
+  // verify this appointment belongs to this doctor
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  })
+    .select("user")
+    .lean();
+
+  if (!appointment) return null;
+
+  // fetch that patient's body profile (null if not created yet)
+  const profile = await BodyProfile.findOne({ user: appointment.user }).lean();
+  return { profile: profile || null };
+};
+
+// ============================================
+// 💊 SET PRESCRIPTION (editable anytime — before/after consult)
+// ============================================
+const setPrescription = async (doctorId, appointmentId, prescription) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return null;
+
+  // 🛡️ Block editing only for cancelled/no_show (completed is allowed — doctor may add Rx after consult)
+  if (["cancelled", "no_show"].includes(appointment.status)) {
+    return { error: `Cannot add prescription to a ${appointment.status} appointment` };
+  }
+
+  appointment.prescription = prescription;
+  // Reset sent flag if doctor edits prescription after sending
+  appointment.prescriptionSentAt = null;
+  await appointment.save();
+
+  const populatedAppointment = await Appointment.findById(appointment._id)
+    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .lean();
+
+  return { appointment: populatedAppointment };
+};
+
+// ============================================
+// 📤 MARK PRESCRIPTION AS SENT
+// ============================================
+const markPrescriptionSent = async (doctorId, appointmentId) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return null;
+
+  if (!appointment.prescription) {
+    return { error: "Add a prescription before sending" };
+  }
+
+  if (["cancelled", "no_show"].includes(appointment.status)) {
+    return { error: `Cannot send prescription for a ${appointment.status} appointment` };
+  }
+
+  appointment.prescriptionSentAt = new Date();
+  await appointment.save();
+
+  // 🔔 Notify patient prescription is available
+  try {
+    await Notification.create({
+      userId: appointment.user,
+      userType: "customer",
+      type: "general",
+      title: "Prescription Available",
+      body: `Dr. ${appointment.doctorName} has shared a prescription for your consultation.`,
+      metadata: { appointmentId: appointment._id },
+    });
+  } catch (err) {
+    console.log("PRESCRIPTION NOTIFICATION ERROR:", err);
+  }
+
+  const populatedAppointment = await Appointment.findById(appointment._id)
+    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .lean();
+
+  return { appointment: populatedAppointment };
+};
+
 
 module.exports = {
   listByDate,
@@ -242,4 +334,7 @@ module.exports = {
   markMeetingLinkSent,
   cancelByDoctor,
   markCompleteByDoctor,
+  getPatientBodyProfile,
+  setPrescription,
+  markPrescriptionSent,
 };

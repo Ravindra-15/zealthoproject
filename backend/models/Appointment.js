@@ -167,6 +167,19 @@ const appointmentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // 💊 Prescription written by doctor (editable anytime, before/after consult)
+    prescription: {
+      type: String,
+      default: "",
+      maxlength: 5000,
+    },
+
+    // 📤 Has the doctor sent the prescription to the patient yet?
+    prescriptionSentAt: {
+      type: Date,
+      default: null,
+    },
     // 📧 Email reminder tracking — prevents duplicate sends
     reminded24hAt: {
       type: Date,

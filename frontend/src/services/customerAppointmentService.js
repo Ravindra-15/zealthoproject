@@ -95,3 +95,14 @@ export const markMyAppointmentComplete = async (appointmentId) => {
   const response = await authApi.patch(`/customer/appointments/${appointmentId}/complete`);
   return response.data.data.appointment;
 };
+
+// ============================================
+// ✏️ UPDATE MY APPOINTMENT NOTES (problem)
+// ============================================
+export const updateMyNotes = async (appointmentId, notes) => {
+  const response = await authApi.patch(
+    `/customer/appointments/${appointmentId}/notes`,
+    { notes }
+  );
+  return response.data.data.appointment;
+};
