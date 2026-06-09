@@ -48,11 +48,12 @@ export const fetchDayAvailability = async (doctorId, date) => {
 // ============================================
 // 📝 CREATE BOOKING (auth)
 // ============================================
-export const createBooking = async ({ doctorId, scheduledAt, notes }) => {
+export const createBooking = async ({ doctorId, scheduledAt, notes, platform }) => {
   const response = await authApi.post("/customer/appointments", {
     doctorId,
     scheduledAt,
     notes,
+    platform, // program identifier so appointments don't mix across subprograms
   });
   return response.data.data;
 };
