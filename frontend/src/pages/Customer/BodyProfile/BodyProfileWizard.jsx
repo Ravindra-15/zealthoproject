@@ -195,8 +195,10 @@ const BodyProfileWizard = () => {
     const result = await complete(formData);
     if (!result) return;
 
-    toast.success("Body profile completed!");
-    navigate("/my-appointments");
+  //  toast.success("Body profile completed!");
+    // if user came from checkout, send them back to finish booking
+    const from = new URLSearchParams(location.search).get("from");
+    navigate(from === "checkout" ? "/checkout" : "/my-appointments");
   };
 
   const currentMeta = STEPS[step - 1];

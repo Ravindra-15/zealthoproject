@@ -6,7 +6,16 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Lock, Loader2, Gift, FileText, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  Loader2,
+  Gift,
+  FileText,
+  Pencil,
+  HeartPulse,
+  ChevronRight,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
@@ -22,6 +31,7 @@ import {
 } from "../../../utils/customerAuthHelper";
 
 import { fetchMyProfile } from "../../../services/customerProfileService";
+import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
 
 const BOOKING_FEE = 20;
 const PROBLEM_MAX = 200; // max characters allowed for problem description
@@ -38,10 +48,16 @@ const Checkout = () => {
   const [paying, setPaying] = useState(false);
 
   const [freeCredits, setFreeCredits] = useState(0);
+  // body profile completion status — decides which button to show
+  const { isComplete: bodyProfileComplete, loading: bodyProfileLoading } =
+    useMyBodyProfile();
 
   // 📝 Problem-description state
-  const [problem, setProblem] = useState("");      // saved problem text
-  const [draft, setDraft] = useState("");           // temp text inside modal
+  // load saved problem from sessionStorage so it survives refresh + navigation
+  const [problem, setProblem] = useState(
+    () => sessionStorage.getItem("bookingProblem") || "",
+  );
+  const [draft, setDraft] = useState(""); // temp text inside modal
   const [showProblemModal, setShowProblemModal] = useState(false);
 
   const isMountedRef = useRef(false);
@@ -127,10 +143,11 @@ const Checkout = () => {
 
   // Saves draft into problem, closes modal
   const saveProblem = () => {
-    setProblem(draft.trim());
+    const cleaned = draft.trim();
+    setProblem(cleaned);
+    sessionStorage.setItem("bookingProblem", cleaned); // persist so it survives refresh/navigation
     setShowProblemModal(false);
   };
-
   // ============================================
   // 💳 PROCESS PAYMENT + CREATE BOOKING
   // ============================================
@@ -150,6 +167,7 @@ const Checkout = () => {
 
       // 🧹 Clear intent — booking succeeded
       sessionStorage.removeItem("bookingIntent");
+      sessionStorage.removeItem("bookingProblem"); // clear saved problem after successful booking
       toast.success("Appointment confirmed!");
 
       // 📍 Navigate to confirmation page
@@ -257,6 +275,49 @@ const Checkout = () => {
                 </button>
               )}
 
+              {/* ============================================ */}
+              {/* 🩺 BODY PROFILE PROMPT                        */}
+              {/* ============================================ */}
+              {bodyProfileLoading ? (
+                // skeleton — avoids flashing wrong state before status loads
+                <div className="w-full h-[60px] rounded-2xl bg-gray-100 animate-pulse" />
+              ) : bodyProfileComplete ? (
+                // already filled — calm "view/edit" style
+                <button
+                  type="button"
+                  onClick={() => navigate("/body-profile?from=checkout")}
+                  className="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-4 rounded-2xl border border-gray-100 bg-white hover:border-orange-300 transition-colors"
+                >
+                  <span className="flex items-center gap-2.5 text-left">
+                    <HeartPulse size={18} className="text-emerald-500 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-gray-800">
+                      View / Edit Your Body Profile
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+                </button>
+              ) : (
+                // not filled — highlighted prompt to complete
+                <button
+                  type="button"
+                  onClick={() => navigate("/body-profile?from=checkout")}
+                  className="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-4 rounded-2xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
+                >
+                  <span className="flex items-center gap-2.5 text-left">
+                    <HeartPulse size={18} className="text-orange-500 flex-shrink-0" />
+                    <span>
+                      <span className="block text-sm font-bold text-orange-800">
+                        Complete Your Body Profile
+                      </span>
+                      <span className="block text-[11px] text-orange-700 mt-0.5">
+                        Helps your doctor personalize your care
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="text-orange-500 flex-shrink-0" />
+                </button>
+              )}
+
               {freeCredits > 0 && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
@@ -314,12 +375,16 @@ const Checkout = () => {
       {/* ============================================ */}
       {/* 📝 PROBLEM MODAL                              */}
       {/* ============================================ */}
-      <Modal isOpen={showProblemModal} onClose={() => setShowProblemModal(false)}>
+      <Modal
+        isOpen={showProblemModal}
+        onClose={() => setShowProblemModal(false)}
+      >
         <h2 className="text-lg font-bold text-gray-900 mb-1">
           Describe Your Problem
         </h2>
         <p className="text-xs text-gray-500 mb-4">
-          Briefly tell the doctor what's bothering you (max {PROBLEM_MAX} characters).
+          Briefly tell the doctor what's bothering you (max {PROBLEM_MAX}{" "}
+          characters).
         </p>
 
         {/* Textarea capped at PROBLEM_MAX chars */}
