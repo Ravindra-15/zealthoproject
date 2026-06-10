@@ -298,62 +298,68 @@ const AppointmentCard = ({ appointment, isUpcoming = false, onUpdated }) => {
       {/* ============================================ */}
       {/* 📂 EXPANDED BODY                              */}
       {/* ============================================ */}
-      {expanded && (
-        <div className="px-4 sm:px-5 pb-5 pt-1 space-y-3">
-          {/* 📝 PROBLEM */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
-                <FileText size={12} className="text-orange-500" />
-                Your Problem
-              </p>
-              {/* edit button — only while upcoming */}
-              {canEditProblem && (
-                <button
-                  type="button"
-                  onClick={openProblemModal}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 hover:underline flex-shrink-0"
-                >
-                  <Pencil size={11} />
-                  {localNotes ? "Edit" : "Add"}
-                </button>
+      <div
+        className={`grid transition-all duration-500 ease-in-out ${
+          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 sm:px-5 pb-5 pt-1 space-y-3">
+            {/* 📝 PROBLEM */}
+            <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
+                  <FileText size={12} className="text-orange-500" />
+                  Your Problem
+                </p>
+                {/* edit button — only while upcoming */}
+                {canEditProblem && (
+                  <button
+                    type="button"
+                    onClick={openProblemModal}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 hover:underline flex-shrink-0"
+                  >
+                    <Pencil size={11} />
+                    {localNotes ? "Edit" : "Add"}
+                  </button>
+                )}
+              </div>
+              {localNotes ? (
+                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                  {localNotes}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 italic">
+                  No problem described.
+                </p>
               )}
             </div>
-            {localNotes ? (
-              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                {localNotes}
-              </p>
+
+            {/* 💊 PRESCRIPTION (only if doctor sent it) */}
+            {showPrescription ? (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1.5">
+                  <Pill size={12} className="text-indigo-500" />
+                  Prescription from Doctor
+                </p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                  {prescription}
+                </p>
+              </div>
             ) : (
-              <p className="text-xs text-gray-400 italic">
-                No problem described.
-              </p>
+              <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+                <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1">
+                  <Pill size={12} className="text-gray-400" />
+                  Prescription
+                </p>
+                <p className="text-xs text-gray-400 italic">
+                  Your doctor hasn't shared a prescription yet.
+                </p>
+              </div>
             )}
           </div>
-
-          {/* 💊 PRESCRIPTION (only if doctor sent it) */}
-          {showPrescription ? (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-              <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1.5">
-                <Pill size={12} className="text-indigo-500" />
-                Prescription from Doctor
-              </p>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                {prescription}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
-              <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1">
-                <Pill size={12} className="text-gray-400" />
-                Prescription
-              </p>
-              <p className="text-xs text-gray-400 italic">
-                Your doctor hasn't shared a prescription yet.
-              </p>
-            </div>
-          )}
         </div>
-      )}
+      </div>
 
       {/* ============================================ */}
       {/* 📝 PROBLEM EDIT MODAL                         */}
