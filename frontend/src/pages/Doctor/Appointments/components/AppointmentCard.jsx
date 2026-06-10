@@ -131,7 +131,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
       onUpdated?.(updated);
       setRxModalOpen(false);
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to save prescription");
+      toast.error(
+        err?.response?.data?.message || "Failed to save prescription",
+      );
     } finally {
       setSavingRx(false);
     }
@@ -150,7 +152,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
       toast.success("Prescription sent to patient");
       onUpdated?.(updated);
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to send prescription");
+      toast.error(
+        err?.response?.data?.message || "Failed to send prescription",
+      );
     } finally {
       setSendingRx(false);
     }
@@ -172,7 +176,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
       setBodyProfile(profile);
       setBpLoaded(true);
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to load body profile");
+      toast.error(
+        err?.response?.data?.message || "Failed to load body profile",
+      );
     } finally {
       setBpLoading(false);
     }
@@ -318,242 +324,250 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
       {/* ============================================ */}
       {/* 📂 EXPANDED BODY                              */}
       {/* ============================================ */}
-      {expanded && (
-        <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-gray-100">
-          {/* 📞 phone + status (mobile shows status here) */}
-          <div className="flex items-center justify-between gap-2 mt-3 mb-1">
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <span aria-hidden>📞</span>
-              <span>{maskPhone(phone)}</span>
-            </p>
-            <span
-              className={`sm:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${pill.cls}`}
-            >
-              {pill.label}
-            </span>
-          </div>
-
-          {/* ⏰ SCHEDULE + PROGRAM */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-            <div className="border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/30">
-              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-semibold tracking-wide">
-                <Clock size={11} />
-                Scheduled Time
-              </div>
-              <p className="text-sm font-bold text-gray-900 mt-1">
-                {formatUtcTime24h(scheduledAt)}
+      <div
+        className={`grid transition-all duration-500 ease-in-out ${
+          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-gray-100">
+            {/* 📞 phone + status (mobile shows status here) */}
+            <div className="flex items-center justify-between gap-2 mt-3 mb-1">
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <span aria-hidden>📞</span>
+                <span>{maskPhone(phone)}</span>
               </p>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/30">
-              <div className="text-[11px] text-gray-500 font-semibold tracking-wide">
-                Program
-              </div>
-              <span className="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                {appointment?.platform
-                  ? appointment.platform.charAt(0).toUpperCase() +
-                    appointment.platform.slice(1)
-                  : "Zealtho"}
+              <span
+                className={`sm:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${pill.cls}`}
+              >
+                {pill.label}
               </span>
             </div>
-          </div>
 
-          {/* 💊 PRESCRIPTION */}
-          <div className="mt-4 rounded-xl border border-gray-200 p-3">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
-                <Pill size={12} className="text-indigo-500" />
-                Prescription
-              </p>
-              {/* sent status pill */}
-              {prescriptionSentAt && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                  Sent
-                </span>
-              )}
-            </div>
-
-            {/* saved prescription preview */}
-            {prescription ? (
-              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-3">
-                {prescription}
-              </p>
-            ) : (
-              <p className="text-xs text-gray-400 italic mb-3">
-                No prescription added yet.
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              {/* give / edit button */}
-              <button
-                type="button"
-                onClick={openRxModal}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
-              >
-                <Pill size={12} />
-                {prescription ? "Edit Prescription" : "Give Prescription"}
-              </button>
-
-              {/* send button — only if prescription exists */}
-              {prescription && (
-                <button
-                  type="button"
-                  onClick={handleSendRx}
-                  disabled={sendingRx}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 ${
-                    prescriptionSentAt
-                      ? "text-gray-600 bg-gray-100 border border-gray-200 hover:bg-gray-200"
-                      : "text-white bg-emerald-500 hover:bg-emerald-600"
-                  }`}
-                  title={prescriptionSentAt ? "Click to resend" : "Send to patient"}
-                >
-                  {sendingRx ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    <Send size={12} />
-                  )}
-                  {prescriptionSentAt ? "Sent to Patient" : "Send to Patient"}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 🧬 BODY PROFILE BUTTON */}
-          <button
-            type="button"
-            onClick={handleViewBodyProfile}
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
-          >
-            <HeartPulse size={14} />
-            See Body Profile
-          </button>
-
-          {/* 🩹 PATIENT PROBLEM */}
-          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/40 p-3">
-            <p className="text-[11px] text-gray-500 font-semibold tracking-wide mb-1">
-              Patient's Problem
-            </p>
-            {notes ? (
-              // break-words stops long text from breaking layout
-              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                {notes}
-              </p>
-            ) : (
-              <p className="text-xs text-gray-400 italic">
-                Patient didn't describe a problem.
-              </p>
-            )}
-          </div>
-
-          {/* 🔗 MEETING LINK */}
-          <div className="mt-4">
-            <p className="text-xs text-gray-500 font-medium mb-1.5">
-              Add Meeting Link
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <LinkIcon
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="url"
-                  value={linkInput}
-                  onChange={(e) => setLinkInput(e.target.value)}
-                  placeholder="https://meet.google.com/..."
-                  disabled={savingLink || sending}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
-                />
+            {/* ⏰ SCHEDULE + PROGRAM */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div className="border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/30">
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-semibold tracking-wide">
+                  <Clock size={11} />
+                  Scheduled Time
+                </div>
+                <p className="text-sm font-bold text-gray-900 mt-1">
+                  {formatUtcTime24h(scheduledAt)}
+                </p>
               </div>
 
-              {/* SAVE / SENT / SEND */}
-              {!meetingLink || !linkUnchanged ? (
-                <button
-                  type="button"
-                  onClick={handleSaveLink}
-                  disabled={!linkInput.trim() || savingLink}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                >
-                  {savingLink ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : null}
-                  Save
-                </button>
-              ) : wasSent ? (
-                <button
-                  type="button"
-                  onClick={handleSendLink}
-                  disabled={sending}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
-                  title="Click to resend"
-                >
-                  Sent to Patient
-                </button>
+              <div className="border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/30">
+                <div className="text-[11px] text-gray-500 font-semibold tracking-wide">
+                  Program
+                </div>
+                <span className="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                  {appointment?.platform
+                    ? appointment.platform.charAt(0).toUpperCase() +
+                      appointment.platform.slice(1)
+                    : "Zealtho"}
+                </span>
+              </div>
+            </div>
+
+            {/* 💊 PRESCRIPTION */}
+            <div className="mt-4 rounded-xl border border-gray-200 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
+                  <Pill size={12} className="text-indigo-500" />
+                  Prescription
+                </p>
+                {/* sent status pill */}
+                {prescriptionSentAt && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    Sent
+                  </span>
+                )}
+              </div>
+
+              {/* saved prescription preview */}
+              {prescription ? (
+                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-3">
+                  {prescription}
+                </p>
               ) : (
+                <p className="text-xs text-gray-400 italic mb-3">
+                  No prescription added yet.
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {/* give / edit button */}
                 <button
                   type="button"
-                  onClick={handleSendLink}
-                  disabled={sending}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  onClick={openRxModal}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
                 >
-                  {sending ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    <Send size={12} />
-                  )}
-                  Send
+                  <Pill size={12} />
+                  {prescription ? "Edit Prescription" : "Give Prescription"}
                 </button>
+
+                {/* send button — only if prescription exists */}
+                {prescription && (
+                  <button
+                    type="button"
+                    onClick={handleSendRx}
+                    disabled={sendingRx}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 ${
+                      prescriptionSentAt
+                        ? "text-gray-600 bg-gray-100 border border-gray-200 hover:bg-gray-200"
+                        : "text-white bg-emerald-500 hover:bg-emerald-600"
+                    }`}
+                    title={
+                      prescriptionSentAt ? "Click to resend" : "Send to patient"
+                    }
+                  >
+                    {sendingRx ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Send size={12} />
+                    )}
+                    {prescriptionSentAt ? "Sent to Patient" : "Send to Patient"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 🧬 BODY PROFILE BUTTON */}
+            <button
+              type="button"
+              onClick={handleViewBodyProfile}
+              className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+            >
+              <HeartPulse size={14} />
+              See Body Profile
+            </button>
+
+            {/* 🩹 PATIENT PROBLEM */}
+            <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+              <p className="text-[11px] text-gray-500 font-semibold tracking-wide mb-1">
+                Patient's Problem
+              </p>
+              {notes ? (
+                // break-words stops long text from breaking layout
+                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                  {notes}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 italic">
+                  Patient didn't describe a problem.
+                </p>
               )}
             </div>
 
-            {/* 🎬 JOIN BUTTON */}
-            {wasSent && meetingLink && (
-              <a
-                href={meetingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-[0_4px_10px_rgba(79,70,229,0.25)]"
-              >
-                <Video size={12} />
-                Join
-              </a>
-            )}
+            {/* 🔗 MEETING LINK */}
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 font-medium mb-1.5">
+                Add Meeting Link
+              </p>
 
-            {/* ✅ COMPLETE + ❌ CANCEL */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {canMarkComplete && (
-                <button
-                  type="button"
-                  onClick={handleComplete}
-                  disabled={completing}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50"
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <LinkIcon
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    type="url"
+                    value={linkInput}
+                    onChange={(e) => setLinkInput(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                    disabled={savingLink || sending}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                  />
+                </div>
+
+                {/* SAVE / SENT / SEND */}
+                {!meetingLink || !linkUnchanged ? (
+                  <button
+                    type="button"
+                    onClick={handleSaveLink}
+                    disabled={!linkInput.trim() || savingLink}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  >
+                    {savingLink ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : null}
+                    Save
+                  </button>
+                ) : wasSent ? (
+                  <button
+                    type="button"
+                    onClick={handleSendLink}
+                    disabled={sending}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
+                    title="Click to resend"
+                  >
+                    Sent to Patient
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendLink}
+                    disabled={sending}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  >
+                    {sending ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Send size={12} />
+                    )}
+                    Send
+                  </button>
+                )}
+              </div>
+
+              {/* 🎬 JOIN BUTTON */}
+              {wasSent && meetingLink && (
+                <a
+                  href={meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-[0_4px_10px_rgba(79,70,229,0.25)]"
                 >
-                  {completing ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    <CheckCircle size={12} />
-                  )}
-                  Mark Complete
-                </button>
+                  <Video size={12} />
+                  Join
+                </a>
               )}
 
-              {canCancel && (
-                <button
-                  type="button"
-                  onClick={() => setCancelModalOpen(true)}
-                  disabled={cancelling}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  <X size={12} />
-                  Cancel
-                </button>
-              )}
+              {/* ✅ COMPLETE + ❌ CANCEL */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {canMarkComplete && (
+                  <button
+                    type="button"
+                    onClick={handleComplete}
+                    disabled={completing}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                  >
+                    {completing ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={12} />
+                    )}
+                    Mark Complete
+                  </button>
+                )}
+
+                {canCancel && (
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOpen(true)}
+                    disabled={cancelling}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    <X size={12} />
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* 💊 PRESCRIPTION MODAL */}
       <Modal isOpen={rxModalOpen} onClose={() => setRxModalOpen(false)}>
@@ -561,7 +575,8 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
           {prescription ? "Edit Prescription" : "Give Prescription"}
         </h2>
         <p className="text-xs text-gray-500 mb-4">
-          Write the prescription for {displayName}. You can edit and resend anytime.
+          Write the prescription for {displayName}. You can edit and resend
+          anytime.
         </p>
 
         {/* prescription textarea */}
@@ -608,7 +623,10 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
           {bpLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+                <div
+                  key={i}
+                  className="h-16 bg-gray-100 rounded-xl animate-pulse"
+                />
               ))}
             </div>
           ) : (
