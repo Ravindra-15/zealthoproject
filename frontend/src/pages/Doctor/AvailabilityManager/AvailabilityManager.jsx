@@ -6,10 +6,12 @@
  */
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Coffee, Save, Loader2, RotateCcw } from "lucide-react";
 
 import useAvailabilityWeek from "../../../hooks/useAvailabilityWeek";
+import BookedSlotHoverCard from "./components/BookedSlotHoverCard";
 import {
   createTimeOff,
   deleteTimeOff,
@@ -24,7 +26,10 @@ import OnBreakOverlay from "./components/OnBreakOverlay";
 import CalendarLegendInfo from "./components/CalendarLegendInfo";
 
 const AvailabilityManager = () => {
+  const navigate = useNavigate();
+
   const {
+    weekStart,
     weekData,
     loading,
     error,
@@ -41,6 +46,36 @@ const AvailabilityManager = () => {
     saveTemplate,
     refetch,
   } = useAvailabilityWeek();
+
+  // 🪟 hover card state for booked slots
+  const [hoverCard, setHoverCard] = useState(null); // { position, slot }
+
+  // Shows hover card near the slot
+  const handleBookedHover = (e, slot) => {
+    setHoverCard({
+      position: { top: e.clientY + 12, left: e.clientX + 12 },
+      slot,
+    });
+  };
+
+  // Hides hover card
+  const handleBookedHoverEnd = () => setHoverCard(null);
+
+  // Click booked slot → save current week + go to appointment (scroll+highlight)
+  const handleBookedClick = (slot) => {
+    if (!slot?.appointmentId) return;
+    // persist the week so "Back" restores this exact view
+    try {
+      sessionStorage.setItem("availabilityReturnWeek", weekData?.weekStart || "");
+    } catch (e) {}
+    // derive the day for the date-based appointments page
+    const day = slot.scheduledAt
+      ? new Date(slot.scheduledAt).toISOString().split("T")[0]
+      : undefined;
+    navigate(
+      `/doctor/appointments?date=${day || ""}&focus=${slot.appointmentId}`
+    );
+  };
 
   // ============================================
   // 🍽️ CONTEXT MENU STATE
@@ -265,9 +300,19 @@ const handleCancelAppointment = async (appointmentId) => {
             pendingRemove={pendingRemove}
             onSlotClick={toggleSlot}
             onSlotContextMenu={handleSlotContextMenu}
+            onBookedClick={handleBookedClick}
+            onBookedHover={handleBookedHover}
+            onBookedHoverEnd={handleBookedHoverEnd}
           />
         )}
       </div>
+
+      {/* ============================================ */}
+      {/* 🪟 BOOKED SLOT HOVER CARD                     */}
+      {/* ============================================ */}
+      {hoverCard && (
+        <BookedSlotHoverCard position={hoverCard.position} slot={hoverCard.slot} />
+      )}
 
       {/* ============================================ */}
       {/* 🍽️ CONTEXT MENU                              */}

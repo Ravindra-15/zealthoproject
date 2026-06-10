@@ -7,7 +7,7 @@
  */
 
 import React from "react";
-import { Lock, CheckCircle2 } from "lucide-react";
+import { Lock, CheckCircle2, MoreVertical } from "lucide-react";
 
 import {
   formatSlot24h,
@@ -26,6 +26,9 @@ const SlotCell = ({
   isPendingRemoved,
   onClick,
   onContextMenu,
+  onBookedClick,
+  onBookedHover,
+  onBookedHoverEnd,
 }) => {
   if (!slot)
      return <div className="h-12 border border-gray-100 rounded-md" />;
@@ -46,29 +49,71 @@ if (isPast && slot.status !== "booked") {
     />
   );
 }
-  // 🟢 BOOKED
+  // 🟢 BOOKED — shows status badge, hover card, 3-dot menu, click→redirect
   if (slot.status === "booked") {
+    // map appointment status → badge + slot bg color
+    const apptStatus = slot.appointmentStatus || "confirmed";
+    const badge =
+      apptStatus === "completed"
+        ? {
+            label: "Finished",
+            cls: "text-green-700",
+            dot: "bg-green-500",
+            box: "bg-green-100 border-green-200 hover:bg-green-200",
+            dots: "text-green-600 hover:bg-green-200/70",
+            name: "text-green-600",
+          }
+        : apptStatus === "pending"
+        ? {
+            label: "Pending",
+            cls: "text-emerald-700",
+            dot: "bg-emerald-500",
+            box: "bg-emerald-100 border-emerald-200 hover:bg-emerald-200",
+            dots: "text-emerald-600 hover:bg-emerald-200/70",
+            name: "text-emerald-600",
+          }
+        : {
+            label: "Booked",
+            cls: "text-yellow-700",
+            dot: "bg-yellow-500",
+            box: "bg-yellow-100 border-yellow-200 hover:bg-yellow-200",
+            dots: "text-yellow-600 hover:bg-yellow-200/70",
+            name: "text-yellow-700",
+          };
+
     return (
       <div
         onContextMenu={handleContextMenu}
-        className="
-          h-12 rounded-md
-          bg-emerald-50 border border-emerald-200
+        onClick={() => onBookedClick?.(slot, date)}
+        onMouseEnter={(e) => onBookedHover?.(e, slot, date)}
+        onMouseLeave={() => onBookedHoverEnd?.()}
+        className={`
+          relative group h-12 rounded-md border
           flex flex-col items-start justify-center
-          px-2
-          cursor-pointer
-          hover:bg-emerald-100
-          transition-colors
-        "
-        title={`Booked by ${slot.patientName}`}
+          px-2 cursor-pointer transition-colors
+          ${badge.box}
+        `}
       >
-        <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
-          <CheckCircle2 size={10} />
-          Booked
+        <div className={`flex items-center gap-1 text-[10px] font-semibold ${badge.cls}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+          {badge.label}
         </div>
-        <span className="text-[10px] text-emerald-600 truncate max-w-full">
+        <span className={`text-[10px] truncate max-w-full pr-4 ${badge.name}`}>
           @{slot.patientName?.split(" ")[0] || "Patient"}
         </span>
+
+        {/* ⋯ 3-dot — opens context menu (discoverable alternative to right-click) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation(); // don't trigger redirect
+            onContextMenu?.(e, slot, date);
+          }}
+          className={`absolute top-1 right-1 w-4 h-4 rounded flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity ${badge.dots}`}
+          title="More options"
+        >
+          <MoreVertical size={11} />
+        </button>
       </div>
     );
   }
@@ -149,6 +194,9 @@ const WeeklyCalendar = ({
   pendingRemove,      // Set of "YYYY-MM-DD|HH:MM"
   onSlotClick,
   onSlotContextMenu,
+  onBookedClick,      // click booked slot → redirect to appointment
+  onBookedHover,      // hover booked slot → show info card
+  onBookedHoverEnd,   // leave booked slot → hide card
 }) => {
   if (loading || !weekData) {
     return (
@@ -231,6 +279,9 @@ const WeeklyCalendar = ({
                     isPendingRemoved={pendingRemove?.has(key)}
                     onClick={onSlotClick}
                     onContextMenu={onSlotContextMenu}
+                    onBookedClick={onBookedClick}
+                    onBookedHover={onBookedHover}
+                    onBookedHoverEnd={onBookedHoverEnd}
                   />
                 );
               })}

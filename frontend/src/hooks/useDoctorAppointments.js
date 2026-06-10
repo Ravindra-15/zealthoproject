@@ -15,8 +15,11 @@ const todayIso = () => {
   return d.toISOString().split("T")[0];
 };
 
-const useDoctorAppointments = () => {
-  const [date, setDate] = useState(todayIso());
+const useDoctorAppointments = (initialDate) => {
+  // use date from caller (e.g. ?date= redirect) if valid, else today
+  const [date, setDate] = useState(
+    initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : todayIso()
+  );
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -20,9 +20,17 @@ const useAvailabilityWeek = () => {
   // ============================================
   // 📊 STATE
   // ============================================
-  const [weekStart, setWeekStart] = useState(() =>
-    getMondayOfWeek(new Date())
-  );
+  const [weekStart, setWeekStart] = useState(() => {
+    // restore week if returning from an appointment view
+    try {
+      const saved = sessionStorage.getItem("availabilityReturnWeek");
+      if (saved) {
+        sessionStorage.removeItem("availabilityReturnWeek"); // one-time use
+        return getMondayOfWeek(new Date(`${saved}T00:00:00.000Z`));
+      }
+    } catch (e) {}
+    return getMondayOfWeek(new Date());
+  });
   const [weekData, setWeekData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

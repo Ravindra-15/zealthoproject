@@ -123,10 +123,7 @@ const getWeeklyView = async (doctorId, startDate) => {
       const slotStart = buildSlotStartDate(dayDate, hhmm);
       const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
 
-      if (slotStart < new Date()) {
-        return { time: hhmm, status: "off" };
-      }
-      // 🟢 Booked? (highest precedence)
+      // 🟢 Booked? (highest precedence — checked even for past slots so history shows)
       const booking = appointments.find((a) => {
         const aStart = new Date(a.scheduledAt);
         const aEnd = addMinutes(aStart, a.durationMinutes || SLOT_DURATION_MINUTES);
@@ -140,7 +137,14 @@ const getWeeklyView = async (doctorId, startDate) => {
           appointmentId: booking._id,
           patientName: booking.patientName,
           paymentStatus: booking.paymentStatus,
+          appointmentStatus: booking.status, // pending/confirmed/completed — for badge styling
+          scheduledAt: booking.scheduledAt, // for hover card display
         };
+      }
+
+      // 🚫 Past + not booked → off (booked handled above)
+      if (slotStart < new Date()) {
+        return { time: hhmm, status: "off" };
       }
 
       // ⬛ Blocked? (overlapping time-off)
