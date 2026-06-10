@@ -57,17 +57,17 @@ const statusPill = (status) => {
   switch (status) {
     case "confirmed":
       return {
-        cls: "bg-emerald-50 text-emerald-700 border-emerald-100",
-        label: "Confirmed",
+        cls: "bg-yellow-100 text-yellow-700 border-yellow-100",
+        label: "Booked",
       };
     case "completed":
       return {
-        cls: "bg-blue-50 text-blue-700 border-blue-100",
-        label: "Completed",
+        cls: "bg-green-100 text-green-700 border-green-100",
+        label: "Finished",
       };
     case "cancelled":
       return {
-        cls: "bg-red-50 text-red-700 border-red-100",
+        cls: "bg-red-100 text-red-700 border-red-100",
         label: "Cancelled",
       };
     default:
