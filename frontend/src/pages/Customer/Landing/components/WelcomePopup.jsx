@@ -10,9 +10,12 @@ export default function WelcomePopup() {
       localStorage.getItem("token") ||
       sessionStorage.getItem("token");
 
-    // show popup only for guest users
-    if (!token) {
+    const alreadyShown = sessionStorage.getItem("landingWelcomeShown");
+
+    // show popup only for guest users, once per session
+    if (!token && !alreadyShown) {
       setOpen(true);
+      sessionStorage.setItem("landingWelcomeShown", "true");
     }
   }, []);
 
