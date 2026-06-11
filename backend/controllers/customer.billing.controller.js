@@ -3,6 +3,7 @@ const Consultation = require("../models/Consultation");
 const User = require("../models/User");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const ProgramSubscription = require("../models/ProgramSubscription");
+const Appointment = require("../models/Appointment"); // for paid appointment transactions
 const getSummary = async (req, res) => {
   try {
     const totalCompleted = await Consultation.countDocuments({
@@ -19,19 +20,49 @@ const getSummary = async (req, res) => {
 
 const listTransactions = async (req, res) => {
   try {
-    const transactions = await Consultation.find({ user: req.user.id })
-      .sort({ consultedAt: -1 })
-      .populate("doctor", "fullName domain")
+    const userId = req.user.id;
+
+    // 💳 Paid doctor appointments (shows at payment time, not completion)
+    // type "appointment" so receipt lookup knows the source
+    const appointments = await Appointment.find({
+      user: userId,
+      paymentStatus: "paid",
+    })
+      .sort({ createdAt: -1 })
       .lean();
 
-    const formatted = transactions.map((t) => ({
-      id: t._id,
-      date: t.paidAt || t.consultedAt || t.createdAt,
-      description: `Doctor Consultation Fee (${t.doctorName || "Consultation"})`,
-      amount: t.fee || 0,
-      currency: "USD",
-      status: t.paymentStatus || "pending",
+    const appointmentTx = appointments.map((a) => ({
+      id: a._id,
+      type: "appointment",
+      date: a.createdAt,
+      description: `Doctor Consultation Fee (${a.doctorName || "Consultation"})`,
+      amount: a.fee || 0,
+      currency: a.currency || "USD",
+      status: a.paymentStatus || "pending",
     }));
+
+    // 📦 Paid program subscriptions (plan purchases — absent in Zealtho, present in subprograms)
+    const subscriptions = await ProgramSubscription.find({
+      customer: userId,
+      paymentStatus: "paid",
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const subscriptionTx = subscriptions.map((s) => ({
+      id: s._id,
+      type: "subscription",
+      date: s.createdAt,
+      description: `${s.programName || "Program"} Plan (${s.tenure || ""})`.trim(),
+      amount: s.amount || 0,
+      currency: "USD",
+      status: s.paymentStatus || "pending",
+    }));
+
+    // 🔀 Merge + sort newest first
+    const formatted = [...appointmentTx, ...subscriptionTx].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
 
     return successResponse(res, { transactions: formatted }, "Transactions fetched", 200);
   } catch (err) {
@@ -43,42 +74,108 @@ const listTransactions = async (req, res) => {
 const getReceipt = async (req, res) => {
   try {
     const { id } = req.params;
-    const consultation = await Consultation.findOne({
-      _id: id,
-      user: req.user.id,
-    })
+    const userId = req.user.id;
+
+    const user = await User.findById(userId)
+      .select("nickName fullName email")
+      .lean();
+
+    const billedTo = {
+      nickname: user?.nickName || user?.fullName || "User",
+      email: user?.email || "",
+    };
+
+    // 1️⃣ Try Consultation (completed visits)
+    const consultation = await Consultation.findOne({ _id: id, user: userId })
       .populate("doctor", "fullName domain")
       .lean();
 
-    if (!consultation) return errorResponse(res, "Receipt not found", 404);
+    if (consultation) {
+      const receipt = {
+        receiptNumber: `TXN-${consultation._id.toString().slice(-8).toUpperCase()}`,
+        date: consultation.paidAt || consultation.consultedAt || consultation.createdAt,
+        solution: consultation.programSource || "zealtho",
+        billedTo,
+        professional: {
+          name: consultation.doctorName || consultation.doctor?.fullName || "Doctor",
+          specialization: consultation.doctor?.domain || "",
+          registrationNumber: "",
+        },
+        summary: {
+          consultationFee: consultation.fee || 0,
+          processingFee: 0,
+          total: consultation.fee || 0,
+          currency: "USD",
+        },
+        appointment: {
+          scheduledAt: consultation.consultedAt || consultation.createdAt,
+        },
+      };
+      return successResponse(res, { receipt }, "Receipt fetched", 200);
+    }
 
-    const user = await User.findById(req.user.id).select("nickName fullName email").lean();
+    // 2️⃣ Try Appointment (paid doctor booking)
+    const appointment = await Appointment.findOne({ _id: id, user: userId })
+      .populate("doctor", "fullName domain")
+      .lean();
 
-    const receipt = {
-      receiptNumber: `TXN-${consultation._id.toString().slice(-8).toUpperCase()}`,
-      date: consultation.paidAt || consultation.consultedAt || consultation.createdAt,
-      solution: consultation.programSource || "zealtho",
-      billedTo: {
-        nickname: user?.nickName || user?.fullName || "User",
-        email: user?.email || "",
-      },
-      professional: {
-        name: consultation.doctorName || consultation.doctor?.fullName || "Doctor",
-        specialization: consultation.doctor?.domain || "",
-        registrationNumber: "",
-      },
-      summary: {
-        consultationFee: consultation.fee || 0,
-        processingFee: 0,
-        total: consultation.fee || 0,
-        currency: "USD",
-      },
-      appointment: {
-        scheduledAt: consultation.consultedAt || consultation.createdAt,
-      },
-    };
+    if (appointment) {
+      const receipt = {
+        receiptNumber: `TXN-${appointment._id.toString().slice(-8).toUpperCase()}`,
+        date: appointment.createdAt,
+        solution: appointment.platform || "zealtho",
+        billedTo,
+        professional: {
+          name: appointment.doctorName || appointment.doctor?.fullName || "Doctor",
+          specialization: appointment.doctor?.domain || "",
+          registrationNumber: "",
+        },
+        summary: {
+          consultationFee: appointment.fee || 0,
+          processingFee: 0,
+          total: appointment.fee || 0,
+          currency: appointment.currency || "USD",
+        },
+        appointment: {
+          scheduledAt: appointment.scheduledAt || appointment.createdAt,
+        },
+      };
+      return successResponse(res, { receipt }, "Receipt fetched", 200);
+    }
 
-    return successResponse(res, { receipt }, "Receipt fetched", 200);
+    // 3️⃣ Try ProgramSubscription (plan purchase)
+    const sub = await ProgramSubscription.findOne({
+      _id: id,
+      customer: userId,
+    }).lean();
+
+    if (sub) {
+      const receipt = {
+        receiptNumber: `TXN-${sub._id.toString().slice(-8).toUpperCase()}`,
+        date: sub.createdAt,
+        solution: sub.programId || "zealtho",
+        billedTo,
+        professional: {
+          // not a doctor service — show program as the "provider"
+          name: sub.programName || "Program Subscription",
+          specialization: sub.tenure || "",
+          registrationNumber: "",
+        },
+        summary: {
+          consultationFee: sub.amount || 0,
+          processingFee: 0,
+          total: sub.amount || 0,
+          currency: "USD",
+        },
+        appointment: {
+          scheduledAt: sub.startDate || sub.createdAt,
+        },
+      };
+      return successResponse(res, { receipt }, "Receipt fetched", 200);
+    }
+
+    // ❌ Not found in any source
+    return errorResponse(res, "Receipt not found", 404);
   } catch (err) {
     console.error("[BILLING RECEIPT ERROR]:", err);
     return errorResponse(res, "Failed to fetch receipt", 500);
