@@ -44,6 +44,17 @@ const HowToBook = () => {
         <p className="text-sm text-gray-500 mt-1.5">
           Book a Doctor with Simple 3 Steps
         </p>
+
+        {/* 🔝 Back to search bar */}
+        <button
+          type="button"
+          onClick={() =>
+            document.getElementById("search-top")?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          className="mt-3 inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-orange-500 hover:text-orange-600 hover:underline transition-colors"
+        >
+          ↑ Back to search
+        </button>
       </div>
 
       {/* ============================================ */}
