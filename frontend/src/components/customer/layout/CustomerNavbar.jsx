@@ -151,8 +151,8 @@ const CustomerNavbar = () => {
               Zealtho
             </Link>
 
-            {/* 🖥️ DESKTOP LINKS */}
-            <div className="hidden lg:flex items-center justify-center gap-48 flex-1">
+           {/* 🖥️ DESKTOP LINKS */}
+            <div className="hidden lg:flex items-center justify-evenly flex-1">
               {links.map((link) =>
                 link.to.includes("#") ? (
                   <a
