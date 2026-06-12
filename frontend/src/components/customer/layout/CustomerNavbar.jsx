@@ -160,8 +160,8 @@ const CustomerNavbar = () => {
                     href={link.to}
                     onClick={handleProgramsClick}
                     className="
-                    relative text-sm font-medium tracking-wide
-                    text-gray-600 hover:text-teal-700
+                    relative text-sm font-medium tracking-wide whitespace-nowrap
+                    text-gray-600 hover:text-orange-500
                     transition-all duration-300
                     hover:-translate-y-[1px]
                     after:absolute after:left-0 after:-bottom-1
@@ -179,17 +179,13 @@ const CustomerNavbar = () => {
                     key={link.to}
                     to={link.to}
                     className={({ isActive }) =>
-                      `relative text-sm font-medium tracking-wide
+                      `relative text-sm font-medium tracking-wide whitespace-nowrap
                       transition-all duration-300 hover:-translate-y-[1px]
                       after:absolute after:left-0 after:-bottom-1
                       after:h-[2px] after:w-0
                       after:bg-orange-500 after:rounded-full
                       after:transition-all after:duration-300
-                      hover:after:w-full ${
-                        isActive
-                          ? "text-teal-700"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`
+                      hover:after:w-full text-gray-600 hover:text-orange-500`
                     }
                   >
                     {link.label}
@@ -282,13 +278,8 @@ const CustomerNavbar = () => {
                     key={link.to}
                     to={link.to}
                     onClick={closeMobile}
-                    className={({ isActive }) =>
-                      `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-teal-50 text-teal-700"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`
-                    }
+                    className="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-gray-700 hover:bg-gray-50"
+                     
                   >
                     {link.label}
                   </NavLink>
