@@ -5,7 +5,7 @@
  * Below: clickable specialty chips that filter the doctor list.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Search } from "lucide-react";
 
 // ============================================
@@ -28,10 +28,34 @@ const HeroSearch = ({
   specialty,
   onSpecialtyChange,
 }) => {
-  const toggleSpecialty = (value) => {
+ const toggleSpecialty = (value) => {
     // Click again to clear (toggle off)
     onSpecialtyChange(specialty === value ? "" : value);
   };
+
+  // 🔎 Auto-select a chip when the search text (3+ chars) partially matches it.
+  // Auto-deselects when the search no longer matches any chip.
+  useEffect(() => {
+    const q = search.trim().toLowerCase();
+
+    // too short → clear any auto-selected chip
+    if (q.length < 3) {
+      if (specialty) onSpecialtyChange("");
+      return;
+    }
+
+    // find first chip whose name contains the typed text
+    const matched = SPECIALTIES.find((item) =>
+      item.toLowerCase().includes(q)
+    );
+
+    if (matched && matched !== specialty) {
+      onSpecialtyChange(matched); // select the match
+    } else if (!matched && specialty) {
+      onSpecialtyChange(""); // no match → clear
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   return (
     <div className="space-y-4">
@@ -95,9 +119,9 @@ const HeroSearch = ({
           className="
             absolute right-2 top-1/2 -translate-y-1/2
             w-11 h-11 sm:w-12 sm:h-12 rounded-full
-            bg-gray-900 text-white
+            bg-orange-500 text-white
             flex items-center justify-center
-            hover:bg-gray-800 transition-colors
+            hover:bg-orange-600 transition-colors
           "
         >
           <Search size={18} />
@@ -118,13 +142,13 @@ const HeroSearch = ({
               type="button"
               onClick={() => toggleSpecialty(item)}
               className={`
-                w-full px-3 py-2.5 rounded-full
+                w-full px-4 py-3 rounded-2xl
                 text-xs sm:text-sm font-medium
-                border transition-all
+                border transition-all duration-200
                 ${
                   isActive
-                    ? "bg-teal-700 text-white border-teal-700 shadow-[0_4px_14px_rgba(13,148,136,0.25)]"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:bg-teal-50/40"
+                    ? "bg-orange-500 text-white border-orange-500 shadow-[0_4px_14px_rgba(249,115,22,0.25)]"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:bg-orange-50/40"
                 }
               `}
             >
