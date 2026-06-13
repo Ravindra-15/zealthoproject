@@ -137,6 +137,41 @@ const cancelAppointment = async (req, res) => {
 };
 
 // ============================================
+// 🔁 RESCHEDULE APPOINTMENT BY DOCTOR (reason + new slot)
+// ============================================
+// PATCH /api/doctor/appointments/:id/reschedule
+// Body: { scheduledAt, reason }
+const rescheduleAppointment = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.rescheduleByDoctor(
+      req.doctorId,
+      req.params.id,
+      req.body.scheduledAt,
+      req.body.reason
+    );
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Appointment rescheduled",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR RESCHEDULE APPOINTMENT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reschedule appointment",
+    });
+  }
+};
+
+// ============================================
 // ✅ MARK APPOINTMENT COMPLETE BY DOCTOR
 // ============================================
 // PATCH /api/doctor/appointments/:id/complete
@@ -278,6 +313,7 @@ module.exports = {
   setMeetingLink,
   sendMeetingLink,
   cancelAppointment,
+  rescheduleAppointment,
   markAppointmentComplete,
   getPatientBodyProfile,
   setPrescription,

@@ -140,14 +140,15 @@ const getMyAppointment = async (req, res) => {
 };
 
 // ============================================
-// ❌ CANCEL MY APPOINTMENT
+// ❌ CANCEL MY APPOINTMENT (reason optional)
 // ============================================
 // PATCH /api/customer/appointments/:id/cancel
 const cancelMyAppointment = async (req, res) => {
   try {
     const result = await customerAppointmentService.cancelByUser(
       req.user.id,
-      req.params.id
+      req.params.id,
+      req.body.reason
     );
 
     if (result.error) {
@@ -167,6 +168,41 @@ const cancelMyAppointment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to cancel appointment",
+    });
+  }
+};
+
+// ============================================
+// 🔁 RESCHEDULE MY APPOINTMENT (reason + new slot)
+// ============================================
+// PATCH /api/customer/appointments/:id/reschedule
+// Body: { scheduledAt, reason }
+const rescheduleMyAppointment = async (req, res) => {
+  try {
+    const result = await customerAppointmentService.rescheduleByUser(
+      req.user.id,
+      req.params.id,
+      req.body.scheduledAt,
+      req.body.reason
+    );
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Appointment rescheduled",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[CUSTOMER RESCHEDULE APPOINTMENT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reschedule appointment",
     });
   }
 };
@@ -243,6 +279,7 @@ module.exports = {
   listMyAppointments,
   getMyAppointment,
   cancelMyAppointment,
+  rescheduleMyAppointment,
   markMyAppointmentComplete,
   updateMyNotes,
 };

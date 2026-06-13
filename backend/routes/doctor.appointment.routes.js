@@ -12,6 +12,7 @@ const {
   setMeetingLink,
   sendMeetingLink,
   cancelAppointment,
+  rescheduleAppointment,
   markAppointmentComplete,
   getPatientBodyProfile,
   setPrescription,
@@ -23,6 +24,7 @@ const {
   validateSetMeetingLink,
   validateSetPrescription,
   validateObjectIdParam,
+  validateReschedule,
 } = require("../validators/doctor.appointment.validator");
 
 const { protectDoctor } = require("../middleware/doctor.auth.middleware");
@@ -83,6 +85,15 @@ router.patch(
   writeLimiter,
   validateObjectIdParam("id"),
   cancelAppointment
+);
+
+// 🔁 Reschedule appointment (reason + new slot)
+router.patch(
+  "/:id/reschedule",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  validateReschedule,
+  rescheduleAppointment
 );
 
 // ✅ Mark appointment complete

@@ -134,6 +134,36 @@ const appointmentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // ============================================
+    // 🔁 RESCHEDULE (max once before completion)
+    // ============================================
+    // How many times this appointment has been rescheduled (limit 1)
+    rescheduleCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // Reason given for the last reschedule
+    rescheduleReason: {
+      type: String,
+      default: "",
+      maxlength: 500,
+    },
+
+    // Who rescheduled it last (user/doctor)
+    rescheduledBy: {
+      type: String,
+      enum: ["user", "doctor"],
+      default: null,
+    },
+
+    // When it was last rescheduled
+    rescheduledAt: {
+      type: Date,
+      default: null,
+    },
+
     // Who marked it complete (user/doctor)
     completedBy: {
       type: String,

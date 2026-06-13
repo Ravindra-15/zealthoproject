@@ -106,6 +106,49 @@ const validateSetPrescription = (req, res, next) => {
 };
 
 // ============================================
+// 🔁 RESCHEDULE
+// ============================================
+// PATCH /api/doctor/appointments/:id/reschedule
+// Body: { scheduledAt (ISO), reason }
+const validateReschedule = (req, res, next) => {
+  const { scheduledAt, reason } = req.body;
+  const errors = [];
+
+  if (!scheduledAt) {
+    errors.push("scheduledAt is required");
+  } else {
+    const date = new Date(scheduledAt);
+    if (isNaN(date.getTime())) {
+      errors.push("scheduledAt must be a valid ISO date");
+    } else if (date < new Date()) {
+      errors.push("Cannot reschedule to a slot in the past");
+    }
+  }
+
+  if (typeof reason !== "string" || !reason.trim()) {
+    errors.push("Reschedule reason is required");
+  } else if (reason.trim().length > 500) {
+    errors.push("reason too long (max 500 chars)");
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: errors[0],
+      errors,
+    });
+  }
+
+  // 🧹 Cleaned values
+  req.body = {
+    scheduledAt: new Date(scheduledAt),
+    reason: reason.trim(),
+  };
+
+  next();
+};
+
+// ============================================
 // 🆔 OBJECT ID PARAM
 // ============================================
 const validateObjectIdParam = (paramName = "id") => (req, res, next) => {
@@ -124,4 +167,5 @@ module.exports = {
   validateSetMeetingLink,
   validateSetPrescription,
   validateObjectIdParam,
+  validateReschedule,
 };

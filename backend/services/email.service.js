@@ -121,6 +121,52 @@ const sendAppointmentReminder1h = async ({
   }
 };
 
+// ============================================
+// 📧 RESCHEDULE NOTIFICATION
+// ============================================
+// Sent to the OTHER party when an appointment is rescheduled.
+const sendRescheduleNotification = async ({
+  to,
+  recipientName,
+  otherPartyName,
+  oldTime,
+  newTime,
+  reason,
+  rescheduledByLabel, // "patient" | "doctor"
+  isDoctor = false,
+}) => {
+  const oldFormatted = formatAppointmentTime(oldTime);
+  const newFormatted = formatAppointmentTime(newTime);
+  const otherPartyLabel = isDoctor ? "patient" : "doctor";
+
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Your appointment has been rescheduled",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f97316;">Appointment Rescheduled</h2>
+          <p>Hi ${recipientName},</p>
+          <p>Your consultation with your ${otherPartyLabel} <strong>${otherPartyName}</strong> has been rescheduled by the ${rescheduledByLabel}.</p>
+          <div style="background: #f9fafb; border-left: 4px solid #9ca3af; padding: 12px 16px; margin: 16px 0;">
+            <p style="margin: 0; font-size: 13px; color: #6b7280; text-decoration: line-through;">Previous: ${oldFormatted}</p>
+          </div>
+          <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; margin: 16px 0;">
+            <p style="margin: 0; font-size: 14px;"><strong>📅 New time: ${newFormatted}</strong></p>
+          </div>
+          ${reason ? `<p style="font-size: 14px;"><strong>Reason:</strong> ${reason}</p>` : ""}
+          <p>Please update your calendar. The consultation duration is <strong>20 minutes</strong>.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Reschedule Email Error:", error.message);
+  }
+};
+
 module.exports = sendEmail;
 module.exports.sendAppointmentReminder24h = sendAppointmentReminder24h;
 module.exports.sendAppointmentReminder1h = sendAppointmentReminder1h;
+module.exports.sendRescheduleNotification = sendRescheduleNotification;

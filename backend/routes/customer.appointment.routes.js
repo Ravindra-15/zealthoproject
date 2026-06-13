@@ -18,6 +18,7 @@ const {
   listMyAppointments,
   getMyAppointment,
   cancelMyAppointment,
+  rescheduleMyAppointment,
   markMyAppointmentComplete,
   updateMyNotes,
 } = require("../controllers/customer.appointment.controller");
@@ -28,6 +29,7 @@ const {
   validateListQuery,
   validateObjectIdParam,
   validateUpdateNotes,
+  validateReschedule,
 } = require("../validators/customer.appointment.validator");
 
 const { protect } = require("../middleware/auth.middleware");
@@ -111,6 +113,15 @@ appointmentRouter.patch(
   authWriteLimiter,
   validateObjectIdParam("id"),
   cancelMyAppointment
+);
+
+// 🔁 Reschedule my appointment (reason + new slot)
+appointmentRouter.patch(
+  "/:id/reschedule",
+  authWriteLimiter,
+  validateObjectIdParam("id"),
+  validateReschedule,
+  rescheduleMyAppointment
 );
 
 // ✅ Mark my appointment complete

@@ -53,6 +53,17 @@ export const cancelDoctorAppointment = async (appointmentId, reason) => {
 };
 
 // ============================================
+// 🔁 RESCHEDULE APPOINTMENT (reason + new slot)
+// ============================================
+export const rescheduleDoctorAppointment = async (appointmentId, { scheduledAt, reason }) => {
+  const response = await doctorApi.patch(
+    `/doctor/appointments/${appointmentId}/reschedule`,
+    { scheduledAt, reason }
+  );
+  return response.data.data.appointment;
+};
+
+// ============================================
 // ✅ MARK APPOINTMENT COMPLETE
 // ============================================
 export const markAppointmentComplete = async (appointmentId) => {

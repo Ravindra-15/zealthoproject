@@ -24,6 +24,7 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         "appointment_confirmed",
         "appointment_cancelled",
+        "appointment_rescheduled",
         "appointment_reminder",
         "payment_success",
         "payment_failed",

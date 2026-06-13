@@ -25,6 +25,7 @@ import {
   setMeetingLink,
   sendMeetingLink,
   cancelDoctorAppointment,
+  rescheduleDoctorAppointment,
   markAppointmentComplete,
   fetchPatientBodyProfile,
   setPrescription,
@@ -32,6 +33,7 @@ import {
 } from "../../../../services/doctorAppointmentService";
 
 import CancelReasonModal from "./CancelReasonModal";
+import RescheduleModal from "./RescheduleModal";
 import Modal from "../../../../components/common/Modal";
 import BodyProfileView from "../../../../components/common/BodyProfileView";
 
@@ -108,6 +110,31 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [completing, setCompleting] = useState(false);
+
+  // 🔁 reschedule modal state
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+
+  // doctor's own id for availability lookup (appointment.doctor may be id or populated)
+  const doctorIdForSlots =
+    appointment?.doctor?._id || appointment?.doctor || null;
+
+  const alreadyRescheduled = (appointment?.rescheduleCount || 0) >= 1;
+
+  // Reschedules appointment with reason + new slot
+  const handleRescheduleConfirm = async ({ scheduledAt, reason }) => {
+    try {
+      setRescheduling(true);
+      const updated = await rescheduleDoctorAppointment(_id, { scheduledAt, reason });
+      toast.success("Appointment rescheduled");
+      setRescheduleModalOpen(false);
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to reschedule");
+    } finally {
+      setRescheduling(false);
+    }
+  };
 
   // 💊 prescription modal state
   const [rxModalOpen, setRxModalOpen] = useState(false);
@@ -552,6 +579,18 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
                   </button>
                 )}
 
+                {canCancel && !alreadyRescheduled && (
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleModalOpen(true)}
+                    disabled={rescheduling}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                  >
+                    <Clock size={12} />
+                    Reschedule
+                  </button>
+                )}
+
                 {canCancel && (
                   <button
                     type="button"
@@ -641,6 +680,16 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
         onClose={() => setCancelModalOpen(false)}
         onConfirm={handleCancelConfirm}
         loading={cancelling}
+      />
+
+      {/* 🔁 RESCHEDULE MODAL */}
+      <RescheduleModal
+        open={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onConfirm={handleRescheduleConfirm}
+        loading={rescheduling}
+        doctorId={doctorIdForSlots}
+        themeColor="#4F46E5"
       />
     </div>
   );

@@ -342,9 +342,9 @@ const getMyAppointmentById = async (userId, appointmentId) => {
 };
 
 // ============================================
-// ❌ CANCEL BY USER (no refund, no credit)
+// ❌ CANCEL BY USER (no refund, no credit) — reason optional
 // ============================================
-const cancelByUser = async (userId, appointmentId) => {
+const cancelByUser = async (userId, appointmentId, reason = "") => {
   const appointment = await Appointment.findOne({
     _id: appointmentId,
     user: userId,
@@ -356,9 +356,11 @@ const cancelByUser = async (userId, appointmentId) => {
     return { error: { status: 400, message: `Cannot cancel a ${appointment.status} appointment` } };
   }
 
+  const cleanReason = (reason || "").trim();
+
   appointment.status = "cancelled";
   appointment.cancelledBy = "user";
-  appointment.cancelledReason = "Cancelled by user";
+  appointment.cancelledReason = cleanReason || "Cancelled by user";
   await appointment.save();
 
   // 🔔 Notify doctor
@@ -368,12 +370,166 @@ const cancelByUser = async (userId, appointmentId) => {
       userType: "doctor",
       type: "appointment_cancelled",
       title: "Appointment Cancelled",
-      body: `${appointment.patientName} cancelled their appointment scheduled for ${new Date(appointment.scheduledAt).toLocaleString()}.`,
-      metadata: { appointmentId: appointment._id },
+      body: `${appointment.patientName} cancelled their appointment scheduled for ${new Date(appointment.scheduledAt).toLocaleString()}.${cleanReason ? ` Reason: ${cleanReason}` : ""}`,
+      metadata: { appointmentId: appointment._id, reason: cleanReason },
     });
   } catch (err) { }
 
   return { appointment };
+};
+
+// ============================================
+// 🛡️ HELPER — is a slot free, EXCLUDING one appointment (for reschedule)
+// ============================================
+const isSlotFreeForReschedule = async ({ doctorId, slotStart, slotEnd, dayOfWeek, excludeAppointmentId }) => {
+  // 1. Doctor must be open for this slot in their template
+  const template = await AvailabilityTemplate.findOne({ doctor: doctorId }).lean();
+  if (!template) return false;
+
+  const dayConfig = template.weekly?.find((d) => d.dayOfWeek === dayOfWeek);
+  if (!dayConfig) return false;
+
+  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
+  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
+  if (!dayConfig.slots.includes(`${hh}:${mm}`)) return false;
+
+  // 2. No time-off overlap
+  const blocked = await TimeOff.findOne({
+    doctor: doctorId,
+    startsAt: { $lt: slotEnd },
+    endsAt: { $gt: slotStart },
+  }).lean();
+  if (blocked) return false;
+
+  // 3. No OTHER booking overlap (exclude the appointment being rescheduled)
+  const taken = await Appointment.findOne({
+    _id: { $ne: excludeAppointmentId },
+    doctor: doctorId,
+    status: { $in: ["pending", "confirmed", "completed"] },
+    scheduledAt: { $lt: slotEnd },
+    $expr: {
+      $gt: [
+        { $add: ["$scheduledAt", { $multiply: ["$durationMinutes", 60 * 1000] }] },
+        slotStart,
+      ],
+    },
+  }).lean();
+  if (taken) return false;
+
+  return true;
+};
+
+// ============================================
+// 🔁 RESCHEDULE BY USER (max once, money untouched)
+// ============================================
+const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
+  const cleanReason = (reason || "").trim();
+  if (!cleanReason) {
+    return { error: { status: 400, message: "Reschedule reason is required" } };
+  }
+
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    user: userId,
+  });
+
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (!["pending", "confirmed"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot reschedule a ${appointment.status} appointment` } };
+  }
+
+  if ((appointment.rescheduleCount || 0) >= 1) {
+    return { error: { status: 400, message: "This appointment has already been rescheduled once" } };
+  }
+
+  // Validate new slot timing
+  const slotStart = new Date(scheduledAt);
+  if (isNaN(slotStart.getTime())) {
+    return { error: { status: 400, message: "Invalid scheduledAt" } };
+  }
+
+  const validSlots = generateSlotStartTimes();
+  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
+  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
+  if (!validSlots.includes(`${hh}:${mm}`)) {
+    return { error: { status: 400, message: `Slot must align to ${SLOT_DURATION_MINUTES}-min grid` } };
+  }
+
+  if (slotStart < new Date()) {
+    return { error: { status: 400, message: "Cannot reschedule to a past slot" } };
+  }
+
+  // No-op guard: same time
+  if (new Date(appointment.scheduledAt).getTime() === slotStart.getTime()) {
+    return { error: { status: 400, message: "Please pick a different time slot" } };
+  }
+
+  const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
+  const dayOfWeek = slotStart.getUTCDay();
+
+  const free = await isSlotFreeForReschedule({
+    doctorId: appointment.doctor,
+    slotStart,
+    slotEnd,
+    dayOfWeek,
+    excludeAppointmentId: appointment._id,
+  });
+  if (!free) {
+    return { error: { status: 409, message: "This slot is no longer available. Please pick another." } };
+  }
+
+  const oldTime = appointment.scheduledAt;
+
+  // 🔄 Apply reschedule (money untouched)
+  appointment.scheduledAt = slotStart;
+  appointment.rescheduleCount = (appointment.rescheduleCount || 0) + 1;
+  appointment.rescheduleReason = cleanReason;
+  appointment.rescheduledBy = "user";
+  appointment.rescheduledAt = new Date();
+  // time changed → reset reminders + meeting-link-sent so they re-trigger for new time
+  appointment.reminded24hAt = null;
+  appointment.reminded1hAt = null;
+  appointment.meetingLinkSentAt = null;
+  await appointment.save();
+
+  // 🔔 In-app notify doctor
+  try {
+    await Notification.create({
+      userId: appointment.doctor,
+      userType: "doctor",
+      type: "appointment_rescheduled",
+      title: "Appointment Rescheduled",
+      body: `${appointment.patientName} rescheduled their appointment from ${new Date(oldTime).toLocaleString()} to ${slotStart.toLocaleString()}. Reason: ${cleanReason}`,
+      metadata: { appointmentId: appointment._id, reason: cleanReason },
+    });
+  } catch (err) { }
+
+  // 📧 Email doctor
+  try {
+    const emailService = require("./email.service");
+    const doctorDoc = await Doctor.findById(appointment.doctor).select("fullName email").lean();
+    if (doctorDoc?.email) {
+      await emailService.sendRescheduleNotification({
+        to: doctorDoc.email,
+        recipientName: doctorDoc.fullName || "Doctor",
+        otherPartyName: appointment.patientName || "your patient",
+        oldTime,
+        newTime: slotStart,
+        reason: cleanReason,
+        rescheduledByLabel: "patient",
+        isDoctor: true,
+      });
+    }
+  } catch (err) {
+    console.log("RESCHEDULE EMAIL ERROR:", err);
+  }
+
+  const populated = await Appointment.findById(appointment._id)
+    .populate("doctor", "fullName domain photo updatedAt")
+    .lean();
+
+  return { appointment: populated };
 };
 
 // ============================================
@@ -470,6 +626,7 @@ module.exports = {
   listMyAppointments,
   getMyAppointmentById,
   cancelByUser,
+  rescheduleByUser,
   markComplete,
   updateMyNotes,
   BOOKING_FEE,

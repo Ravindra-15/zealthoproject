@@ -10,6 +10,12 @@ const BodyProfile = require("../models/BodyProfile"); // patient 27-point profil
  
 const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
+const AvailabilityTemplate = require("../models/AvailabilityTemplate");
+const TimeOff = require("../models/TimeOff");
+const {
+  SLOT_DURATION_MINUTES,
+  generateSlotStartTimes,
+} = require("../utils/availabilityConstants");
 
 // ============================================
 // 🗓️ HELPER — UTC day bounds for a YYYY-MM-DD
@@ -169,6 +175,160 @@ const cancelByDoctor = async (doctorId, appointmentId, reason) => {
   } catch (err) { }
 
   return { appointment };
+};
+
+// ============================================
+// 🛡️ HELPER — is a slot free, EXCLUDING one appointment (for reschedule)
+// ============================================
+const isSlotFreeForReschedule = async ({ doctorId, slotStart, slotEnd, dayOfWeek, excludeAppointmentId }) => {
+  // 1. Doctor must be open for this slot in their template
+  const template = await AvailabilityTemplate.findOne({ doctor: doctorId }).lean();
+  if (!template) return false;
+
+  const dayConfig = template.weekly?.find((d) => d.dayOfWeek === dayOfWeek);
+  if (!dayConfig) return false;
+
+  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
+  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
+  if (!dayConfig.slots.includes(`${hh}:${mm}`)) return false;
+
+  // 2. No time-off overlap
+  const blocked = await TimeOff.findOne({
+    doctor: doctorId,
+    startsAt: { $lt: slotEnd },
+    endsAt: { $gt: slotStart },
+  }).lean();
+  if (blocked) return false;
+
+  // 3. No OTHER booking overlap (exclude the appointment being rescheduled)
+  const taken = await Appointment.findOne({
+    _id: { $ne: excludeAppointmentId },
+    doctor: doctorId,
+    status: { $in: ["pending", "confirmed", "completed"] },
+    scheduledAt: { $lt: slotEnd },
+    $expr: {
+      $gt: [
+        { $add: ["$scheduledAt", { $multiply: ["$durationMinutes", 60 * 1000] }] },
+        slotStart,
+      ],
+    },
+  }).lean();
+  if (taken) return false;
+
+  return true;
+};
+
+// ============================================
+// 🔁 RESCHEDULE BY DOCTOR (max once, money untouched)
+// ============================================
+const rescheduleByDoctor = async (doctorId, appointmentId, scheduledAt, reason) => {
+  const cleanReason = (reason || "").trim();
+  if (!cleanReason) {
+    return { error: { status: 400, message: "Reschedule reason is required" } };
+  }
+
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (!["pending", "confirmed"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot reschedule a ${appointment.status} appointment` } };
+  }
+
+  if ((appointment.rescheduleCount || 0) >= 1) {
+    return { error: { status: 400, message: "This appointment has already been rescheduled once" } };
+  }
+
+  // Validate new slot timing
+  const slotStart = new Date(scheduledAt);
+  if (isNaN(slotStart.getTime())) {
+    return { error: { status: 400, message: "Invalid scheduledAt" } };
+  }
+
+  const validSlots = generateSlotStartTimes();
+  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
+  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
+  if (!validSlots.includes(`${hh}:${mm}`)) {
+    return { error: { status: 400, message: `Slot must align to ${SLOT_DURATION_MINUTES}-min grid` } };
+  }
+
+  if (slotStart < new Date()) {
+    return { error: { status: 400, message: "Cannot reschedule to a past slot" } };
+  }
+
+  // No-op guard: same time
+  if (new Date(appointment.scheduledAt).getTime() === slotStart.getTime()) {
+    return { error: { status: 400, message: "Please pick a different time slot" } };
+  }
+
+  const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
+  const dayOfWeek = slotStart.getUTCDay();
+
+  const free = await isSlotFreeForReschedule({
+    doctorId: appointment.doctor,
+    slotStart,
+    slotEnd,
+    dayOfWeek,
+    excludeAppointmentId: appointment._id,
+  });
+  if (!free) {
+    return { error: { status: 409, message: "This slot is no longer available. Please pick another." } };
+  }
+
+  const oldTime = appointment.scheduledAt;
+
+  // 🔄 Apply reschedule (money untouched)
+  appointment.scheduledAt = slotStart;
+  appointment.rescheduleCount = (appointment.rescheduleCount || 0) + 1;
+  appointment.rescheduleReason = cleanReason;
+  appointment.rescheduledBy = "doctor";
+  appointment.rescheduledAt = new Date();
+  // time changed → reset reminders + meeting-link-sent so they re-trigger for new time
+  appointment.reminded24hAt = null;
+  appointment.reminded1hAt = null;
+  appointment.meetingLinkSentAt = null;
+  await appointment.save();
+
+  // 🔔 In-app notify patient
+  try {
+    await Notification.create({
+      userId: appointment.user,
+      userType: "customer",
+      type: "appointment_rescheduled",
+      title: "Appointment Rescheduled by Doctor",
+      body: `Dr. ${appointment.doctorName} rescheduled your appointment from ${new Date(oldTime).toLocaleString()} to ${slotStart.toLocaleString()}. Reason: ${cleanReason}`,
+      metadata: { appointmentId: appointment._id, reason: cleanReason },
+    });
+  } catch (err) { }
+
+  // 📧 Email patient
+  try {
+    const emailService = require("./email.service");
+    const patientDoc = await User.findById(appointment.user).select("fullName nickName email").lean();
+    if (patientDoc?.email) {
+      await emailService.sendRescheduleNotification({
+        to: patientDoc.email,
+        recipientName: patientDoc.fullName || patientDoc.nickName || "there",
+        otherPartyName: `Dr. ${appointment.doctorName}`,
+        oldTime,
+        newTime: slotStart,
+        reason: cleanReason,
+        rescheduledByLabel: "doctor",
+        isDoctor: false,
+      });
+    }
+  } catch (err) {
+    console.log("RESCHEDULE EMAIL ERROR:", err);
+  }
+
+  const populatedAppointment = await Appointment.findById(appointment._id)
+    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .lean();
+
+  return { appointment: populatedAppointment };
 };
 
 // ============================================
@@ -333,6 +493,7 @@ module.exports = {
   setMeetingLink,
   markMeetingLinkSent,
   cancelByDoctor,
+  rescheduleByDoctor,
   markCompleteByDoctor,
   getPatientBodyProfile,
   setPrescription,

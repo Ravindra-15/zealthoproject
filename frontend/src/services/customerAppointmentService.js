@@ -81,10 +81,24 @@ export const getMyAppointment = async (appointmentId) => {
 };
 
 // ============================================
-// ❌ CANCEL MY APPOINTMENT (auth)
+// ❌ CANCEL MY APPOINTMENT (auth) — reason optional
 // ============================================
-export const cancelMyAppointment = async (appointmentId) => {
-  const response = await authApi.patch(`/customer/appointments/${appointmentId}/cancel`);
+export const cancelMyAppointment = async (appointmentId, reason) => {
+  const response = await authApi.patch(
+    `/customer/appointments/${appointmentId}/cancel`,
+    { reason }
+  );
+  return response.data.data.appointment;
+};
+
+// ============================================
+// 🔁 RESCHEDULE MY APPOINTMENT (auth) — reason + new slot
+// ============================================
+export const rescheduleMyAppointment = async (appointmentId, { scheduledAt, reason }) => {
+  const response = await authApi.patch(
+    `/customer/appointments/${appointmentId}/reschedule`,
+    { scheduledAt, reason }
+  );
   return response.data.data.appointment;
 };
 

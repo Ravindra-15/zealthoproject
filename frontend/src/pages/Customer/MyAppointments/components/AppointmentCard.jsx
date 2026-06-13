@@ -26,11 +26,13 @@ import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
 import toast from "react-hot-toast";
 import {
   cancelMyAppointment,
+  rescheduleMyAppointment,
   markMyAppointmentComplete,
   updateMyNotes,
 } from "../../../../services/customerAppointmentService";
 
 import Modal from "../../../../components/common/Modal";
+import RescheduleModal from "./RescheduleModal";
 
 const PROBLEM_MAX = 200; // max characters for problem description
 
@@ -74,8 +76,34 @@ const AppointmentCard = ({ appointment, isUpcoming = false, onUpdated }) => {
     prescriptionSentAt, // when doctor sent it
   } = appointment;
 
-  const [cancelling, setCancelling] = useState(false);
+const [cancelling, setCancelling] = useState(false);
   const [completing, setCompleting] = useState(false);
+
+  // ❌ cancel-reason modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  // 🔁 reschedule modal state
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+
+  const doctorIdForSlots = doctor?._id || appointment.doctor || null;
+  const alreadyRescheduled = (appointment?.rescheduleCount || 0) >= 1;
+
+  // Reschedules with reason + new slot
+  const handleRescheduleConfirm = async ({ scheduledAt, reason }) => {
+    try {
+      setRescheduling(true);
+      const updated = await rescheduleMyAppointment(appointment._id, { scheduledAt, reason });
+      toast.success("Appointment rescheduled");
+      setRescheduleModalOpen(false);
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to reschedule");
+    } finally {
+      setRescheduling(false);
+    }
+  };
 
   // 🔽 expand/collapse — collapsed by default
   const [expanded, setExpanded] = useState(false);
@@ -94,14 +122,20 @@ const AppointmentCard = ({ appointment, isUpcoming = false, onUpdated }) => {
   // problem editable only while upcoming
   const canEditProblem = ["pending", "confirmed"].includes(status);
 
-  // Cancels the appointment
-  const handleCancel = async () => {
-    if (!window.confirm("Cancel this appointment? This cannot be undone."))
-      return;
+  // Opens the cancel-reason modal
+  const openCancelModal = () => {
+    setCancelReason("");
+    setCancelModalOpen(true);
+  };
+
+  // Confirms cancellation with a reason
+  const handleCancelConfirm = async () => {
+    if (!cancelReason.trim() || cancelling) return;
     try {
       setCancelling(true);
-      const updated = await cancelMyAppointment(appointment._id);
+      const updated = await cancelMyAppointment(appointment._id, cancelReason.trim());
       toast.success("Appointment cancelled");
+      setCancelModalOpen(false);
       onUpdated?.(updated);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to cancel");
@@ -262,10 +296,26 @@ const AppointmentCard = ({ appointment, isUpcoming = false, onUpdated }) => {
             </button>
           )}
 
+          {canCancel && !alreadyRescheduled && (
+            <button
+              type="button"
+              onClick={() => setRescheduleModalOpen(true)}
+              disabled={rescheduling}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-orange-600 border border-orange-200 hover:bg-orange-50 transition-colors disabled:opacity-50"
+            >
+              {rescheduling ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Clock size={12} />
+              )}
+              Reschedule
+            </button>
+          )}
+
           {canCancel && (
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={openCancelModal}
               disabled={cancelling}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
             >
@@ -407,6 +457,56 @@ const AppointmentCard = ({ appointment, isUpcoming = false, onUpdated }) => {
           </button>
         </div>
       </Modal>
+
+      {/* ❌ CANCEL REASON MODAL */}
+      <Modal isOpen={cancelModalOpen} onClose={() => !cancelling && setCancelModalOpen(false)}>
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Cancel Appointment</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Let us know why you're cancelling. The doctor will be notified.
+        </p>
+
+        <textarea
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value.slice(0, 500))}
+          rows={4}
+          placeholder="e.g. Schedule conflict, feeling better, etc."
+          disabled={cancelling}
+          className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent disabled:bg-gray-50"
+        />
+        <div className="text-right text-[11px] text-gray-400 mt-1">
+          {cancelReason.length}/500
+        </div>
+
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => setCancelModalOpen(false)}
+            disabled={cancelling}
+            className="px-4 py-2 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
+            Keep Appointment
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelConfirm}
+            disabled={!cancelReason.trim() || cancelling}
+            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {cancelling && <Loader2 size={14} className="animate-spin" />}
+            Cancel Appointment
+          </button>
+        </div>
+      </Modal>
+
+      {/* 🔁 RESCHEDULE MODAL */}
+      <RescheduleModal
+        open={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onConfirm={handleRescheduleConfirm}
+        loading={rescheduling}
+        doctorId={doctorIdForSlots}
+        themeColor="#F97316"
+      />
     </div>
   );
 };
