@@ -31,15 +31,24 @@ const listTransactions = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const appointmentTx = appointments.map((a) => ({
-      id: a._id,
-      type: "appointment",
-      date: a.createdAt,
-      description: `Doctor Consultation Fee (${a.doctorName || "Consultation"})`,
-      amount: a.fee || 0,
-      currency: a.currency || "USD",
-      status: a.paymentStatus || "pending",
-    }));
+    const appointmentTx = appointments.map((a) => {
+      // Free for the user if booked via plan consult or cancel credit (doctor still paid separately)
+      // Distinguish plan-credit vs cancel-credit in the label
+      const freeLabel = a.paidWithPlanCredit
+        ? " — Free (Plan Credit)"
+        : a.paidWithCredit
+        ? " — Free (Credit)"
+        : "";
+      return {
+        id: a._id,
+        type: "appointment",
+        date: a.createdAt,
+        description: `Doctor Consultation Fee (${a.doctorName || "Consultation"})${freeLabel}`,
+        amount: a.paidWithPlanCredit || a.paidWithCredit ? 0 : a.fee || 0,
+        currency: a.currency || "USD",
+        status: a.paymentStatus || "pending",
+      };
+    });
 
     // 📦 Paid program subscriptions (plan purchases — absent in Zealtho, present in subprograms)
     const subscriptions = await ProgramSubscription.find({
@@ -120,6 +129,9 @@ const getReceipt = async (req, res) => {
       .lean();
 
     if (appointment) {
+      // Free for the user if booked via plan consult or cancel credit
+      const wasFree = appointment.paidWithPlanCredit || appointment.paidWithCredit;
+      const displayFee = wasFree ? 0 : appointment.fee || 0;
       const receipt = {
         receiptNumber: `TXN-${appointment._id.toString().slice(-8).toUpperCase()}`,
         date: appointment.createdAt,
@@ -131,9 +143,9 @@ const getReceipt = async (req, res) => {
           registrationNumber: "",
         },
         summary: {
-          consultationFee: appointment.fee || 0,
+          consultationFee: displayFee,
           processingFee: 0,
-          total: appointment.fee || 0,
+          total: displayFee,
           currency: appointment.currency || "USD",
         },
         appointment: {
