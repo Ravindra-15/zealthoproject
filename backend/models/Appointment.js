@@ -90,6 +90,12 @@ const appointmentSchema = new mongoose.Schema(
       default: false,
     },
 
+    // True if this booking was funded by a subscription plan's free consultation
+    paidWithPlanCredit: {
+      type: Boolean,
+      default: false,
+    },
+
     currency: {
       type: String,
       default: "USD",

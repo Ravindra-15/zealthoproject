@@ -114,6 +114,15 @@ const userSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Free doctor consultations granted by a paid subscription plan, PER PROGRAM.
+    // e.g. { yogat20: 4, diabmukt: 1 }. Each program's credits are independent.
+    // (3mo→1, 6mo→2, 12mo→4; weekly: floor(weeks/12)). Consumed before cancel credits.
+    planFreeConsults: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+
     // 🔄 Admin-controlled status
     isActive: {
       type: Boolean,

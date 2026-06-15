@@ -1,5 +1,15 @@
 const ProgramSubscription = require("../models/ProgramSubscription");
 const ProgramPlan = require("../models/ProgramPlan");
+const User = require("../models/User");
+
+// 🎁 Free doctor consultations granted by plan length.
+// Monthly: floor(months/3). Weekly: floor(weeks/12). 3mo/12wk→1, 6mo/24wk→2, 12mo/48wk→4.
+const computeFreeConsults = ({ pricingType, months, weeks }) => {
+  if (pricingType === "weekly") {
+    return Math.floor((Number(weeks) || 0) / 12);
+  }
+  return Math.floor((Number(months) || 0) / 3);
+};
 
 // ============================================
 // 📦 PROGRAM NAMES
@@ -186,6 +196,26 @@ const subscribeToProgram = async (req, res) => {
       startDate,
       endDate,
     });
+
+    // 🎁 Grant free doctor consultations to CUSTOMERS based on plan length, PER PROGRAM.
+    // (Doctors don't get patient consults.) Additive — does not touch cancel credits.
+    if (customerId) {
+      const freeConsults = computeFreeConsults({
+        pricingType,
+        months,
+        weeks: resolvedWeeks,
+      });
+      if (freeConsults > 0) {
+        try {
+          // Increment only this program's credit key (e.g. planFreeConsults.diabmukt)
+          await User.findByIdAndUpdate(customerId, {
+            $inc: { [`planFreeConsults.${programId}`]: freeConsults },
+          });
+        } catch (err) {
+          console.log("PLAN FREE CONSULT GRANT ERROR:", err);
+        }
+      }
+    }
 
     return res.status(201).json({
       success: true,

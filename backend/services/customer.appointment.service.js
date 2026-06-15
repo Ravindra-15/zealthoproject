@@ -198,16 +198,37 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   }
 
   // ============================================
-  // STEP 4 — Use free credit OR charge payment
+  // STEP 4 — Use plan free consult → cancel credit → charge payment
   // ============================================
   let paymentResult;
-  let usedFreeCredit = false;
+  let usedFreeCredit = false;     // cancel credit (existing behavior)
+  let usedPlanConsult = false;    // plan free consult (new)
 
   // Re-fetch fresh user to check credits (avoid race conditions)
-  const freshUser = await User.findById(userId).select("freeAppointmentCredits");
+  const freshUser = await User.findById(userId).select(
+    "freeAppointmentCredits planFreeConsults"
+  );
 
-  if (freshUser?.freeAppointmentCredits > 0) {
-    // 🎁 Use free credit — money already paid earlier, redirect it to whichever doctor is booked now
+  // Read THIS program's plan credit from the per-program map
+  const programConsults = freshUser?.planFreeConsults?.get
+    ? freshUser.planFreeConsults.get(platform) || 0
+    : 0;
+
+  if (programConsults > 0) {
+    // 🎁 1st priority — plan free consultation for THIS program
+    usedPlanConsult = true;
+    paymentResult = {
+      success: true,
+      transactionId: `plan_consult_${Date.now()}`,
+      amount: BOOKING_FEE,
+      currency: BOOKING_CURRENCY,
+      method: "plan_free_consult",
+    };
+    // Decrement only this program's key
+    freshUser.planFreeConsults.set(platform, programConsults - 1);
+    await freshUser.save();
+  } else if (freshUser?.freeAppointmentCredits > 0) {
+    // 🎁 2nd priority — cancel credit (existing behavior, unchanged)
     usedFreeCredit = true;
     paymentResult = {
       success: true,
@@ -216,8 +237,6 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       currency: BOOKING_CURRENCY,
       method: "free_credit",
     };
-
-    // Decrement credit
     freshUser.freeAppointmentCredits -= 1;
     await freshUser.save();
   } else {
@@ -279,8 +298,9 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     platform,
     scheduledAt: slotStart,
     durationMinutes: SLOT_DURATION_MINUTES,
-    fee: BOOKING_FEE,  // Doctor (same or different) still receives the original $20
-    paidWithCredit: usedFreeCredit,
+    fee: BOOKING_FEE,  // Doctor still receives the original $20 (covered by credit/plan revenue)
+    paidWithCredit: usedFreeCredit || usedPlanConsult,
+    paidWithPlanCredit: usedPlanConsult, // tags plan-funded free consults
     currency: BOOKING_CURRENCY,
     paymentStatus: "paid",
     status: "confirmed",
