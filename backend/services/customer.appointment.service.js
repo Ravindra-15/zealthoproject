@@ -76,6 +76,29 @@ const isSlotStillAvailable = async ({ doctorId, slotStart, slotEnd, dayOfWeek })
 };
 
 // ============================================
+// 🛡️ HELPER — does the USER already have an appointment overlapping this time?
+// (across ALL doctors). Optionally exclude one appointment (for reschedule).
+// ============================================
+const userHasConflictingAppointment = async ({ userId, slotStart, slotEnd, excludeAppointmentId = null }) => {
+  const query = {
+    user: userId,
+    status: { $in: ["pending", "confirmed"] },
+    scheduledAt: { $lt: slotEnd },
+    $expr: {
+      $gt: [
+        { $add: ["$scheduledAt", { $multiply: ["$durationMinutes", 60 * 1000] }] },
+        slotStart,
+      ],
+    },
+  };
+  if (excludeAppointmentId) {
+    query._id = { $ne: excludeAppointmentId };
+  }
+  const existing = await Appointment.findOne(query).lean();
+  return !!existing;
+};
+
+// ============================================
 // 📝 CREATE BOOKING (atomic — Pattern B)
 // ============================================
 /**
@@ -137,6 +160,24 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
 
   const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
   const dayOfWeek = slotStart.getUTCDay();
+
+  // ============================================
+  // STEP 2.5 — Block double-booking by the SAME USER at this time (any doctor)
+  // ============================================
+  const userBusy = await userHasConflictingAppointment({
+    userId,
+    slotStart,
+    slotEnd,
+  });
+  if (userBusy) {
+    return {
+      error: {
+        status: 409,
+        message: "You already have an appointment at this time. Please check your appointments.",
+        code: "USER_TIME_CONFLICT",
+      },
+    };
+  }
 
   // ============================================
   // STEP 3 — Atomic availability check
@@ -468,7 +509,7 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
   const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
   const dayOfWeek = slotStart.getUTCDay();
 
-  const free = await isSlotFreeForReschedule({
+ const free = await isSlotFreeForReschedule({
     doctorId: appointment.doctor,
     slotStart,
     slotEnd,
@@ -477,6 +518,23 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
   });
   if (!free) {
     return { error: { status: 409, message: "This slot is no longer available. Please pick another." } };
+  }
+
+  // 🛡️ Block if the user already has ANOTHER appointment at this new time
+  const userBusy = await userHasConflictingAppointment({
+    userId,
+    slotStart,
+    slotEnd,
+    excludeAppointmentId: appointment._id,
+  });
+  if (userBusy) {
+    return {
+      error: {
+        status: 409,
+        message: "You already have an appointment at this time. Please check your appointments.",
+        code: "USER_TIME_CONFLICT",
+      },
+    };
   }
 
   const oldTime = appointment.scheduledAt;
