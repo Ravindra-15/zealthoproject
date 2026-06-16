@@ -184,7 +184,7 @@ export default function HeroSection() {
         </div>
 
         {/* WhatsApp sticky CTA */}
-        <a
+        {/* <a
           href="https://wa.me/911234567890"
           target="_blank"
           rel="noreferrer"
@@ -192,7 +192,7 @@ export default function HeroSection() {
         >
           <MessageCircle size={18} />
           Chat With Us!
-        </a>
+        </a> */}
       </section>
     </>
   );
