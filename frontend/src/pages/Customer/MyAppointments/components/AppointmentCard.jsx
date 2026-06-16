@@ -276,15 +276,14 @@ const [cancelling, setCancelling] = useState(false);
       {(canJoinVideo || canMarkComplete || canCancel) && (
         <div className="px-4 sm:px-5 pb-4 flex flex-wrap gap-2">
           {canJoinVideo && (
-            <a
-              href={meetingLink}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-[0_4px_10px_rgba(249,115,22,0.25)]"
             >
               <Video size={12} />
-              Join Video Call
-            </a>
+              See Link
+            </button>
           )}
 
           {canMarkComplete && (
@@ -362,6 +361,35 @@ const [cancelling, setCancelling] = useState(false);
       >
         <div className="overflow-hidden">
           <div className="px-4 sm:px-5 pb-5 pt-1 space-y-3">
+            {/* 🔗 MEETING LINK (visible once doctor sends it) */}
+            {canJoinVideo && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3">
+                <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1.5">
+                  <Video size={12} className="text-orange-500" />
+                  Meeting Link
+                </p>
+                <a
+                  href={meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-orange-600 hover:underline break-all"
+                >
+                  {meetingLink}
+                </a>
+                <div className="mt-2.5">
+                  <a
+                    href={meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-[0_4px_10px_rgba(249,115,22,0.25)]"
+                  >
+                    <Video size={12} />
+                    Join Now
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* 📝 PROBLEM */}
             <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
               <div className="flex items-center justify-between gap-2 mb-1.5">
