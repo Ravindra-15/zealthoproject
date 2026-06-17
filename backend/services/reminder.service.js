@@ -10,10 +10,20 @@ const cron = require("node-cron");
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
 const Doctor = require("../models/Doctor");
+const ProgramSubscription = require("../models/ProgramSubscription");
+const Notification = require("../models/Notification");
 const {
     sendAppointmentReminder24h,
     sendAppointmentReminder1h,
+    sendPlanExpiryReminder,
 } = require("./email.service");
+
+const programDisplayNames = {
+    yogat20: "Yoga T20",
+    diabmukt: "Diabmukt",
+    mommyfit: "MommyFit",
+    slimfitter: "Slimfitter",
+};
 
 // ============================================
 // 🔍 FIND + SEND 24-HOUR REMINDERS
@@ -131,6 +141,68 @@ const send1hReminders = async () => {
 };
 
 // ============================================
+// 🔔 FIND + SEND PLAN-EXPIRY REMINDERS (last 7 days, once per day)
+// ============================================
+const sendPlanExpiryReminders = async () => {
+    const now = new Date();
+    // Active subs that end within the next 7 days (and haven't ended yet)
+    const windowEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const todayKey = now.toISOString().slice(0, 10); // "YYYY-MM-DD" (UTC)
+
+    const subs = await ProgramSubscription.find({
+        purchasedByRole: "customer",
+        status: "active",
+        endDate: { $gt: now, $lte: windowEnd },
+    }).lean();
+
+    for (const sub of subs) {
+        try {
+            // Skip if already notified today (one email + one notification per calendar day)
+            if (sub.lastExpiryNotifiedOn === todayKey) continue;
+
+            const user = await User.findById(sub.customer)
+                .select("email fullName nickName")
+                .lean();
+            if (!user) continue;
+
+            const msLeft = new Date(sub.endDate).getTime() - now.getTime();
+            const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+            const programName = sub.programName || programDisplayNames[sub.programId] || "your program";
+
+            // 📧 Email
+            if (user.email) {
+                await sendPlanExpiryReminder({
+                    to: user.email,
+                    recipientName: user.fullName || user.nickName || "there",
+                    programName,
+                    endDate: sub.endDate,
+                    daysLeft,
+                });
+            }
+
+            // 🔔 In-app notification (redirects to billing/renewal on click)
+            const dayLabel = daysLeft <= 1 ? (daysLeft === 1 ? "in 1 day" : "today") : `in ${daysLeft} days`;
+            await Notification.create({
+                userId: sub.customer,
+                userType: "customer",
+                type: "plan_expiring",
+                title: "Plan Expiring Soon",
+                body: `Your ${programName} plan expires ${dayLabel}. Renew now to keep your access.`,
+                metadata: { programId: sub.programId, link: "/my-plans-and-billings" },
+            });
+
+            // ✅ Mark notified for today
+            await ProgramSubscription.findByIdAndUpdate(sub._id, {
+                lastExpiryNotifiedOn: todayKey,
+            });
+            console.log(`[PLAN EXPIRY] Notified user ${sub.customer} for ${sub.programId} (${daysLeft}d left)`);
+        } catch (err) {
+            console.error(`[PLAN EXPIRY ERROR] ${sub._id}:`, err.message);
+        }
+    }
+};
+
+// ============================================
 // ⏰ CRON STARTER — call this from server.js
 // ============================================
 const startReminderCron = () => {
@@ -139,9 +211,10 @@ const startReminderCron = () => {
         console.log("[REMINDER CRON] Running...");
         await send24hReminders();
         await send1hReminders();
+        await sendPlanExpiryReminders();
     });
 
     console.log("✅ Reminder cron scheduled (every 15 mins)");
 };
 
-module.exports = { startReminderCron, send24hReminders, send1hReminders };
+module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders };

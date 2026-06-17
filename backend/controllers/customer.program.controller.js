@@ -84,7 +84,8 @@ const subscribeToProgram = async (req, res) => {
       return res.status(400).json({ message: "Invalid program selected." });
     }
 
-    // 🚫 DUPLICATE ACTIVE SUBSCRIPTION CHECK
+    // 🔁 Check for an existing active subscription — if found, STACK the new plan
+    // so it begins after the current one ends (instead of blocking the purchase).
     const existingQuery = {
       programId,
       status: "active",
@@ -96,11 +97,6 @@ const subscribeToProgram = async (req, res) => {
     const existingSubscription = await ProgramSubscription.findOne(
       existingQuery
     );
-    if (existingSubscription) {
-      return res.status(409).json({
-        message: "You already have an active subscription for this program.",
-      });
-    }
 
     let amount;
     let resolvedTenure;
@@ -163,7 +159,10 @@ const subscribeToProgram = async (req, res) => {
     // endDate.setMonth(endDate.getMonth() + months);
 
     // 📆 DATES
-    const startDate = new Date();
+    // If an active sub exists, the new plan starts when the current one ends (stacked renewal).
+    const startDate = existingSubscription
+      ? new Date(existingSubscription.endDate)
+      : new Date();
     const endDate = new Date(startDate);
 
     if (pricingType === "weekly") {
@@ -173,6 +172,9 @@ const subscribeToProgram = async (req, res) => {
       // Fixed plans (yogat20) — add calendar months
       endDate.setMonth(endDate.getMonth() + months);
     }
+
+    // 🏷️ Flag this as a queued renewal so the UI can show "starts soon" until it begins
+    const isQueuedRenewal = !!existingSubscription;
 
     // 💳 TRANSACTION
     const transactionId = "TXN_" + Date.now();
@@ -196,6 +198,8 @@ const subscribeToProgram = async (req, res) => {
       startDate,
       endDate,
     });
+
+    // (isQueuedRenewal is derived; startDate in the future means it hasn't begun yet)
 
     // 🎁 Grant free doctor consultations to CUSTOMERS based on plan length, PER PROGRAM.
     // (Doctors don't get patient consults.) Additive — does not touch cancel credits.

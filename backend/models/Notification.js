@@ -29,6 +29,7 @@ const notificationSchema = new mongoose.Schema(
         "payment_success",
         "payment_failed",
         "program_update",
+        "plan_expiring",
         "general",
       ],
       required: true,

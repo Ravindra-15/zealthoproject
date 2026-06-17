@@ -142,6 +142,12 @@ const programSubscriptionSchema = new mongoose.Schema(
       default: null,
     },
 
+    // 🔔 Last calendar day (YYYY-MM-DD, UTC) an expiry reminder was sent — prevents duplicate daily sends
+    lastExpiryNotifiedOn: {
+      type: String,
+      default: null,
+    },
+
     // ============================================
     // 🧠 FUTURE FEATURES
     // ============================================

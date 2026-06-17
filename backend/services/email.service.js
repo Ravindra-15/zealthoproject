@@ -166,7 +166,51 @@ const sendRescheduleNotification = async ({
   }
 };
 
+// ============================================
+// 📧 PLAN EXPIRY REMINDER
+// ============================================
+// Sent daily during the last 7 days before a subscription expires.
+const sendPlanExpiryReminder = async ({
+  to,
+  recipientName,
+  programName,
+  endDate,
+  daysLeft,
+}) => {
+  const formattedEnd = new Date(endDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const dayLabel = daysLeft <= 0 ? "today" : daysLeft === 1 ? "in 1 day" : `in ${daysLeft} days`;
+
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: `Your ${programName} plan expires ${dayLabel}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f97316;">Your Plan Is About to Expire</h2>
+          <p>Hi ${recipientName},</p>
+          <p>Your <strong>${programName}</strong> subscription expires <strong>${dayLabel}</strong>.</p>
+          <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px;"><strong>📅 Expires on: ${formattedEnd}</strong></p>
+          </div>
+          <p>Renew now to keep your access to videos, progress tracking, and free doctor consultations without interruption.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Plan Expiry Email Error:", error.message);
+  }
+};
+
 module.exports = sendEmail;
 module.exports.sendAppointmentReminder24h = sendAppointmentReminder24h;
 module.exports.sendAppointmentReminder1h = sendAppointmentReminder1h;
 module.exports.sendRescheduleNotification = sendRescheduleNotification;
+module.exports.sendPlanExpiryReminder = sendPlanExpiryReminder;

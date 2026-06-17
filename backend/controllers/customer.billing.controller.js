@@ -210,8 +210,10 @@ const getMySubscription = async (req, res) => {
       return errorResponse(res, "Valid programId is required", 400);
     }
 
-    // 📥 Most recent subscription for this user + program
-    const sub = await ProgramSubscription.findOne({
+    const nowForPick = new Date();
+
+    // 📥 All subscriptions for this user + program (newest first)
+    const allSubs = await ProgramSubscription.find({
       programId,
       $or: [{ customer: userId }, { doctor: userId }],
     })
@@ -219,7 +221,7 @@ const getMySubscription = async (req, res) => {
       .lean();
 
     // No subscription — user never bought this program
-    if (!sub) {
+    if (!allSubs.length) {
       return successResponse(
         res,
         { subscription: null },
@@ -227,6 +229,28 @@ const getMySubscription = async (req, res) => {
         200
       );
     }
+
+    // 🎯 Main card = the currently-running plan (started + not ended), else latest
+    const running = allSubs.find(
+      (s) =>
+        s.status === "active" &&
+        new Date(s.startDate) <= nowForPick &&
+        new Date(s.endDate) > nowForPick
+    );
+    const sub = running || allSubs[0];
+
+    // 🔜 Pending renewal = an active plan whose start date is still in the future
+    const pending = allSubs.find(
+      (s) => s.status === "active" && new Date(s.startDate) > nowForPick
+    );
+    const pendingRenewal = pending
+      ? {
+          programName: pending.programName,
+          tenure: pending.tenure,
+          startDate: pending.startDate,
+          endDate: pending.endDate,
+        }
+      : null;
 
     // 🕒 Compute time progress
     const now = new Date();
@@ -278,7 +302,13 @@ const getMySubscription = async (req, res) => {
           totalWeeks,
           weeksRemaining,
           progressPercent,
+          // days until this plan expires (for the "renew" button window)
+          daysUntilExpiry: Math.max(
+            0,
+            Math.ceil((new Date(sub.endDate) - nowForPick) / (24 * 60 * 60 * 1000))
+          ),
         },
+        pendingRenewal,
       },
       "Subscription fetched",
       200
