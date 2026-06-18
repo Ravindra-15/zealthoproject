@@ -1,17 +1,3 @@
-/**
- * ============================================
- * CUSTOMER MODULE — Clinical Video Controller
- * ============================================
- * Powers the program dashboard video section.
- *
- * 🔒 ISOLATION: a user can only fetch videos for a program
- *    they have an ACTIVE subscription for.
- *
- * yogaType is OPTIONAL — defaults to "normal_yoga".
- * Weekly programs (diabmukt/mommyfit/slimfitter) don't send it.
- * ============================================
- */
-
 const ClinicalVideo = require("../models/ClinicalVideo");
 const UserVideoProgress = require("../models/UserVideoProgress");
 const ProgramSubscription = require("../models/ProgramSubscription");
@@ -19,7 +5,6 @@ const ProgramSubscription = require("../models/ProgramSubscription");
 const ALLOWED_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
 const ALLOWED_YOGA_TYPES = ["normal_yoga", "chair_yoga", "high_intensity"];
 
-// 🕒 Start + end of "today" in UTC
 const getTodayBounds = () => {
   const now = new Date();
   const start = new Date(
@@ -31,8 +16,6 @@ const getTodayBounds = () => {
   return { start, end };
 };
 
-// 🔒 Verify the user has an active subscription for this program.
-// Returns true/false. Works for both customer and doctor purchasers.
 const hasActiveSubscription = async (userId, programId) => {
   const sub = await ProgramSubscription.findOne({
     programId,
@@ -54,7 +37,6 @@ const getCurrentVideo = async (req, res) => {
     }
 
     const { programId } = req.query;
-    // 🧘 yogaType optional — default to normal_yoga
     const yogaType = req.query.yogaType || "normal_yoga";
 
     if (!programId || !ALLOWED_PROGRAMS.includes(programId)) {
@@ -65,13 +47,9 @@ const getCurrentVideo = async (req, res) => {
     }
 
     if (!ALLOWED_YOGA_TYPES.includes(yogaType)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid yogaType",
-      });
+      return res.status(400).json({ success: false, message: "Invalid yogaType" });
     }
 
-    // 🔒 ISOLATION GUARD — must own an active subscription for this program
     const allowed = await hasActiveSubscription(userId, programId);
     if (!allowed) {
       return res.status(403).json({
@@ -80,9 +58,41 @@ const getCurrentVideo = async (req, res) => {
       });
     }
 
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000); // now − 24h
+
+    // 0️⃣ TIME-SCHEDULED SPECIAL (publishAt)
+    //    Live if publishAt has passed and is within the last 24h.
+    //    Newest passed publishAt wins → a later-scheduled video overrides
+    //    an earlier one the moment its time arrives.
+    const livePublished = await ClinicalVideo.findOne({
+      programId,
+      yogaType,
+      isActive: true,
+      publishAt: { $ne: null, $lte: now, $gt: windowStart },
+    })
+      .sort({ publishAt: -1 })
+      .lean();
+
+    if (livePublished) {
+      const progress = await UserVideoProgress.findOne({
+        user: userId,
+        video: livePublished._id,
+      }).lean();
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          video: livePublished,
+          completedToday: !!progress,
+          isScheduled: true,
+        },
+      });
+    }
+
     const { start: todayStart, end: todayEnd } = getTodayBounds();
 
-    // 1️⃣ Scheduled-date video for today (overrides queue)
+    // 1️⃣ LEGACY calendar-day special (scheduledDate within today)
     const scheduledToday = await ClinicalVideo.findOne({
       programId,
       yogaType,
@@ -130,7 +140,7 @@ const getCurrentVideo = async (req, res) => {
       });
     }
 
-    // 3️⃣ Next unwatched video in queue
+    // 3️⃣ Next unwatched video in queue (no publishAt, no scheduledDate)
     const completedVideos = await UserVideoProgress.find({
       user: userId,
       programId,
@@ -146,6 +156,7 @@ const getCurrentVideo = async (req, res) => {
       yogaType,
       isActive: true,
       scheduledDate: null,
+      publishAt: null,
       _id: { $nin: completedIds },
     })
       .sort({ displayOrder: 1, createdAt: 1 })
@@ -165,23 +176,16 @@ const getCurrentVideo = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: {
-        video: nextVideo,
-        completedToday: false,
-        isScheduled: false,
-      },
+      data: { video: nextVideo, completedToday: false, isScheduled: false },
     });
   } catch (err) {
     console.error("[CUSTOMER GET CURRENT VIDEO ERROR]:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch video",
-    });
+    return res.status(500).json({ success: false, message: "Failed to fetch video" });
   }
 };
 
 // ============================================
-// ✅ MARK VIDEO COMPLETE
+// ✅ MARK VIDEO COMPLETE  (unchanged)
 // ============================================
 const markComplete = async (req, res) => {
   try {
@@ -194,14 +198,9 @@ const markComplete = async (req, res) => {
 
     const video = await ClinicalVideo.findById(videoId).lean();
     if (!video) {
-      return res.status(404).json({
-        success: false,
-        message: "Video not found",
-      });
+      return res.status(404).json({ success: false, message: "Video not found" });
     }
 
-    // 🔒 ISOLATION GUARD — user must own an active subscription for the
-    // program this video belongs to.
     const allowed = await hasActiveSubscription(userId, video.programId);
     if (!allowed) {
       return res.status(403).json({
@@ -210,7 +209,6 @@ const markComplete = async (req, res) => {
       });
     }
 
-    // Idempotent — already completed?
     const existing = await UserVideoProgress.findOne({
       user: userId,
       video: videoId,
@@ -239,20 +237,11 @@ const markComplete = async (req, res) => {
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(200).json({
-        success: true,
-        message: "Already marked complete",
-      });
+      return res.status(200).json({ success: true, message: "Already marked complete" });
     }
     console.error("[CUSTOMER MARK COMPLETE ERROR]:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to mark complete",
-    });
+    return res.status(500).json({ success: false, message: "Failed to mark complete" });
   }
 };
 
-module.exports = {
-  getCurrentVideo,
-  markComplete,
-};
+module.exports = { getCurrentVideo, markComplete };

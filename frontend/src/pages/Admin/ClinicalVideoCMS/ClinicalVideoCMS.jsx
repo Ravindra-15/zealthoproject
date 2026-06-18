@@ -154,41 +154,36 @@ const ClinicalVideoCMS = () => {
       </div>
 
       {/* ============================================ */}
-      {/* 🧘 YOGA TYPE FILTER — yogat20 only            */}
+      {/* 🧘 YOGA TYPE SELECTOR — horizontal row (yogat20 only) */}
       {/* ============================================ */}
       {!isWeekly && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-4 sm:p-5">
-          <label className="text-xs font-semibold text-gray-600 mb-2 block">
+          <label className="text-xs font-semibold text-gray-600 mb-3 block">
             Yoga Type
           </label>
-          <div className="relative inline-block w-full sm:w-72">
-            <select
-              value={selectedYogaType}
-              onChange={(e) => setSelectedYogaType(e.target.value)}
-              className="w-full appearance-none pl-9 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer"
-            >
-              {YOGA_TYPES.map((t) => (
-                <option key={t.id} value={t.id}>
+          <div className="flex flex-wrap gap-2.5">
+            {YOGA_TYPES.map((t) => {
+              const isActive = selectedYogaType === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelectedYogaType(t.id)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                    isActive
+                      ? "bg-indigo-600 border-indigo-600 text-white shadow-[0_4px_14px_rgba(79,70,229,0.25)]"
+                      : "bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50/40"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      isActive ? "bg-white" : t.color
+                    }`}
+                  />
                   {t.label}
-                </option>
-              ))}
-            </select>
-            <span
-              className={`absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${currentYogaType.color} pointer-events-none`}
-            />
-            <svg
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

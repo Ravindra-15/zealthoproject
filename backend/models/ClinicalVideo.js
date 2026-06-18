@@ -2,18 +2,12 @@
  * ============================================
  * ClinicalVideo — admin-uploaded yoga videos
  * ============================================
- * Stored per program (yogat20, diabmukt, etc.) with a yoga type.
- *
- * Three yoga types per program:
- *   - normal_yoga       → default queue (shown on dashboard by default)
- *   - chair_yoga        → played when user clicks "Tired? Do Chair Yoga"
- *   - high_intensity    → played when user clicks "Motivated Enough"
- *
- * Date logic:
- *   - scheduledDate: null  → goes into the regular queue, user receives one
- *                            per day in displayOrder sequence.
- *   - scheduledDate: set   → "special date" video. Replaces the queue video
- *                            for ALL users on that exact calendar day only.
+ * Date / publish logic:
+ *   - publishAt: null + scheduledDate: null → regular queue (one per day).
+ *   - publishAt: set → goes live at that exact UTC instant and stays the
+ *                      "special" video for 24h. Newest passed publishAt wins,
+ *                      so a later-scheduled video overrides an earlier one.
+ *   - scheduledDate: set → LEGACY calendar-day special (kept for old data).
  * ============================================
  */
 
@@ -21,7 +15,6 @@ const mongoose = require("mongoose");
 
 const clinicalVideoSchema = new mongoose.Schema(
   {
-    // 🏢 Which program this video belongs to
     programId: {
       type: String,
       enum: ["yogat20", "diabmukt", "mommyfit", "slimfitter"],
@@ -29,7 +22,6 @@ const clinicalVideoSchema = new mongoose.Schema(
       index: true,
     },
 
-    // 🧘 Yoga type (used to pick the queue this video belongs to)
     yogaType: {
       type: String,
       enum: ["normal_yoga", "chair_yoga", "high_intensity"],
@@ -37,7 +29,6 @@ const clinicalVideoSchema = new mongoose.Schema(
       index: true,
     },
 
-    // 📛 Display title shown on dashboard (e.g. "Day 01 — Asanas for Insulin Sensitivity")
     title: {
       type: String,
       required: true,
@@ -45,52 +36,53 @@ const clinicalVideoSchema = new mongoose.Schema(
       maxlength: 120,
     },
 
-    // 🎬 YouTube video URL (full URL e.g. https://www.youtube.com/watch?v=xxxxx)
     videoUrl: {
       type: String,
       required: true,
       trim: true,
     },
 
-    // 🎬 Parsed YouTube video ID — used for embedding and thumbnail fallback
+    // 🎬 Parsed YouTube video ID — used for embedding + thumbnail derivation
     youtubeVideoId: {
       type: String,
       default: null,
       trim: true,
     },
 
-    // 🖼️ Thumbnail image — uploaded file path served from backend
-    // Format: "/uploads/clinical-videos/<filename>"
+    // 🖼️ Optional now — thumbnails are derived from the YouTube URL on the
+    // client. Kept for backward compatibility with older uploaded files.
     thumbnailUrl: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
 
-    // 📅 Optional scheduled date
-    // null → regular queue video (catch-up logic applies)
-    // set  → special-day video, shown only on this calendar day for all users
+    // 📅 LEGACY calendar-day special (kept so old data still works)
     scheduledDate: {
       type: Date,
       default: null,
       index: true,
     },
 
-    // 📊 Order within the queue (1 = first, 2 = second, etc.)
-    // Only used when scheduledDate is null.
+    // ⏰ Precise UTC publish instant. null → regular queue video.
+    // set  → goes live at this instant, special for 24h.
+    publishAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
     displayOrder: {
       type: Number,
       default: 99,
       min: 1,
     },
 
-    // 🟢 Soft-delete flag — admin can hide a video without losing data
     isActive: {
       type: Boolean,
       default: true,
     },
 
-    // 🕒 Optional duration string for display (e.g. "12:34")
     duration: {
       type: String,
       default: "",
@@ -100,10 +92,9 @@ const clinicalVideoSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ⚡ Fast lookup: find videos for a program by yoga type, in order
 clinicalVideoSchema.index({ programId: 1, yogaType: 1, displayOrder: 1 });
-
-// ⚡ Fast lookup: find special-date video for today across all users
 clinicalVideoSchema.index({ programId: 1, scheduledDate: 1 });
+// ⚡ Fast lookup for live time-scheduled specials
+clinicalVideoSchema.index({ programId: 1, yogaType: 1, publishAt: 1 });
 
 module.exports = mongoose.model("ClinicalVideo", clinicalVideoSchema);

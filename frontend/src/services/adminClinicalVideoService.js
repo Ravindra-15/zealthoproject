@@ -32,47 +32,37 @@ export const listVideos = async ({ programId, yogaType } = {}) => {
 };
 
 // ============================================
-// ➕ CREATE VIDEO (multipart — thumbnail file)
+// ➕ CREATE VIDEO (JSON — no thumbnail upload)
 // ============================================
 /**
  * @param {Object} payload
  * @param {string} payload.programId
  * @param {string} payload.yogaType
  * @param {string} payload.title
- * @param {string} payload.videoUrl - YouTube URL
- * @param {File}   payload.thumbnail - File object from <input type="file">
- * @param {string} [payload.scheduledDate] - ISO date string or null
+ * @param {string} payload.videoUrl - YouTube URL (thumbnail derived from it)
+ * @param {string|null} [payload.publishAt] - UTC ISO string, or null for queue
  * @param {number} [payload.displayOrder]
  * @param {string} [payload.duration]
  */
 export const createVideo = async (payload) => {
-  const formData = new FormData();
-  formData.append("programId", payload.programId);
-  formData.append("yogaType", payload.yogaType);
-  formData.append("title", payload.title);
-  formData.append("videoUrl", payload.videoUrl);
-  formData.append("thumbnail", payload.thumbnail);
+  const body = {
+    programId: payload.programId,
+    yogaType: payload.yogaType,
+    title: payload.title,
+    videoUrl: payload.videoUrl,
+    publishAt: payload.publishAt ?? null,
+  };
 
-  if (payload.scheduledDate) {
-    formData.append("scheduledDate", payload.scheduledDate);
-  }
   if (payload.displayOrder !== undefined && payload.displayOrder !== null) {
-    formData.append("displayOrder", String(payload.displayOrder));
+    body.displayOrder = payload.displayOrder;
   }
   if (payload.duration) {
-    formData.append("duration", payload.duration);
+    body.duration = payload.duration;
   }
 
-  const response = await adminApi.post(
-    "/admin/clinical-videos",
-    formData,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-    }
-  );
+  const response = await adminApi.post("/admin/clinical-videos", body);
   return response.data.data.video;
 };
-
 // ============================================
 // ✏️ UPDATE VIDEO (multipart — thumbnail optional)
 // ============================================

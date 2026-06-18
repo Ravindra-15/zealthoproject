@@ -129,6 +129,7 @@ const createVideo = async (req, res) => {
       title,
       videoUrl,
       scheduledDate,
+      publishAt,
       displayOrder,
       duration,
     } = req.body;
@@ -171,26 +172,21 @@ const createVideo = async (req, res) => {
       });
     }
 
-    // 🛡️ Validate thumbnail file
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Thumbnail image is required",
-      });
-    }
+    // 🖼️ Thumbnail no longer uploaded — derived from the YouTube ID.
+    //    Store the YouTube thumbnail URL so any old reader still works.
+    const derivedThumb = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
 
-    // 🛡️ Optional scheduledDate
-    let parsedDate = null;
-    if (scheduledDate && scheduledDate !== "null" && scheduledDate !== "") {
-      const d = new Date(scheduledDate);
-      if (isNaN(d.getTime())) {
-        deleteThumbnailFile(buildThumbnailUrl(req.file));
+    // ⏰ Optional publishAt (precise UTC instant). Sent by the new picker.
+    let parsedPublishAt = null;
+    if (publishAt && publishAt !== "null" && publishAt !== "") {
+      const p = new Date(publishAt);
+      if (isNaN(p.getTime())) {
         return res.status(400).json({
           success: false,
-          message: "Invalid scheduled date",
+          message: "Invalid publish date/time",
         });
       }
-      parsedDate = d;
+      parsedPublishAt = p;
     }
 
     const newVideo = await ClinicalVideo.create({
@@ -199,8 +195,8 @@ const createVideo = async (req, res) => {
       title: title.trim(),
       videoUrl: videoUrl.trim(),
       youtubeVideoId,
-      thumbnailUrl: buildThumbnailUrl(req.file),
-      scheduledDate: parsedDate,
+      thumbnailUrl: derivedThumb,
+      publishAt: parsedPublishAt,
       displayOrder: displayOrder ? Number(displayOrder) : 99,
       duration: (duration || "").trim(),
     });
@@ -231,6 +227,7 @@ const updateVideo = async (req, res) => {
       title,
       videoUrl,
       scheduledDate,
+      publishAt,
       displayOrder,
       duration,
       isActive,
@@ -290,6 +287,14 @@ const updateVideo = async (req, res) => {
       }
     }
 
+    if (publishAt !== undefined) {
+      if (publishAt === null || publishAt === "null" || publishAt === "") {
+        video.publishAt = null;
+      } else {
+        const p = new Date(publishAt);
+        if (!isNaN(p.getTime())) video.publishAt = p;
+      }
+    }
     if (displayOrder !== undefined) {
       const n = Number(displayOrder);
       if (!isNaN(n) && n >= 1) video.displayOrder = n;
