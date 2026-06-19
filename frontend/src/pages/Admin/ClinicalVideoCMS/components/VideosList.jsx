@@ -10,7 +10,7 @@
  */
 
 import React from "react";
-import { Trash2, Calendar, ExternalLink } from "lucide-react";
+import { Trash2, Calendar, ExternalLink, Pencil } from "lucide-react";
 
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
@@ -42,6 +42,7 @@ const VideosList = ({
   loading = false,
   yogaTypeLabel,
   onDelete,
+  onEdit,
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] overflow-hidden">
@@ -167,14 +168,24 @@ const VideosList = ({
                   </td>
 
                   <td className="px-6 py-4">
-                    <button
-                      type="button"
-                      onClick={() => onDelete(video)}
-                      className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 text-sm font-semibold transition-colors"
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(video)}
+                        className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-sm font-semibold transition-colors"
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(video)}
+                        className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 text-sm font-semibold transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -256,8 +267,16 @@ const VideosList = ({
 
                 <button
                   type="button"
+                  onClick={() => onEdit(video)}
+                  className="ml-auto inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-semibold"
+                >
+                  <Pencil size={12} />
+                  Edit
+                </button>
+                <button
+                  type="button"
                   onClick={() => onDelete(video)}
-                  className="ml-auto inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-semibold"
+                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-semibold"
                 >
                   <Trash2 size={12} />
                   Delete

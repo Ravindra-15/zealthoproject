@@ -64,39 +64,31 @@ export const createVideo = async (payload) => {
   return response.data.data.video;
 };
 // ============================================
-// ✏️ UPDATE VIDEO (multipart — thumbnail optional)
+// ✏️ UPDATE VIDEO (JSON — no thumbnail upload)
 // ============================================
 /**
  * @param {string} id - Video _id
  * @param {Object} payload - any subset of editable fields
- *                           Pass payload.thumbnail (File) to replace image
+ * @param {string} [payload.title]
+ * @param {string} [payload.videoUrl]
+ * @param {string|null} [payload.publishAt] - UTC ISO string, or null for queue
+ * @param {string} [payload.duration]
+ * @param {string} [payload.yogaType]
+ * @param {number} [payload.displayOrder]
+ * @param {boolean} [payload.isActive]
  */
 export const updateVideo = async (id, payload) => {
-  const formData = new FormData();
+  const body = {};
 
-  if (payload.yogaType !== undefined) formData.append("yogaType", payload.yogaType);
-  if (payload.title !== undefined) formData.append("title", payload.title);
-  if (payload.videoUrl !== undefined) formData.append("videoUrl", payload.videoUrl);
-  if (payload.scheduledDate !== undefined) {
-    formData.append(
-      "scheduledDate",
-      payload.scheduledDate === null ? "null" : payload.scheduledDate
-    );
-  }
-  if (payload.displayOrder !== undefined) {
-    formData.append("displayOrder", String(payload.displayOrder));
-  }
-  if (payload.duration !== undefined) formData.append("duration", payload.duration);
-  if (payload.isActive !== undefined) formData.append("isActive", String(payload.isActive));
-  if (payload.thumbnail) formData.append("thumbnail", payload.thumbnail);
+  if (payload.yogaType !== undefined) body.yogaType = payload.yogaType;
+  if (payload.title !== undefined) body.title = payload.title;
+  if (payload.videoUrl !== undefined) body.videoUrl = payload.videoUrl;
+  if (payload.publishAt !== undefined) body.publishAt = payload.publishAt; // ISO string or null
+  if (payload.duration !== undefined) body.duration = payload.duration;
+  if (payload.displayOrder !== undefined) body.displayOrder = payload.displayOrder;
+  if (payload.isActive !== undefined) body.isActive = payload.isActive;
 
-  const response = await adminApi.put(
-    `/admin/clinical-videos/${id}`,
-    formData,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-    }
-  );
+  const response = await adminApi.put(`/admin/clinical-videos/${id}`, body);
   return response.data.data.video;
 };
 

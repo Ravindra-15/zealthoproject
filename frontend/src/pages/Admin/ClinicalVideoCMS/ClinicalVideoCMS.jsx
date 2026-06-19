@@ -18,6 +18,7 @@ import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 import {
   listVideos,
   createVideo,
+  updateVideo,
   deleteVideo,
 } from "../../../services/adminClinicalVideoService";
 
@@ -45,6 +46,7 @@ const ClinicalVideoCMS = () => {
 
   const [videos, setVideos] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [editingVideo, setEditingVideo] = useState(null);
 
   // The yoga type actually used for queries (weekly = always normal_yoga)
   const effectiveYogaType = isWeekly ? "normal_yoga" : selectedYogaType;
@@ -107,6 +109,28 @@ const ClinicalVideoCMS = () => {
     }
   };
 
+  // ✏️ Edit
+  const formRef = React.useRef(null);
+  const handleEdit = (video) => {
+    setEditingVideo(video);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+  const handleCancelEdit = () => setEditingVideo(null);
+  const handleUpdate = async (id, payload) => {
+    try {
+      await updateVideo(id, payload);
+      toast.success("Video updated successfully");
+      setEditingVideo(null);
+      loadVideos();
+      return true;
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update video");
+      return false;
+    }
+  };
+
   // 🚫 Zealtho fallback
   if (isZealtho) {
     return (
@@ -130,6 +154,8 @@ const ClinicalVideoCMS = () => {
 
   const currentYogaType =
     YOGA_TYPES.find((t) => t.id === selectedYogaType) || YOGA_TYPES[0];
+
+    
 
   return (
     <div className="space-y-6">
@@ -191,10 +217,15 @@ const ClinicalVideoCMS = () => {
       {/* ============================================ */}
       {/* 📤 UPLOAD FORM                                */}
       {/* ============================================ */}
-      <VideoUploadForm
-        yogaTypeLabel={isWeekly ? selectedProgram.label : currentYogaType.label}
-        onUpload={handleUpload}
-      />
+      <div ref={formRef}>
+        <VideoUploadForm
+          yogaTypeLabel={isWeekly ? selectedProgram.label : currentYogaType.label}
+          onUpload={handleUpload}
+          editingVideo={editingVideo}
+          onUpdate={handleUpdate}
+          onCancelEdit={handleCancelEdit}
+        />
+      </div>
 
       {/* ============================================ */}
       {/* 📋 VIDEOS LIST                                */}
@@ -204,6 +235,7 @@ const ClinicalVideoCMS = () => {
         loading={loadingList}
         yogaTypeLabel={isWeekly ? selectedProgram.label : currentYogaType.label}
         onDelete={handleDelete}
+        onEdit={handleEdit}
       />
     </div>
   );

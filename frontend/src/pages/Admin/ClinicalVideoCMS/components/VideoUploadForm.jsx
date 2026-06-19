@@ -1,16 +1,16 @@
 /**
  * ============================================
- * ADMIN MODULE — Video Upload Form
+ * ADMIN MODULE — Video Upload / Edit Form
  * ============================================
- * Fields: title, YouTube URL, duration (manual), optional schedule.
- * Schedule = date + alarm-style hour/minute wheels (UTC). Combined into a
- * single UTC ISO `publishAt`. No date → publishAt null → regular queue.
- * Thumbnail is derived from the YouTube URL on the backend (no upload here).
+ * Create mode (default) OR edit mode when `editingVideo` is passed.
+ * Schedule = date + alarm-style hour/minute wheels (UTC) → single UTC ISO
+ * `publishAt`. No date → publishAt null → regular queue.
+ * Thumbnail derived from the YouTube URL on the backend (no upload here).
  * ============================================
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import { Upload, Calendar, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { Upload, Calendar, Clock, ChevronUp, ChevronDown, X } from "lucide-react";
 
 const initialForm = {
   title: "",
@@ -32,7 +32,6 @@ function Wheel({ values, value, onChange, ariaLabel }) {
   const programmatic = useRef(false);
   const scrollTimer = useRef(null);
 
-  // Position the wheel on the current value (instant, guarded)
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -51,7 +50,6 @@ function Wheel({ values, value, onChange, ariaLabel }) {
     const el = ref.current;
     if (!el) return;
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
-    // debounce until scrolling settles, then read the centered row
     scrollTimer.current = setTimeout(() => {
       const idx = Math.round(el.scrollTop / ITEM_H);
       const clamped = Math.max(0, Math.min(values.length - 1, idx));
@@ -78,8 +76,6 @@ function Wheel({ values, value, onChange, ariaLabel }) {
       </button>
 
       <div className="relative" style={{ height: ITEM_H * 3 }}>
-        {/* center highlight band */}
-        {/* center highlight band (behind numbers) */}
         <div
           className="absolute left-0 right-0 top-1/2 -translate-y-1/2 rounded-lg bg-indigo-50 border border-indigo-100 pointer-events-none z-0"
           style={{ height: ITEM_H }}
@@ -87,10 +83,9 @@ function Wheel({ values, value, onChange, ariaLabel }) {
         <div
           ref={ref}
           onScroll={handleScroll}
-          className="no-scrollbar relative z-10 overflow-y-auto snap-y snap-mandatory"
+          className="no-scrollbar overflow-y-auto snap-y snap-mandatory relative z-10"
           style={{ height: ITEM_H * 3, width: 56 }}
         >
-          {/* top spacer so first item can center */}
           <div style={{ height: ITEM_H }} />
           {values.map((v) => (
             <div
@@ -103,7 +98,6 @@ function Wheel({ values, value, onChange, ariaLabel }) {
               {pad2(v)}
             </div>
           ))}
-          {/* bottom spacer so last item can center */}
           <div style={{ height: ITEM_H }} />
         </div>
       </div>
@@ -120,12 +114,48 @@ function Wheel({ values, value, onChange, ariaLabel }) {
   );
 }
 
-const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
+const VideoUploadForm = ({
+  yogaTypeLabel,
+  onUpload,
+  editingVideo = null,
+  onUpdate,
+  onCancelEdit,
+}) => {
+  const isEditing = !!editingVideo;
+
   const [form, setForm] = useState(initialForm);
-  const [date, setDate] = useState(""); // yyyy-mm-dd (UTC calendar day)
+  const [date, setDate] = useState(""); // yyyy-mm-dd (UTC)
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+
+  // 🔄 When an editingVideo is set, hydrate the form from it (UTC fields)
+  useEffect(() => {
+    if (!editingVideo) {
+      setForm(initialForm);
+      setDate("");
+      setHour(0);
+      setMinute(0);
+      return;
+    }
+    setForm({
+      title: editingVideo.title || "",
+      videoUrl: editingVideo.videoUrl || "",
+      duration: editingVideo.duration || "",
+    });
+    if (editingVideo.publishAt) {
+      const d = new Date(editingVideo.publishAt);
+      setDate(
+        `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
+      );
+      setHour(d.getUTCHours());
+      setMinute(d.getUTCMinutes());
+    } else {
+      setDate("");
+      setHour(0);
+      setMinute(0);
+    }
+  }, [editingVideo]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -142,7 +172,6 @@ const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
     clearSchedule();
   };
 
-  // Build the UTC ISO publish instant from date + wheels (or null)
   const buildPublishAt = () => {
     if (!date) return null;
     const [y, m, d] = date.split("-").map(Number);
@@ -152,20 +181,24 @@ const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
 
   const handleSubmit = async () => {
     if (submitting) return;
-
     if (!form.title.trim()) return alert("Title is required");
     if (!form.videoUrl.trim()) return alert("Video URL is required");
 
-    setSubmitting(true);
-    const success = await onUpload({
+    const payload = {
       title: form.title.trim(),
       videoUrl: form.videoUrl.trim(),
       duration: form.duration.trim(),
       publishAt: buildPublishAt(), // null → regular queue
-    });
+    };
+
+    setSubmitting(true);
+    const success = isEditing
+      ? await onUpdate(editingVideo._id, payload)
+      : await onUpload(payload);
     setSubmitting(false);
 
-    if (success) clearForm();
+    if (success && !isEditing) clearForm();
+    // in edit mode the parent closes edit mode, which re-hydrates the form
   };
 
   const inputClass =
@@ -173,26 +206,31 @@ const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
   const labelClass = "text-xs font-semibold text-gray-600 mb-1.5 block";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6">
-      {/* hide native scrollbars on the wheels */}
+    <div
+      className={`bg-white rounded-2xl border shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6 ${
+        isEditing ? "border-indigo-300 ring-1 ring-indigo-200" : "border-gray-100"
+      }`}
+    >
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ============================================ */}
-        {/* LEFT — core fields                            */}
-        {/* ============================================ */}
+        {/* LEFT — core fields */}
         <div>
           <div className="flex items-start gap-3 mb-5">
             <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
               <Upload size={16} className="text-indigo-600" />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-gray-900 text-sm">Upload New Video</p>
+              <p className="font-bold text-gray-900 text-sm">
+                {isEditing ? "Edit Video" : "Upload New Video"}
+              </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Add content to your program ({yogaTypeLabel})
+                {isEditing
+                  ? "Update this video's details"
+                  : `Add content to your program (${yogaTypeLabel})`}
               </p>
             </div>
           </div>
@@ -251,9 +289,7 @@ const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
           </div>
         </div>
 
-        {/* ============================================ */}
-        {/* RIGHT — schedule (date + alarm wheels, UTC)   */}
-        {/* ============================================ */}
+        {/* RIGHT — schedule */}
         <div>
           <p className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
             <Clock size={15} className="text-indigo-600" />
@@ -278,27 +314,15 @@ const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
               />
             </div>
 
-            {/* Alarm-style time wheels */}
             <div className="mt-4">
               <p className={labelClass}>Publish Time (UTC, 24-hour)</p>
               <div className="flex items-center justify-center gap-3 py-1">
-                <Wheel
-                  values={HOURS}
-                  value={hour}
-                  onChange={setHour}
-                  ariaLabel="Hour"
-                />
+                <Wheel values={HOURS} value={hour} onChange={setHour} ariaLabel="Hour" />
                 <span className="text-xl font-bold text-gray-400 pb-0.5">:</span>
-                <Wheel
-                  values={MINUTES}
-                  value={minute}
-                  onChange={setMinute}
-                  ariaLabel="Minute"
-                />
+                <Wheel values={MINUTES} value={minute} onChange={setMinute} ariaLabel="Minute" />
               </div>
             </div>
 
-            {/* Summary / clear */}
             {date ? (
               <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2">
                 <p className="text-xs text-indigo-700 font-medium">
@@ -321,16 +345,36 @@ const VideoUploadForm = ({ yogaTypeLabel, onUpload }) => {
         </div>
       </div>
 
-      {/* SUBMIT */}
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="w-full mt-6 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        <Upload size={16} />
-        {submitting ? "Uploading..." : "Upload Video"}
-      </button>
+      {/* ACTIONS */}
+      <div className="flex flex-col sm:flex-row gap-3 mt-6">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <Upload size={16} />
+          {submitting
+            ? isEditing
+              ? "Saving..."
+              : "Uploading..."
+            : isEditing
+              ? "Save Changes"
+              : "Upload Video"}
+        </button>
+
+        {isEditing && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            disabled={submitting}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors disabled:opacity-60"
+          >
+            <X size={16} />
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   );
 };
