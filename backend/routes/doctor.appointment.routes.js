@@ -10,6 +10,7 @@ const rateLimit = require("express-rate-limit");
 const {
   listAppointments,
   setMeetingLink,
+  generateMeetingLink,
   sendMeetingLink,
   cancelAppointment,
   rescheduleAppointment,
@@ -69,6 +70,14 @@ router.patch(
   validateObjectIdParam("id"),
   validateSetMeetingLink,
   setMeetingLink
+);
+
+// 🎥 Generate Google Meet link (auto)
+router.post(
+  "/:id/generate-meeting-link",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  generateMeetingLink
 );
 
 // 📤 Send meeting link to patient

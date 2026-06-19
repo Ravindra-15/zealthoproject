@@ -68,6 +68,42 @@ const setMeetingLink = async (req, res) => {
 };
 
 // ============================================
+// 🎥 GENERATE GOOGLE MEET LINK (auto)
+// ============================================
+// POST /api/doctor/appointments/:id/generate-meeting-link
+const generateMeetingLink = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.generateMeetingLink(
+      req.doctorId,
+      req.params.id
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Meeting link generated",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR GENERATE MEETING LINK ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate meeting link",
+    });
+  }
+};
+
+// ============================================
 // 📤 SEND MEETING LINK
 // ============================================
 // POST /api/doctor/appointments/:id/send-meeting-link
@@ -311,6 +347,7 @@ const sendPrescription = async (req, res) => {
 module.exports = {
   listAppointments,
   setMeetingLink,
+  generateMeetingLink,
   sendMeetingLink,
   cancelAppointment,
   rescheduleAppointment,

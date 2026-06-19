@@ -204,6 +204,18 @@ const appointmentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // 🎥 How the link was created: "manual" (doctor pasted) or "google_meet" (auto)
+    meetingProvider: {
+      type: String,
+      enum: ["manual", "google_meet"],
+      default: "manual",
+    },
+
+    // 🕒 When the link was auto-generated (null for manual links)
+    meetingGeneratedAt: {
+      type: Date,
+      default: null,
+    },
     // 💊 Prescription written by doctor (editable anytime, before/after consult)
     prescription: {
       type: String,

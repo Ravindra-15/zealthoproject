@@ -7,6 +7,7 @@
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
 const BodyProfile = require("../models/BodyProfile"); // patient 27-point profile
+const googleMeetService = require("./googleMeet.service");
  
 const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
@@ -91,6 +92,49 @@ const setMeetingLink = async (doctorId, appointmentId, meetingLink) => {
   .lean();
 
 return { appointment: populatedAppointment };
+};
+
+// ============================================
+// 🎥 GENERATE GOOGLE MEET LINK (auto)
+// ============================================
+const generateMeetingLink = async (doctorId, appointmentId) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return null;
+
+  // 🛡️ Don't allow generating for finalized appointments
+  if (["cancelled", "completed", "no_show"].includes(appointment.status)) {
+    return { error: `Cannot generate a link for a ${appointment.status} appointment` };
+  }
+
+  // 🎥 Create the Meet link via Google Calendar API
+  let result;
+  try {
+    result = await googleMeetService.createMeetingLink({
+      summary: `Zealtho Consultation — ${appointment.patientName}`,
+      startTime: appointment.scheduledAt,
+      durationMinutes: appointment.durationMinutes || 30,
+    });
+  } catch (err) {
+    console.log("GOOGLE MEET GENERATE ERROR:", err.message);
+    return { error: "Failed to generate meeting link. Please try again." };
+  }
+
+  appointment.meetingLink = result.meetingLink;
+  appointment.meetingProvider = "google_meet";
+  appointment.meetingGeneratedAt = new Date();
+  // New link → not sent yet (doctor still clicks Send to Patient)
+  appointment.meetingLinkSentAt = null;
+  await appointment.save();
+
+  const populatedAppointment = await Appointment.findById(appointment._id)
+    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .lean();
+
+  return { appointment: populatedAppointment };
 };
 
 // ============================================
@@ -491,6 +535,7 @@ const markPrescriptionSent = async (doctorId, appointmentId) => {
 module.exports = {
   listByDate,
   setMeetingLink,
+  generateMeetingLink,
   markMeetingLinkSent,
   cancelByDoctor,
   rescheduleByDoctor,
