@@ -32,6 +32,16 @@ export const setMeetingLink = async (appointmentId, meetingLink) => {
 };
 
 // ============================================
+// 🎥 GENERATE GOOGLE MEET LINK (auto)
+// ============================================
+export const generateMeetingLink = async (appointmentId) => {
+  const response = await doctorApi.post(
+    `/doctor/appointments/${appointmentId}/generate-meeting-link`
+  );
+  return response.data.data.appointment;
+};
+
+// ============================================
 // 📤 SEND MEETING LINK TO PATIENT
 // ============================================
 export const sendMeetingLink = async (appointmentId) => {

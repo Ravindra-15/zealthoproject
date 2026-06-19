@@ -23,6 +23,7 @@ import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
 import { formatUtcTime24h } from "../../../../utils/time";
 import {
   setMeetingLink,
+  generateMeetingLink,
   sendMeetingLink,
   cancelDoctorAppointment,
   rescheduleDoctorAppointment,
@@ -106,6 +107,23 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const [linkInput, setLinkInput] = useState(meetingLink || "");
   const [savingLink, setSavingLink] = useState(false);
   const [sending, setSending] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  // Auto-generates a Google Meet link (saves it; doctor still clicks Send after)
+  const handleGenerateLink = async () => {
+    if (generating) return;
+    try {
+      setGenerating(true);
+      const updated = await generateMeetingLink(_id);
+      setLinkInput(updated?.meetingLink || "");
+      toast.success("Meeting link generated");
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to generate link");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -488,9 +506,25 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
 
             {/* 🔗 MEETING LINK */}
             <div className="mt-4">
-              <p className="text-xs text-gray-500 font-medium mb-1.5">
-                Add Meeting Link
-              </p>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <p className="text-xs text-gray-500 font-medium">
+                  Add Meeting Link
+                </p>
+                {/* 🎥 auto-generate a Google Meet link */}
+                <button
+                  type="button"
+                  onClick={handleGenerateLink}
+                  disabled={generating || savingLink || sending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generating ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Video size={12} />
+                  )}
+                  Generate Link
+                </button>
+              </div>
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
