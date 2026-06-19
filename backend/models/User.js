@@ -122,6 +122,11 @@ const userSchema = new mongoose.Schema(
       of: Number,
       default: {},
     },
+    // 🎂 Last year (e.g. "2026") a birthday wish was sent — prevents duplicate sends
+    lastBirthdayWishOn: {
+      type: String,
+      default: null,
+    },
 
     // 🔄 Admin-controlled status
     isActive: {

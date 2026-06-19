@@ -16,6 +16,7 @@ const {
     sendAppointmentReminder24h,
     sendAppointmentReminder1h,
     sendPlanExpiryReminder,
+    sendBirthdayWish,
 } = require("./email.service");
 
 const programDisplayNames = {
@@ -203,6 +204,65 @@ const sendPlanExpiryReminders = async () => {
 };
 
 // ============================================
+// 🎂 FIND + SEND BIRTHDAY WISHES (once per year per user)
+// ============================================
+const sendBirthdayWishes = async () => {
+    const now = new Date();
+    const todayMonth = now.getUTCMonth() + 1; // 1-12
+    const todayDay = now.getUTCDate();        // 1-31
+    const yearKey = String(now.getUTCFullYear()); // dedup: one wish per year
+
+    // Customers with a date of birth set, not yet wished this year
+    const users = await User.find({
+        dob: { $ne: null },
+        $or: [
+            { lastBirthdayWishOn: { $ne: yearKey } },
+            { lastBirthdayWishOn: null },
+        ],
+    })
+        .select("email fullName nickName dob lastBirthdayWishOn")
+        .lean();
+
+    for (const user of users) {
+        try {
+            const dob = new Date(user.dob);
+            if (isNaN(dob.getTime())) continue;
+
+            // Match on month + day (UTC)
+            if (dob.getUTCMonth() + 1 !== todayMonth || dob.getUTCDate() !== todayDay) {
+                continue;
+            }
+
+            const recipientName = user.fullName || user.nickName || "there";
+
+            // 📧 Email
+            if (user.email) {
+                await sendBirthdayWish({ to: user.email, recipientName });
+            }
+
+            // 🔔 In-app notification
+            await Notification.create({
+                userId: user._id,
+                userType: "customer",
+                type: "birthday",
+                title: "Happy Birthday! 🎂",
+                body: `Wishing you a wonderful birthday, ${recipientName}! Here's to another year of health and happiness.`,
+                metadata: {},
+            });
+
+            // 📲 WHATSAPP (future): add a single sendBirthdayWhatsApp(...) call here.
+            // The dedup + birthday-match logic above already gates it to once/year.
+
+            // ✅ Mark wished for this year
+            await User.findByIdAndUpdate(user._id, { lastBirthdayWishOn: yearKey });
+            console.log(`[BIRTHDAY] Wished user ${user._id} for ${yearKey}`);
+        } catch (err) {
+            console.error(`[BIRTHDAY ERROR] ${user._id}:`, err.message);
+        }
+    }
+};
+
+// ============================================
 // ⏰ CRON STARTER — call this from server.js
 // ============================================
 const startReminderCron = () => {
@@ -212,9 +272,10 @@ const startReminderCron = () => {
         await send24hReminders();
         await send1hReminders();
         await sendPlanExpiryReminders();
+        await sendBirthdayWishes();
     });
 
     console.log("✅ Reminder cron scheduled (every 15 mins)");
 };
 
-module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders };
+module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendBirthdayWishes };

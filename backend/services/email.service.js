@@ -209,8 +209,35 @@ const sendPlanExpiryReminder = async ({
   }
 };
 
+// ============================================
+// 🎂 BIRTHDAY WISH
+// ============================================
+const sendBirthdayWish = async ({ to, recipientName }) => {
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Happy Birthday from Zealtho! 🎉",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f97316;">Happy Birthday, ${recipientName}! 🎂</h2>
+          <p>Wishing you a wonderful day filled with health, happiness, and good energy.</p>
+          <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px;">🎁 Here's to another year of progress on your wellness journey. We're glad to have you with us!</p>
+          </div>
+          <p>Have an amazing day.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Birthday Email Error:", error.message);
+  }
+};
+
 module.exports = sendEmail;
 module.exports.sendAppointmentReminder24h = sendAppointmentReminder24h;
 module.exports.sendAppointmentReminder1h = sendAppointmentReminder1h;
 module.exports.sendRescheduleNotification = sendRescheduleNotification;
 module.exports.sendPlanExpiryReminder = sendPlanExpiryReminder;
+module.exports.sendBirthdayWish = sendBirthdayWish;
