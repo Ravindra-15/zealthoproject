@@ -31,7 +31,7 @@ const habitProgressRoutes = require("./routes/customer.habitProgress.routes");
 
 const customerEnquiryRoutes = require("./routes/customer.enquiry.routes");
 const customerClinicalVideoRoutes = require("./routes/customer.clinicalVideo.routes");
-
+const customerReferralRoutes = require("./routes/customer.referral.routes");
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
 const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
@@ -51,6 +51,7 @@ const customerProgramPlanRoutes = require("./routes/customer.programPlan.routes"
 const adminClinicalVideoRoutes = require("./routes/admin.clinicalVideo.routes");
 const adminHabitConfigRoutes = require("./routes/admin.habitConfig.routes");
 const adminHabitReportRoutes = require("./routes/admin.habitReport.routes");
+const adminReferralRoutes = require("./routes/admin.referral.routes");
 
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
@@ -135,6 +136,7 @@ app.use("/api/customer/billing", customerBillingRoutes);
 
 app.use("/api/customer/enquiries", customerEnquiryRoutes);
 app.use("/api/customer/clinical-videos", customerClinicalVideoRoutes);
+app.use("/api/customer/referral", customerReferralRoutes);
 
 app.use("/api/admin/program-plans", adminProgramPlanRoutes);
 app.use("/api/customer/program-plans", customerProgramPlanRoutes);
@@ -161,6 +163,7 @@ app.use("/api/admin/billing", adminBillingRoutes);
 app.use("/api/admin/clinical-videos", adminClinicalVideoRoutes);
 app.use("/api/admin/habit-configs", adminHabitConfigRoutes);
 app.use("/api/admin/habit-reports", adminHabitReportRoutes);
+app.use("/api/admin/referrals", adminReferralRoutes);
 // ============================================
 // 🚫 404 HANDLER
 // ============================================

@@ -70,7 +70,7 @@ import SubscriptionConfigurator from "./pages/Admin/SubscriptionConfigurator/Sub
 import AddEditPlan from "./pages/Admin/SubscriptionConfigurator/AddEditPlan";
 import ClinicalVideoCMS from "./pages/Admin/ClinicalVideoCMS/ClinicalVideoCMS";
 import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
-
+import ReferralEngine from "./pages/Admin/Referrals/ReferralEngine";
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
 import ProtectedDoctorRoute from "./components/common/ProtectedDoctorRoute";
@@ -238,6 +238,7 @@ function App() {
           <Route path="billing/receipt/:id" element={<AdminReceipt />} />
           <Route path="videos" element={<ClinicalVideoCMS />} />
           <Route path="habits" element={<HabitConfigurator />} />
+          <Route path="/admin/referrals" element={<ReferralEngine />} />
           {/* 🆕 Subscription Configurator */}
 
           <Route path="subscriptions" element={<SubscriptionConfigurator />} />

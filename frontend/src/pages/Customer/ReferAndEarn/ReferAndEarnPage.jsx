@@ -3,7 +3,7 @@
  * Route: /refer-and-earn (protected)
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -19,16 +19,38 @@ import {
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import { useAuth } from "../../../context/AuthContext";
+import { fetchMyReferral } from "../../../services/customerReferralService";
 
 export default function ReferAndEarnPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const [copied, setCopied] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [stats, setStats] = useState({
+    invitesSent: 0,
+    friendsJoined: 0,
+    rewardsCount: 0,
+    freeDaysEarned: 0,
+  });
 
-  // Static referral link
-  const username = user?.nickName || user?.fullName?.split(" ")[0]?.toLowerCase() || "you";
-  const referralLink = `zealtho.com/invite/${username}`;
+  // 📥 load my referral code + stats
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchMyReferral();
+        setReferralCode(data?.referralCode || "");
+        if (data?.stats) setStats(data.stats);
+      } catch {
+        // soft fail — page still renders with empty values
+      }
+    })();
+  }, []);
+
+  // 🔗 link points to THIS program's own site (each frontend has its own origin)
+  const referralLink = referralCode
+    ? `${window.location.origin}/?ref=${referralCode}`
+    : "Generating your link...";
 
   const handleCopy = async () => {
     try {
@@ -164,19 +186,29 @@ export default function ReferAndEarnPage() {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-[1400px] mx-auto">
-            <ProgressCard icon={Send} label="Invites Sent" value={12} />
-            <ProgressCard icon={Users} label="Friends Joined" value={3} />
+            <ProgressCard
+              icon={Send}
+              label="Invites Sent"
+              value={stats.invitesSent}
+            />
+            <ProgressCard
+              icon={Users}
+              label="Friends Joined"
+              value={stats.friendsJoined}
+            />
             <ProgressCard
               icon={Trophy}
-              label="Free Months Earned"
-              value={3}
+              label="Free Days Earned"
+              value={stats.freeDaysEarned}
               highlight
               footer={
                 <div className="mt-4 bg-white/20 rounded-xl px-4 py-2.5 text-center">
                   <p className="text-xs font-medium text-white/90">
-                    Next billing
+                    Rewards applied
                   </p>
-                  <p className="text-sm font-semibold text-white">Oct 2026</p>
+                  <p className="text-sm font-semibold text-white">
+                    {stats.rewardsCount}
+                  </p>
                 </div>
               }
             />

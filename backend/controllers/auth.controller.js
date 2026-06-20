@@ -8,6 +8,41 @@ const Otp = require("../models/Otp");
 const sendEmail = require("../services/email.service");
 const { generateOtp } = require("../utils/generateOtp");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
+const Referral = require("../models/Referral");
+const ReferralSetting = require("../models/ReferralSetting");
+const { generateUniqueCode } = require("../utils/referralCode");
+
+// 🔗 Create a pending referral if a valid ref code was used (best-effort, never blocks signup)
+const attachReferral = async (newUser, refCode) => {
+  try {
+    const code = (refCode || "").trim();
+    if (!code) return;
+    if (newUser.referredBy) return; // already attached
+
+    const referrer = await User.findOne({ referralCode: code });
+    // ignore invalid codes or self-referral
+    if (!referrer || String(referrer._id) === String(newUser._id)) return;
+
+    // don't double-create a referral for the same referee
+    const already = await Referral.findOne({ referee: newUser._id });
+    if (already) return;
+
+    const rewardDays = await ReferralSetting.getRewardDays();
+
+    newUser.referredBy = code;
+    await newUser.save();
+
+    await Referral.create({
+      referrer: referrer._id,
+      referee: newUser._id,
+      programId: newUser._lastRefProgram || "zealtho",
+      rewardDays,
+      status: "pending",
+    });
+  } catch (err) {
+    console.log("ATTACH REFERRAL ERROR:", err.message);
+  }
+};
 
 const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -35,7 +70,11 @@ exports.signup = async (req, res) => {
         email,
         password: hashedPassword,
         phone,
+        referralCode: await generateUniqueCode(), // own invite code
       });
+      // 🔗 attach referral if friend signed up via a ref link
+      user._lastRefProgram = req.body.refProgram;
+      await attachReferral(user, req.body.ref);
     } else {
       // Update unverified user
       user.password = hashedPassword;
@@ -367,7 +406,11 @@ exports.googleAuth = async (req, res) => {
         googleId,
         fullName: fullName || undefined,
         isVerified: true,
+        referralCode: await generateUniqueCode(), // own invite code
       });
+      // 🔗 attach referral if friend signed up via a ref link
+      user._lastRefProgram = req.body.refProgram;
+      await attachReferral(user, req.body.ref);
     }
 
     // 🎫 Issue OUR jwt — same shape as normal login

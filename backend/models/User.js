@@ -128,6 +128,22 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // 🔗 Unique referral code for THIS user's invite link (generated lazily)
+    referralCode: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true, // allows many nulls while keeping non-null values unique
+      index: true,
+    },
+
+    // 👥 The referralCode of whoever referred this user (set once at signup)
+    referredBy: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
     // 🔄 Admin-controlled status
     isActive: {
       type: Boolean,

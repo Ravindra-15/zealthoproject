@@ -1,4 +1,6 @@
  
+import { useEffect } from "react";
+import { captureReferralFromUrl } from "../../../utils/referral";
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import HeroSection from "./sections/HeroSection";
@@ -12,6 +14,11 @@ import WelcomePopup from "./components/WelcomePopup";
 import ReferAndEarnSection from "./sections/ReferAndEarnSection";
 
 export default function LandingPage() {
+  // 🔗 capture ?ref= referral code from the URL on landing
+  useEffect(() => {
+    captureReferralFromUrl();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
        

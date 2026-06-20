@@ -1,6 +1,86 @@
 const ProgramSubscription = require("../models/ProgramSubscription");
 const ProgramPlan = require("../models/ProgramPlan");
 const User = require("../models/User");
+const Referral = require("../models/Referral");
+const Notification = require("../models/Notification");
+
+// 🎁 Grant the referrer their reward: `rewardDays` of yogaT20 (new or stacked).
+// Fires once, when the referred friend buys their FIRST paid plan.
+const grantReferralReward = async (refereeId) => {
+  try {
+    // find a pending referral where this buyer is the referee
+    const referral = await Referral.findOne({
+      referee: refereeId,
+      status: "pending",
+    });
+    console.log("REFERRAL FOUND:", referral ? referral._id : "none");
+    if (!referral) return;
+
+    // only on the referee's FIRST paid subscription
+    const paidCount = await ProgramSubscription.countDocuments({
+      customer: refereeId,
+      paymentStatus: "paid",
+    });
+    if (paidCount > 1) {
+      // not their first — leave referral pending? No: first purchase already passed.
+      // We only reward on the first, so if somehow >1, skip.
+      return;
+    }
+
+    const rewardDays = referral.rewardDays || 0;
+    if (rewardDays <= 0) return;
+
+    // 🟧 Reward is always a yogaT20 subscription — new, or stacked onto existing yogaT20
+    const now = new Date();
+    const existingYoga = await ProgramSubscription.findOne({
+      customer: referral.referrer,
+      programId: "yogat20",
+      status: "active",
+      endDate: { $gt: now },
+    }).sort({ endDate: -1 });
+
+    const startDate = existingYoga ? new Date(existingYoga.endDate) : new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + rewardDays);
+
+    await ProgramSubscription.create({
+      customer: referral.referrer,
+      doctor: null,
+      purchasedByRole: "customer",
+      programId: "yogat20",
+      programName: "Yoga T20",
+      tenure: `${rewardDays} Days (Referral Reward)`,
+      weeks: null,
+      pricingType: "fixed",
+      amount: 0,
+      referralCode: null,
+      paymentStatus: "paid",
+      paymentProvider: "manual",
+      transactionId: "REF_" + Date.now(),
+      status: "active",
+      startDate,
+      endDate,
+    });
+
+    referral.status = "applied";
+    referral.appliedAt = new Date();
+    await referral.save();
+
+    // 🔔 Notify the referrer
+    try {
+      await Notification.create({
+        userId: referral.referrer,
+        userType: "customer",
+        type: "general",
+        title: "Referral Reward Earned 🎁",
+        body: `Your friend just subscribed! You've earned ${rewardDays} days of Yoga T20 — already added to your account.`,
+        metadata: { link: "/refer-and-earn" },
+      });
+    } catch (e) {}
+  } catch (err) {
+    console.log("GRANT REFERRAL REWARD ERROR:", err.message);
+  }
+};
 
 // 🎁 Free doctor consultations granted by plan length.
 // Monthly: floor(months/3). Weekly: floor(weeks/12). 3mo/12wk→1, 6mo/24wk→2, 12mo/48wk→4.
@@ -200,6 +280,12 @@ const subscribeToProgram = async (req, res) => {
     });
 
     // (isQueuedRenewal is derived; startDate in the future means it hasn't begun yet)
+
+    // 🎁 Referral reward — if THIS buyer was referred, reward their referrer (first paid plan only)
+    if (customerId) {
+      console.log("REFERRAL CHECK for buyer:", String(customerId));
+      await grantReferralReward(customerId);
+    }
 
     // 🎁 Grant free doctor consultations to CUSTOMERS based on plan length, PER PROGRAM.
     // (Doctors don't get patient consults.) Additive — does not touch cancel credits.
