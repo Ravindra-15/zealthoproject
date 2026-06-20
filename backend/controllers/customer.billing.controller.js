@@ -239,18 +239,20 @@ const getMySubscription = async (req, res) => {
     );
     const sub = running || allSubs[0];
 
-    // 🔜 Pending renewal = an active plan whose start date is still in the future
-    const pending = allSubs.find(
-      (s) => s.status === "active" && new Date(s.startDate) > nowForPick
-    );
-    const pendingRenewal = pending
-      ? {
-          programName: pending.programName,
-          tenure: pending.tenure,
-          startDate: pending.startDate,
-          endDate: pending.endDate,
-        }
-      : null;
+    // 🔜 Pending plans = all active plans whose start date is still in the future
+    // (multiple can be queued — e.g. stacked referral rewards). Sorted by start date.
+    const pendingList = allSubs
+      .filter((s) => s.status === "active" && new Date(s.startDate) > nowForPick)
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+      .map((s) => ({
+        programName: s.programName,
+        tenure: s.tenure,
+        startDate: s.startDate,
+        endDate: s.endDate,
+      }));
+
+    // keep single `pendingRenewal` for backward-compat (first queued), plus full list
+    const pendingRenewal = pendingList[0] || null;
 
     // 🕒 Compute time progress
     const now = new Date();
@@ -309,6 +311,7 @@ const getMySubscription = async (req, res) => {
           ),
         },
         pendingRenewal,
+        pendingList,
       },
       "Subscription fetched",
       200
