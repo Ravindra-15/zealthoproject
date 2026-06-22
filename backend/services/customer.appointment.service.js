@@ -21,6 +21,7 @@ const {
 } = require("../utils/availabilityConstants");
 const paymentService = require("./payment.service");
 const Consultation = require("../models/Consultation");
+const FreeConsultCard = require("../models/FreeConsultCard");
 // ============================================
 // 💰 BOOKING FEE (constant for now; future: per-doctor)
 // ============================================
@@ -204,19 +205,27 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   let usedFreeCredit = false;     // cancel credit (existing behavior)
   let usedPlanConsult = false;    // plan free consult (new)
 
-  // Re-fetch fresh user to check credits (avoid race conditions)
+  // Re-fetch fresh user to check cancel credits (avoid race conditions)
   const freshUser = await User.findById(userId).select(
     "freeAppointmentCredits planFreeConsults"
   );
 
-  // Read THIS program's plan credit from the per-program map
-  const programConsults = freshUser?.planFreeConsults?.get
-    ? freshUser.planFreeConsults.get(platform) || 0
-    : 0;
+  // 🎁 1st priority — a currently-VALID free-consult CARD for THIS program.
+  // Pick the earliest-expiring available card whose window covers now.
+  const nowForCard = new Date();
+  let consumedCard = null;
+  const validCard = await FreeConsultCard.findOne({
+    user: userId,
+    programId: platform,
+    status: "available",
+    validFrom: { $lte: nowForCard },
+    validUntil: { $gt: nowForCard },
+  }).sort({ validUntil: 1 });
 
-  if (programConsults > 0) {
-    // 🎁 1st priority — plan free consultation for THIS program
+  if (validCard) {
+    // 🎁 Plan free consultation card for THIS program
     usedPlanConsult = true;
+    consumedCard = validCard;
     paymentResult = {
       success: true,
       transactionId: `plan_consult_${Date.now()}`,
@@ -224,9 +233,9 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       currency: BOOKING_CURRENCY,
       method: "plan_free_consult",
     };
-    // Decrement only this program's key
-    freshUser.planFreeConsults.set(platform, programConsults - 1);
-    await freshUser.save();
+    // mark the card booked (appointment id attached after creation)
+    validCard.status = "booked";
+    await validCard.save();
   } else if (freshUser?.freeAppointmentCredits > 0) {
     // 🎁 2nd priority — cancel credit (existing behavior, unchanged)
     usedFreeCredit = true;
@@ -275,13 +284,23 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     dayOfWeek,
   });
 
-  if (!stillFreeAfterPayment) {
+ if (!stillFreeAfterPayment) {
     // 💸 Refund — slot was taken during payment processing
     await paymentService.refund({
       transactionId: paymentResult.transactionId,
       amount: BOOKING_FEE,
       reason: "Slot taken during payment",
     });
+    // ♻️ restore the consumed card so the user doesn't lose it
+    if (consumedCard) {
+      try {
+        consumedCard.status = "available";
+        consumedCard.appointment = null;
+        await consumedCard.save();
+      } catch (err) {
+        console.log("CARD RESTORE ERROR:", err.message);
+      }
+    }
     return {
       error: {
         status: 409,
@@ -306,6 +325,16 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     status: "confirmed",
     notes,
   });
+
+  // 🔗 bind the consumed card to this appointment
+  if (consumedCard) {
+    try {
+      consumedCard.appointment = appointment._id;
+      await consumedCard.save();
+    } catch (err) {
+      console.log("CARD-APPOINTMENT BIND ERROR:", err.message);
+    }
+  }
 
 
   // 🔔 Customer notification
@@ -424,6 +453,17 @@ const cancelByUser = async (userId, appointmentId, reason = "") => {
   appointment.cancelledReason = cleanReason || "Cancelled by user";
   await appointment.save();
 
+  // 🎁 sync linked free-consult card → cancelled (credit NOT refunded, by design)
+  if (appointment.paidWithPlanCredit) {
+    try {
+      await FreeConsultCard.updateOne(
+        { appointment: appointment._id },
+        { $set: { status: "cancelled" } }
+      );
+    } catch (err) {
+      console.log("CARD CANCEL SYNC ERROR:", err.message);
+    }
+  }
   // 🔔 Notify doctor
   try {
     await Notification.create({
@@ -643,6 +683,18 @@ const markComplete = async ({ appointmentId, actorId, actorType }) => {
   appointment.completedBy = actorType;
   appointment.completedAt = new Date();
   await appointment.save();
+
+  // 🎁 sync linked free-consult card → completed
+  if (appointment.paidWithPlanCredit) {
+    try {
+      await FreeConsultCard.updateOne(
+        { appointment: appointment._id },
+        { $set: { status: "completed" } }
+      );
+    } catch (err) {
+      console.log("CARD COMPLETE SYNC ERROR:", err.message);
+    }
+  }
 
   // 💰 Create Consultation record → revenue counted now
   try {

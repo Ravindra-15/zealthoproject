@@ -32,6 +32,8 @@ const habitProgressRoutes = require("./routes/customer.habitProgress.routes");
 const customerEnquiryRoutes = require("./routes/customer.enquiry.routes");
 const customerClinicalVideoRoutes = require("./routes/customer.clinicalVideo.routes");
 const customerReferralRoutes = require("./routes/customer.referral.routes");
+const customerFreeConsultRoutes = require("./routes/customer.freeConsult.routes");
+
 // 🔐 ADMIN ROUTES (new - safe add)
 const adminAuthRoutes = require("./routes/admin.auth.routes");
 const adminDashboardRoutes = require("./routes/admin.dashboard.routes");
@@ -141,6 +143,7 @@ app.use("/api/customer/referral", customerReferralRoutes);
 app.use("/api/admin/program-plans", adminProgramPlanRoutes);
 app.use("/api/customer/program-plans", customerProgramPlanRoutes);
 app.use("/api/customer/habit-progress", habitProgressRoutes);
+app.use("/api/customer/free-consults", customerFreeConsultRoutes);
 // ============================================
 // 🔐 ADMIN ROUTES (NEW)
 // ============================================

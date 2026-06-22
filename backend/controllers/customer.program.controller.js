@@ -3,7 +3,64 @@ const ProgramPlan = require("../models/ProgramPlan");
 const User = require("../models/User");
 const Referral = require("../models/Referral");
 const Notification = require("../models/Notification");
+const FreeConsultCard = require("../models/FreeConsultCard");
 
+// 🎁 Generate staggered free-consult cards for a paid subscription.
+// yogaT20 (monthly): one card per 3 months, each valid for its own 3-month block.
+// weekly programs: one card per week, each valid for its own 1-week block.
+// Card N window: [start + (N-1)*block, start + N*block], capped at plan endDate.
+const generateFreeConsultCards = async ({
+  userId,
+  programId,
+  subscriptionId,
+  pricingType,
+  months,
+  weeks,
+  startDate,
+  endDate,
+}) => {
+  try {
+    let count = 0;
+    let blockMs = 0;
+    const start = new Date(startDate);
+
+    if (pricingType === "weekly") {
+      count = Number(weeks) || 0; // 1 card per week
+      blockMs = 7 * 24 * 60 * 60 * 1000; // 1 week
+    } else {
+      count = Math.floor((Number(months) || 0) / 3); // 1 card per 3 months
+      blockMs = 3 * 30 * 24 * 60 * 60 * 1000; // ~3 months (90 days)
+    }
+
+    if (count <= 0) return;
+
+    const planEnd = new Date(endDate).getTime();
+    const cards = [];
+
+    for (let i = 1; i <= count; i++) {
+      // all cards are bookable from plan start; only the EXPIRY is staggered
+      const validFrom = new Date(start.getTime());
+      let validUntil = new Date(start.getTime() + i * blockMs);
+      // never let a card outlive the plan
+      if (validUntil.getTime() > planEnd) validUntil = new Date(planEnd);
+
+      cards.push({
+        user: userId,
+        programId,
+        subscription: subscriptionId,
+        cardIndex: i,
+        validFrom,
+        validUntil,
+        status: "available",
+        appointment: null,
+      });
+    }
+
+    if (cards.length) await FreeConsultCard.insertMany(cards);
+  } catch (err) {
+    console.log("GENERATE FREE CONSULT CARDS ERROR:", err.message);
+  }
+};
 // 🎁 Grant the referrer their reward: `rewardDays` of yogaT20 (new or stacked).
 // Fires once, when the referred friend buys their FIRST paid plan.
 const grantReferralReward = async (refereeId) => {
@@ -287,24 +344,19 @@ const subscribeToProgram = async (req, res) => {
       await grantReferralReward(customerId);
     }
 
-    // 🎁 Grant free doctor consultations to CUSTOMERS based on plan length, PER PROGRAM.
-    // (Doctors don't get patient consults.) Additive — does not touch cancel credits.
+    // 🎁 Grant staggered free-consult CARDS to CUSTOMERS (new system).
+    // Each card has its own validity window; expires if unused. Cancel credits untouched.
     if (customerId) {
-      const freeConsults = computeFreeConsults({
+      await generateFreeConsultCards({
+        userId: customerId,
+        programId,
+        subscriptionId: subscription._id,
         pricingType,
         months,
         weeks: resolvedWeeks,
+        startDate,
+        endDate,
       });
-      if (freeConsults > 0) {
-        try {
-          // Increment only this program's credit key (e.g. planFreeConsults.diabmukt)
-          await User.findByIdAndUpdate(customerId, {
-            $inc: { [`planFreeConsults.${programId}`]: freeConsults },
-          });
-        } catch (err) {
-          console.log("PLAN FREE CONSULT GRANT ERROR:", err);
-        }
-      }
     }
 
     return res.status(201).json({

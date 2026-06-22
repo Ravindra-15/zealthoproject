@@ -7,6 +7,7 @@
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
 const BodyProfile = require("../models/BodyProfile"); // patient 27-point profile
+const FreeConsultCard = require("../models/FreeConsultCard");
 const googleMeetService = require("./googleMeet.service");
  
 const Consultation = require("../models/Consultation");
@@ -196,6 +197,18 @@ const cancelByDoctor = async (doctorId, appointmentId, reason) => {
   appointment.cancelledBy = "doctor";
   appointment.cancelledReason = reason.trim();
   await appointment.save();
+
+  // 🎁 sync linked free-consult card → cancelled
+  if (appointment.paidWithPlanCredit) {
+    try {
+      await FreeConsultCard.updateOne(
+        { appointment: appointment._id },
+        { $set: { status: "cancelled" } }
+      );
+    } catch (err) {
+      console.log("CARD CANCEL SYNC ERROR (doctor):", err.message);
+    }
+  }
 
   // 🎁 Give user one free appointment credit
   try {
@@ -405,6 +418,18 @@ const markCompleteByDoctor = async (doctorId, appointmentId) => {
   appointment.completedBy = "doctor";
   appointment.completedAt = new Date();
   await appointment.save();
+
+  // 🎁 sync linked free-consult card → completed
+  if (appointment.paidWithPlanCredit) {
+    try {
+      await FreeConsultCard.updateOne(
+        { appointment: appointment._id },
+        { $set: { status: "completed" } }
+      );
+    } catch (err) {
+      console.log("CARD COMPLETE SYNC ERROR (doctor):", err.message);
+    }
+  }
 
   // 💰 Create Consultation → revenue counted
   try {

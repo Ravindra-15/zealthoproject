@@ -12,6 +12,7 @@ const User = require("../models/User");
 const Doctor = require("../models/Doctor");
 const ProgramSubscription = require("../models/ProgramSubscription");
 const Notification = require("../models/Notification");
+const FreeConsultCard = require("../models/FreeConsultCard");
 const {
     sendAppointmentReminder24h,
     sendAppointmentReminder1h,
@@ -263,6 +264,56 @@ const sendBirthdayWishes = async () => {
 };
 
 // ============================================
+// 🎁 EXPIRE FREE-CONSULT CARDS + REMIND BEFORE EXPIRY
+// ============================================
+const processFreeConsultCards = async () => {
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10); // dedup reminder once/day
+
+    // 1️⃣ Expire any available card whose window has fully passed
+    try {
+        await FreeConsultCard.updateMany(
+            { status: "available", validUntil: { $lte: now } },
+            { $set: { status: "expired" } }
+        );
+    } catch (err) {
+        console.error("[CARD EXPIRE ERROR]:", err.message);
+    }
+
+    // 2️⃣ Remind users with an available card expiring within 48h (once per day per card)
+    try {
+        const soon = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+        const expiringCards = await FreeConsultCard.find({
+            status: "available",
+            validFrom: { $lte: now },     // already active
+            validUntil: { $gt: now, $lte: soon }, // ends within 48h
+            lastRemindedOn: { $ne: todayKey },
+        }).lean();
+
+        for (const card of expiringCards) {
+            try {
+                const programName = programDisplayNames[card.programId] || "your program";
+                await Notification.create({
+                    userId: card.user,
+                    userType: "customer",
+                    type: "general",
+                    title: "Free Consultation Expiring Soon 🩺",
+                    body: `Your free ${programName} doctor consultation expires soon. Book it before it's gone!`,
+                    metadata: { programId: card.programId, link: "/book-doctor" },
+                });
+                await FreeConsultCard.findByIdAndUpdate(card._id, {
+                    lastRemindedOn: todayKey,
+                });
+            } catch (err) {
+                console.error(`[CARD REMIND ERROR] ${card._id}:`, err.message);
+            }
+        }
+    } catch (err) {
+        console.error("[CARD REMIND QUERY ERROR]:", err.message);
+    }
+};
+
+// ============================================
 // ⏰ CRON STARTER — call this from server.js
 // ============================================
 const startReminderCron = () => {
@@ -273,9 +324,10 @@ const startReminderCron = () => {
         await send1hReminders();
         await sendPlanExpiryReminders();
         await sendBirthdayWishes();
+        await processFreeConsultCards();
     });
 
     console.log("✅ Reminder cron scheduled (every 15 mins)");
 };
 
-module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendBirthdayWishes };
+module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendBirthdayWishes, processFreeConsultCards };
