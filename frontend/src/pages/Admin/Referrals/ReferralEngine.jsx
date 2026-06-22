@@ -50,6 +50,7 @@ const ReferralEngine = () => {
   const [referrals, setReferrals] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [statusFilter, setStatusFilter] = useState("all");
+  const [programFilter, setProgramFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [loadingLedger, setLoadingLedger] = useState(true);
 
@@ -71,7 +72,7 @@ const ReferralEngine = () => {
   const loadLedger = useCallback(async () => {
     setLoadingLedger(true);
     try {
-      const data = await listReferrals({ page, limit: 8, status: statusFilter });
+      const data = await listReferrals({ page, limit: 8, status: statusFilter, programId: programFilter });
       setReferrals(data?.referrals || []);
       setPagination(data?.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch {
@@ -80,7 +81,7 @@ const ReferralEngine = () => {
     } finally {
       setLoadingLedger(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, programFilter]);
 
   useEffect(() => {
     loadLedger();
@@ -193,8 +194,22 @@ const ReferralEngine = () => {
             </p>
           </div>
 
-          {/* 🔎 status filter + refresh */}
+          {/* 🔎 program + status filters + refresh */}
           <div className="flex items-center gap-2 shrink-0">
+            <select
+              value={programFilter}
+              onChange={(e) => {
+                setProgramFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="all">All Programs</option>
+              <option value="yogat20">YogaT20</option>
+              <option value="diabmukt">DiabMukt</option>
+              <option value="mommyfit">MommyFit</option>
+              <option value="slimfitter">SlimFitter</option>
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => handleFilterChange(e.target.value)}
@@ -222,7 +237,7 @@ const ReferralEngine = () => {
               <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
                 <th className="py-3 pr-4 font-medium">Referrer</th>
                 <th className="py-3 pr-4 font-medium">Referee</th>
-                <th className="py-3 pr-4 font-medium">Solution Joined</th>
+                <th className="py-3 pr-4 font-medium">Program Joined</th>
                 <th className="py-3 pr-4 font-medium">Reward Days</th>
                 <th className="py-3 pr-4 font-medium">Joined Date</th>
                 <th className="py-3 font-medium">Status</th>

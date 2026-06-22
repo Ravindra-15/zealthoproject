@@ -57,6 +57,7 @@ const listReferrals = async (req, res) => {
       page: req.query.page,
       limit: req.query.limit,
       status: req.query.status,
+      programId: req.query.programId,
     });
     return res.status(200).json({
       success: true,

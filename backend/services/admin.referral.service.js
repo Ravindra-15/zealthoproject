@@ -32,14 +32,15 @@ const setRewardDays = async (days) => {
 // ============================================
 // 📋 LEDGER — all referrals (paginated), referrer + referee names
 // ============================================
-const listReferrals = async ({ page = 1, limit = 10, status = "all" } = {}) => {
+const listReferrals = async ({ page = 1, limit = 10, status = "all", programId = "all" } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
   const query = {};
   if (status === "pending") query.status = "pending";
   if (status === "applied") query.status = "applied";
-
+  if (programId !== "all") query.programId = programId;
+  
   const [total, referrals] = await Promise.all([
     Referral.countDocuments(query),
     Referral.find(query)

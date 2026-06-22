@@ -18,9 +18,9 @@ export const setRewardDays = async (rewardDays) => {
 };
 
 // 📋 LIST referral ledger (paginated)
-export const listReferrals = async ({ page = 1, limit = 10, status = "all" } = {}) => {
+export const listReferrals = async ({ page = 1, limit = 10, status = "all", programId = "all" } = {}) => {
   const response = await adminApi.get("/admin/referrals", {
-    params: { page, limit, status },
+    params: { page, limit, status, programId },
   });
   return response.data.data; // { referrals, pagination }
 };
