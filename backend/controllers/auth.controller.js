@@ -75,7 +75,11 @@ exports.signup = async (req, res) => {
       // 🔗 attach referral if friend signed up via a ref link
       user._lastRefProgram = req.body.refProgram;
       await attachReferral(user, req.body.ref);
-    } else {
+
+      // 👋 welcome email for new Google users (best-effort)
+      const { sendWelcomeEmail } = require("../services/email.service");
+      sendWelcomeEmail({ to: user.email, recipientName: user.fullName });
+    }else {
       // Update unverified user
       user.password = hashedPassword;
       user.phone = phone;

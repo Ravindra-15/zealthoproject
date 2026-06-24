@@ -42,9 +42,23 @@ exports.verifyOtp = async (req, res) => {
       return errorResponse(res, "User not found", 404);
     }
 
+    // // Mark verified
+    // user.isVerified = true;
+    // await user.save();
+
+    // // Delete OTP
+    // await Otp.deleteOne({ email });
+
     // Mark verified
+    const wasAlreadyVerified = user.isVerified;
     user.isVerified = true;
     await user.save();
+
+    // 👋 send welcome email once (only on first verification; best-effort)
+    if (!wasAlreadyVerified) {
+      const { sendWelcomeEmail } = require("../services/email.service");
+      sendWelcomeEmail({ to: user.email, recipientName: user.fullName });
+    }
 
     // Delete OTP
     await Otp.deleteOne({ email });

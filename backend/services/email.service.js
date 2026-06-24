@@ -235,7 +235,48 @@ const sendBirthdayWish = async ({ to, recipientName }) => {
   }
 };
 
+// ============================================
+// 👋 WELCOME EMAIL (after signup verification) — ticket/card style
+// ============================================
+const sendWelcomeEmail = async ({ to, recipientName }) => {
+  const name = recipientName || "there";
+  const brandColor = "#2563EB";
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Welcome to Zealtho! 🎉",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#ffffff;">
+          <div style="text-align:center; padding:28px 20px 8px;">
+            <span style="font-size:22px; font-weight:800; color:${brandColor}; letter-spacing:0.5px;">Zealtho</span>
+          </div>
+          <div style="text-align:center; padding:10px 24px;">
+            <div style="width:64px; height:64px; border-radius:50%; background:#2563EB1A; display:inline-block; line-height:64px; font-size:30px;">✅</div>
+            <h2 style="color:#111827; margin:18px 0 4px;">Welcome, ${name}!</h2>
+            <p style="color:#6B7280; font-size:14px; margin:0;">Your account is all set. We're glad to have you.</p>
+          </div>
+          <div style="margin:24px; border:1px dashed #D1D5DB; border-radius:14px; padding:20px; background:#F9FAFB;">
+            <p style="margin:0 0 6px; font-size:14px; color:#374151;"><strong>Getting started</strong></p>
+            <p style="margin:0; font-size:13px; color:#6B7280; line-height:1.6;">Explore your dashboard, track your daily progress, and book your free doctor consultations included with your plan.</p>
+          </div>
+          <div style="text-align:center; padding:0 24px 10px;">
+            <span style="display:inline-block; background:${brandColor}; color:#ffffff; font-size:14px; font-weight:600; padding:11px 26px; border-radius:9999px;">Welcome aboard</span>
+          </div>
+          <div style="background:${brandColor}; color:#ffffff; text-align:center; padding:22px; margin-top:18px;">
+            <p style="margin:0; font-size:13px; opacity:0.95;">We look forward to supporting your wellness journey.</p>
+            <p style="margin:8px 0 0; font-size:11px; opacity:0.8;">© ${new Date().getFullYear()} Zealtho. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Welcome Email Error:", error.message);
+  }
+};
+
 module.exports = sendEmail;
+module.exports.sendWelcomeEmail = sendWelcomeEmail;
 module.exports.sendAppointmentReminder24h = sendAppointmentReminder24h;
 module.exports.sendAppointmentReminder1h = sendAppointmentReminder1h;
 module.exports.sendRescheduleNotification = sendRescheduleNotification;
