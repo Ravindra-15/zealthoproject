@@ -506,7 +506,7 @@ const [cancelling, setCancelling] = useState(false);
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
                     <Pill size={12} className="text-indigo-500" />
-                    Prescription from Doctor
+                    Prescription & Diet Plan from Doctor
                   </p>
                   <button
                     type="button"
@@ -532,7 +532,7 @@ const [cancelling, setCancelling] = useState(false);
               <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
                 <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1">
                   <Pill size={12} className="text-gray-400" />
-                  Prescription
+                  Prescription & Diet Plan
                 </p>
                 <p className="text-xs text-gray-400 italic">
                   Your doctor hasn't shared a prescription yet.

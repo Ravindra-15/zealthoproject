@@ -441,7 +441,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
               <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
                   <Pill size={12} className="text-indigo-500" />
-                  Prescription
+                  Prescription & Diet Plan
                 </p>
                 {/* sent status pill */}
                 {prescriptionSentAt && (
