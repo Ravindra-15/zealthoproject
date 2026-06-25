@@ -4,7 +4,9 @@
  * Expanded: meeting link, problem note, body profile, complete/cancel actions.
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import {
   Link as LinkIcon,
   Clock,
@@ -167,8 +169,12 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   };
 
   // Saves prescription (does not send)
+  // strip tags to check if there's real content (Quill leaves <p><br></p> when empty)
+  const isRxEmpty = (html) =>
+    !html || !html.replace(/<(.|\n)*?>/g, "").replace(/&nbsp;/g, " ").trim();
+
   const handleSaveRx = async () => {
-    if (!rxInput.trim() || savingRx) return;
+    if (isRxEmpty(rxInput) || savingRx) return;
     try {
       setSavingRx(true);
       const updated = await setPrescription(_id, rxInput.trim());
@@ -303,6 +309,22 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const linkUnchanged = linkInput.trim() === (meetingLink || "");
   const wasSent = !!meetingLinkSentAt;
 
+  // 💊 full rich-text toolbar for the prescription editor
+  const quillModules = useMemo(
+    () => ({
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ["bold", "italic", "underline", "strike"],
+        [{ color: [] }, { background: [] }],
+        [{ list: "ordered" }, { list: "bullet" }],
+        [{ align: [] }],
+        ["link", "clean"],
+      ],
+    }),
+    []
+  );
+
+
   return (
     <div
       className="
@@ -431,9 +453,10 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
 
               {/* saved prescription preview */}
               {prescription ? (
-                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-3">
-                  {prescription}
-                </p>
+                <div
+                  className="text-sm text-gray-800 break-words leading-relaxed mb-3 prose prose-sm max-w-none ql-rendered"
+                  dangerouslySetInnerHTML={{ __html: prescription }}
+                />
               ) : (
                 <p className="text-xs text-gray-400 italic mb-3">
                   No prescription added yet.
@@ -652,19 +675,28 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
           anytime.
         </p>
 
-        {/* prescription textarea */}
-        <textarea
-          value={rxInput}
-          onChange={(e) => setRxInput(e.target.value.slice(0, 5000))}
-          rows={8}
-          placeholder="e.g. Tab Paracetamol 500mg — twice daily after meals for 3 days…"
-          className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-        />
-
-        {/* char counter */}
-        <div className="text-right text-[11px] text-gray-400 mt-1">
-          {rxInput.length}/5000
+        {/* prescription rich-text editor */}
+        <div className="rx-quill">
+          <ReactQuill
+            theme="snow"
+            value={rxInput}
+            onChange={setRxInput}
+            modules={quillModules}
+            placeholder="e.g. Tab Paracetamol 500mg — twice daily after meals for 3 days…"
+          />
         </div>
+        <style>{`
+          .rx-quill .ql-container {
+            min-height: 160px;
+            border-bottom-left-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+            font-size: 0.875rem;
+          }
+          .rx-quill .ql-toolbar {
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+          }
+        `}</style>
 
         {/* modal actions */}
         <div className="flex items-center justify-end gap-2 mt-4">
