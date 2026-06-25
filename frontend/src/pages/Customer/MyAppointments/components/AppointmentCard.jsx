@@ -18,7 +18,9 @@ import {
   FileText,
   Pencil,
   Pill,
+  Download,
 } from "lucide-react";
+import html2pdf from "html2pdf.js";
 
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
@@ -200,6 +202,84 @@ const [cancelling, setCancelling] = useState(false);
 
   // only show prescription to patient once doctor has sent it
   const showPrescription = !!prescriptionSentAt && !!prescription;
+
+  // 📄 prescription PDF download
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const patientName =
+    appointment?.user?.fullName ||
+    appointment?.user?.nickName ||
+    appointment?.patientName ||
+    "Patient";
+  const doctorDisplayName = doctor?.fullName || doctorName || "Doctor";
+  const programLabel = appointment?.platform
+    ? appointment.platform.charAt(0).toUpperCase() + appointment.platform.slice(1)
+    : "Zealtho";
+
+  const handleDownloadPrescription = async () => {
+    if (downloadingPdf || !prescription) return;
+    setDownloadingPdf(true);
+    try {
+      // Build a standalone, print-styled document off-screen
+      const el = document.createElement("div");
+      el.innerHTML = `
+        <div style="font-family: Arial, Helvetica, sans-serif; color:#1f2937; padding:32px; width:100%;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #4F46E5; padding-bottom:16px; margin-bottom:20px;">
+            <div>
+              <div style="font-size:22px; font-weight:700; color:#4F46E5;">${programLabel}</div>
+              <div style="font-size:12px; color:#6b7280; margin-top:2px;">Medical Prescription</div>
+            </div>
+            <div style="text-align:right; font-size:12px; color:#6b7280;">
+              <div><strong>Date:</strong> ${formatUtcDate(scheduledAt)}</div>
+              <div><strong>Time:</strong> ${formatUtcTime24h(scheduledAt)}</div>
+            </div>
+          </div>
+
+          <table style="width:100%; font-size:13px; margin-bottom:20px; border-collapse:collapse;">
+            <tr>
+              <td style="padding:4px 0; color:#6b7280; width:90px;">Patient</td>
+              <td style="padding:4px 0; font-weight:600;">${patientName}</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 0; color:#6b7280;">Doctor</td>
+              <td style="padding:4px 0; font-weight:600;">${doctorDisplayName}${
+        doctor?.domain ? ` — ${doctor.domain}` : ""
+      }</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 0; color:#6b7280;">Program</td>
+              <td style="padding:4px 0; font-weight:600;">${programLabel}</td>
+            </tr>
+          </table>
+
+          <div style="font-size:13px; font-weight:700; color:#4F46E5; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:8px;">Prescription (Rx)</div>
+          <div style="font-size:14px; line-height:1.6;">${prescription}</div>
+
+          <div style="margin-top:40px; border-top:1px solid #e5e7eb; padding-top:12px; font-size:11px; color:#9ca3af;">
+            This prescription was issued digitally via ${programLabel}. Keep it for your records.
+          </div>
+        </div>
+      `;
+
+      await html2pdf()
+        .set({
+          margin: 10,
+          filename: `Prescription_${patientName.replace(/\s+/g, "_")}_${formatUtcDate(
+            scheduledAt
+          ).replace(/\s+/g, "-")}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(el)
+        .save();
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to download prescription");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 hover:border-gray-200 transition-colors overflow-hidden">
@@ -423,10 +503,26 @@ const [cancelling, setCancelling] = useState(false);
             {/* 💊 PRESCRIPTION (only if doctor sent it) */}
             {showPrescription ? (
               <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5 mb-1.5">
-                  <Pill size={12} className="text-indigo-500" />
-                  Prescription from Doctor
-                </p>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
+                    <Pill size={12} className="text-indigo-500" />
+                    Prescription from Doctor
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDownloadPrescription}
+                    disabled={downloadingPdf}
+                    title="Download as PDF"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {downloadingPdf ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Download size={13} />
+                    )}
+                    PDF
+                  </button>
+                </div>
                 <div
                   className="text-sm text-gray-800 break-words leading-relaxed rx-content"
                   dangerouslySetInnerHTML={{ __html: prescription }}
