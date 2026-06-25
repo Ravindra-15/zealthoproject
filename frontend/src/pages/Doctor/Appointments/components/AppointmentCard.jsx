@@ -675,26 +675,41 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
           anytime.
         </p>
 
-        {/* prescription rich-text editor */}
+        {/* prescription rich-text editor — fixed height, internal scroll */}
         <div className="rx-quill">
           <ReactQuill
             theme="snow"
             value={rxInput}
-            onChange={setRxInput}
+            onChange={(val) => setRxInput(val.slice(0, 8000))}
             modules={quillModules}
             placeholder="e.g. Tab Paracetamol 500mg — twice daily after meals for 3 days…"
           />
         </div>
+
+        {/* character counter (counts visible text, not HTML tags) */}
+        <div className="text-right text-[11px] text-gray-400 mt-1">
+          {rxInput.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").length}/5000
+        </div>
+
         <style>{`
+          .rx-quill .ql-toolbar {
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 1;
+          }
           .rx-quill .ql-container {
-            min-height: 160px;
             border-bottom-left-radius: 0.75rem;
             border-bottom-right-radius: 0.75rem;
             font-size: 0.875rem;
           }
-          .rx-quill .ql-toolbar {
-            border-top-left-radius: 0.75rem;
-            border-top-right-radius: 0.75rem;
+          /* the actual editable area scrolls instead of growing the modal */
+          .rx-quill .ql-editor {
+            min-height: 180px;
+            max-height: 38vh;
+            overflow-y: auto;
           }
         `}</style>
 
