@@ -71,19 +71,37 @@ const FooterLink = ({ link }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // const handleSectionClick = (e) => {
+  //   e.preventDefault();
+
+  //   if (location.pathname !== "/") {
+  //     navigate("/", { state: { scrollTo: link.to } });
+  //   } else {
+  //     const el = document.getElementById(link.to);
+  //     if (el) {
+  //       el.scrollIntoView({
+  //         behavior: "smooth",
+  //         block: "start",
+  //       });
+  //     }
+  //   }
+  // };
+
   const handleSectionClick = (e) => {
     e.preventDefault();
 
-    if (location.pathname !== "/") {
-      navigate("/", { state: { scrollTo: link.to } });
-    } else {
+    // landing sections live on "/" and "/home" — scroll if already there,
+    // otherwise go to "/home" (always renders landing, bypasses dashboard gate)
+    const onLanding =
+      location.pathname === "/" || location.pathname === "/home";
+
+    if (onLanding) {
       const el = document.getElementById(link.to);
       if (el) {
-        el.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+    } else {
+      navigate("/home", { state: { scrollTo: link.to } });
     }
   };
 

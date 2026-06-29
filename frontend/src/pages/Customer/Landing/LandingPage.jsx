@@ -1,5 +1,4 @@
- 
-import { useEffect } from "react";
+ import { useEffect } from "react";
 import { captureReferralFromUrl } from "../../../utils/referral";
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
@@ -13,11 +12,27 @@ import WelcomePopup from "./components/WelcomePopup";
 // import PricingSection from "./sections/PricingSection";
 import ReferAndEarnSection from "./sections/ReferAndEarnSection";
 
+import { useLocation } from "react-router-dom";
+
 export default function LandingPage() {
   // 🔗 capture ?ref= referral code from the URL on landing
   useEffect(() => {
     captureReferralFromUrl();
   }, []);
+  const location = useLocation();
+
+  // 📍 scroll to a section when arriving from the footer (state.scrollTo)
+  useEffect(() => {
+    const target = location.state?.scrollTo;
+    if (target) {
+      // wait a tick for sections to render
+      const t = setTimeout(() => {
+        const el = document.getElementById(target);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [location.state]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
