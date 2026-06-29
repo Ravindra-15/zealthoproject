@@ -1,11 +1,21 @@
 // Zealtho - Refer and Earn Section
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import {
+  isCustomerLoggedIn,
+  buildLoginRedirect,
+} from "../../../../utils/customerAuthHelper";
 
 export default function ReferAndEarnSection() {
   const navigate = useNavigate();
 
   const handleLearnMore = () => {
-    navigate("/refer");
+    if (isCustomerLoggedIn()) {
+      navigate("/refer-and-earn");
+    } else {
+      toast.error("Please login first to access Refer & Earn");
+      navigate(buildLoginRedirect("/refer-and-earn"));
+    }
   };
 
   return (
