@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Referral = require("../models/Referral");
 const Notification = require("../models/Notification");
 const FreeConsultCard = require("../models/FreeConsultCard");
+const { hasReachedReferralLimit } = require("../utils/referralCode");
 
 // 🎁 Generate staggered free-consult cards for a paid subscription.
 // yogaT20 (monthly): one card per 3 months, each valid for its own 3-month block.
@@ -86,6 +87,9 @@ const grantReferralReward = async (refereeId) => {
 
     const rewardDays = referral.rewardDays || 0;
     if (rewardDays <= 0) return;
+
+    // 🚫 referrer already earned the max number of rewards — no more free Yoga T20
+    if (await hasReachedReferralLimit(referral.referrer)) return;
 
     // 🟧 Reward is always a yogaT20 subscription — new, or stacked onto existing yogaT20
     const now = new Date();

@@ -3,6 +3,10 @@
 // assigned to a user. Used at signup and lazily for older accounts.
 
 const User = require("../models/User");
+const Referral = require("../models/Referral");
+
+// 🎁 Max number of referrals that can earn a reward, per referrer
+const MAX_REFERRAL_REWARDS = 24;
 
 // 🎲 Random 8-char code (uppercase letters + digits, no ambiguous chars)
 const makeCode = () => {
@@ -34,4 +38,18 @@ const ensureReferralCode = async (user) => {
   return code;
 };
 
-module.exports = { generateUniqueCode, ensureReferralCode };
+// 🚫 True once the referrer has already earned MAX_REFERRAL_REWARDS rewards
+const hasReachedReferralLimit = async (referrerId) => {
+  const applied = await Referral.countDocuments({
+    referrer: referrerId,
+    status: "applied",
+  });
+  return applied >= MAX_REFERRAL_REWARDS;
+};
+
+module.exports = {
+  generateUniqueCode,
+  ensureReferralCode,
+  hasReachedReferralLimit,
+  MAX_REFERRAL_REWARDS,
+};

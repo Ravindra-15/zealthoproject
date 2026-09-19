@@ -3,7 +3,10 @@
 
 const User = require("../models/User");
 const Referral = require("../models/Referral");
-const { ensureReferralCode } = require("../utils/referralCode");
+const {
+  ensureReferralCode,
+  MAX_REFERRAL_REWARDS,
+} = require("../utils/referralCode");
 
 // ============================================
 // 🔗 GET MY REFERRAL INFO (code + stats)
@@ -39,6 +42,9 @@ const getMyReferral = async (req, res) => {
       success: true,
       data: {
         referralCode: code,
+        // 🚫 once max rewards are earned the UI blocks further sharing
+        maxRewards: MAX_REFERRAL_REWARDS,
+        limitReached: rewardsApplied.length >= MAX_REFERRAL_REWARDS,
         stats: {
           invitesSent,
           friendsJoined,
@@ -56,4 +62,40 @@ const getMyReferral = async (req, res) => {
   }
 };
 
-module.exports = { getMyReferral };
+// ============================================
+// 👤 WHO SENT ME THE LINK (read-only "Referral Name" on checkout)
+// GET /api/customer/referral/referrer
+// Returns only the referrer's display name (nickname, else first name) —
+// never their email/phone. Only while the referral is still pending, i.e.
+// the friend hasn't bought their first plan yet.
+// ============================================
+const getMyReferrer = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const referral = await Referral.findOne({
+      referee: userId,
+      status: "pending",
+    })
+      .populate("referrer", "nickName fullName")
+      .lean();
+
+    const referrer = referral?.referrer;
+    const referrerName = referrer
+      ? referrer.nickName || (referrer.fullName || "").split(" ")[0] || null
+      : null;
+
+    return res.status(200).json({ success: true, data: { referrerName } });
+  } catch (err) {
+    console.error("[CUSTOMER GET REFERRER ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load referrer",
+    });
+  }
+};
+
+module.exports = { getMyReferral, getMyReferrer };

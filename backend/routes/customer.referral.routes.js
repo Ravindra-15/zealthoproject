@@ -5,7 +5,10 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 
-const { getMyReferral } = require("../controllers/customer.referral.controller");
+const {
+  getMyReferral,
+  getMyReferrer,
+} = require("../controllers/customer.referral.controller");
 const { protect } = require("../middleware/auth.middleware");
 
 const router = express.Router();
@@ -21,5 +24,8 @@ const referralLimiter = rateLimit({
 
 // 🔗 GET my referral code + stats
 router.get("/me", protect, referralLimiter, getMyReferral);
+
+// 👤 GET name of whoever sent me the referral link (for the checkout)
+router.get("/referrer", protect, referralLimiter, getMyReferrer);
 
 module.exports = router;

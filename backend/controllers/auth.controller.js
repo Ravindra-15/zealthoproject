@@ -10,7 +10,10 @@ const { generateOtp } = require("../utils/generateOtp");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const Referral = require("../models/Referral");
 const ReferralSetting = require("../models/ReferralSetting");
-const { generateUniqueCode } = require("../utils/referralCode");
+const {
+  generateUniqueCode,
+  hasReachedReferralLimit,
+} = require("../utils/referralCode");
 
 // 🔗 Create a pending referral if a valid ref code was used (best-effort, never blocks signup)
 const attachReferral = async (newUser, refCode) => {
@@ -22,6 +25,9 @@ const attachReferral = async (newUser, refCode) => {
     const referrer = await User.findOne({ referralCode: code });
     // ignore invalid codes or self-referral
     if (!referrer || String(referrer._id) === String(newUser._id)) return;
+
+    // 🚫 referrer already earned the max rewards — no reward possible, don't attach
+    if (await hasReachedReferralLimit(referrer._id)) return;
 
     // don't double-create a referral for the same referee
     const already = await Referral.findOne({ referee: newUser._id });
