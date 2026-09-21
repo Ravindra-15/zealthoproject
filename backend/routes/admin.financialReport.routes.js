@@ -17,7 +17,10 @@ const {
   getReceipt,
 } = require("../controllers/admin.financialReport.controller");
 
-const { protectAdmin } = require("../middleware/admin.auth.middleware");
+const {
+  protectAdmin,
+  requireSuperAdmin,
+} = require("../middleware/admin.auth.middleware");
 
 const router = express.Router();
 
@@ -34,7 +37,9 @@ const financialLimiter = rateLimit({
 });
 
 // 🔒 All routes require admin auth + rate limit
+// 💰 Financial data is SUPER ADMIN ONLY — portal admins never see it
 router.use(protectAdmin);
+router.use(requireSuperAdmin);
 router.use(financialLimiter);
 
 // 📊 Top 3 summary cards (totalRevenue, consultationFees, subscriptionFees)

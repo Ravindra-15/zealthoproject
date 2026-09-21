@@ -54,6 +54,7 @@ const adminClinicalVideoRoutes = require("./routes/admin.clinicalVideo.routes");
 const adminHabitConfigRoutes = require("./routes/admin.habitConfig.routes");
 const adminHabitReportRoutes = require("./routes/admin.habitReport.routes");
 const adminReferralRoutes = require("./routes/admin.referral.routes");
+const adminPortalUserRoutes = require("./routes/admin.portalUser.routes");
 
 // ⚠️ ERROR HANDLER (your style)
 const { errorHandler } = require("./middleware/error.middleware");
@@ -167,6 +168,7 @@ app.use("/api/admin/clinical-videos", adminClinicalVideoRoutes);
 app.use("/api/admin/habit-configs", adminHabitConfigRoutes);
 app.use("/api/admin/habit-reports", adminHabitReportRoutes);
 app.use("/api/admin/referrals", adminReferralRoutes);
+app.use("/api/admin/portal-users", adminPortalUserRoutes);
 // ============================================
 // 🚫 404 HANDLER
 // ============================================

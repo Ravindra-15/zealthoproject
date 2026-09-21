@@ -13,7 +13,10 @@ const {
   getExpiringSubscriptions,
 } = require("../controllers/admin.dashboard.controller");
 
-const { protectAdmin } = require("../middleware/admin.auth.middleware");
+const {
+  protectAdmin,
+  requireSuperAdmin,
+} = require("../middleware/admin.auth.middleware");
 
 const router = express.Router();
 
@@ -31,7 +34,9 @@ const dashboardLimiter = rateLimit({
 });
 
 // 🔒 Apply auth + rate limit to ALL dashboard routes
+// 💰 The dashboard carries revenue figures — SUPER ADMIN ONLY
 router.use(protectAdmin);
+router.use(requireSuperAdmin);
 router.use(dashboardLimiter);
 
 // 📊 Top stat cards

@@ -19,6 +19,9 @@ const listUsers = async ({
   limit = 10,
   search = "",
   status = "all",
+  // 🔒 Portal admins see masked contacts, so they must not be able to
+  // search by email/phone (that would let them reveal the hidden digits).
+  includeContactSearch = true,
 } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
@@ -35,8 +38,7 @@ const listUsers = async ({
     query.$or = [
       { fullName: regex },
       { nickName: regex },
-      { email: regex },
-      { phone: regex },
+      ...(includeContactSearch ? [{ email: regex }, { phone: regex }] : []),
     ];
   }
 

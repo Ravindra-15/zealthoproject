@@ -123,11 +123,12 @@ router.put(
 
 /**
  * @route   PATCH /api/admin/doctors/:id/toggle-status
- * @desc    Activate or deactivate doctor (soft delete)
+ * @desc    Activate or deactivate doctor (soft delete) — super admin only
  */
 router.patch(
   "/:id/toggle-status",
   doctorWriteLimiter,
+  requireSuperAdmin,
   validateDoctorId,
   toggleStatus
 );

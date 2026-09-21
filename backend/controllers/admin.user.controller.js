@@ -6,6 +6,12 @@
  */
 
 const userService = require("../services/admin.user.service");
+const {
+  isSuperAdmin,
+  omit,
+  maskUserContact,
+  CONSULTATION_FINANCIAL_FIELDS,
+} = require("../utils/adminAccess");
 
 // ============================================
 // 📋 LIST USERS
@@ -13,7 +19,19 @@ const userService = require("../services/admin.user.service");
 const listUsers = async (req, res) => {
   try {
     const { page, limit, search, status } = req.query;
-    const result = await userService.listUsers({ page, limit, search, status });
+    const superAdmin = isSuperAdmin(req.admin);
+    const result = await userService.listUsers({
+      page,
+      limit,
+      search,
+      status,
+      includeContactSearch: superAdmin,
+    });
+
+    // 🔒 Portal admins only see masked patient contact details
+    if (!superAdmin) {
+      result.users = result.users.map(maskUserContact);
+    }
 
     return res.status(200).json({
       success: true,
@@ -40,6 +58,14 @@ const getUser = async (req, res) => {
         success: false,
         message: "User not found",
       });
+    }
+
+    // 🔒 Portal admins: masked contact details + no consultation fees
+    if (!isSuperAdmin(req.admin)) {
+      data.user = maskUserContact(data.user);
+      data.consultations = (data.consultations || []).map((c) =>
+        omit(c, CONSULTATION_FINANCIAL_FIELDS)
+      );
     }
 
     return res.status(200).json({
@@ -72,7 +98,7 @@ const updateUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "User updated successfully",
-      data: { user: updated },
+      data: { user: isSuperAdmin(req.admin) ? updated : maskUserContact(updated) },
     });
   } catch (err) {
     if (err.name === "ValidationError") {

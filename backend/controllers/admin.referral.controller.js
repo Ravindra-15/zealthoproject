@@ -2,6 +2,7 @@
 // Admin referral endpoints: get/set reward days + referral ledger.
 
 const adminReferralService = require("../services/admin.referral.service");
+const { isSuperAdmin, maskReferralContacts } = require("../utils/adminAccess");
 
 // ============================================
 // 🎁 GET reward days
@@ -59,6 +60,11 @@ const listReferrals = async (req, res) => {
       status: req.query.status,
       programId: req.query.programId,
     });
+    // 🔒 Portal admins only see masked referrer / referee emails
+    if (!isSuperAdmin(req.admin)) {
+      data.referrals = data.referrals.map(maskReferralContacts);
+    }
+
     return res.status(200).json({
       success: true,
       data,

@@ -21,7 +21,10 @@ const {
   deleteVideo,
 } = require("../controllers/admin.clinicalVideo.controller");
 
-const { protectAdmin } = require("../middleware/admin.auth.middleware");
+const {
+  protectAdmin,
+  requireSuperAdmin,
+} = require("../middleware/admin.auth.middleware");
 
 const router = express.Router();
 
@@ -151,7 +154,7 @@ router.put(
   updateVideo
 );
 
-// 🗑️ DELETE — DELETE /api/admin/clinical-videos/:id
-router.delete("/:id", deleteVideo);
+// 🗑️ DELETE — DELETE /api/admin/clinical-videos/:id  (super admin only)
+router.delete("/:id", requireSuperAdmin, deleteVideo);
 
 module.exports = router;

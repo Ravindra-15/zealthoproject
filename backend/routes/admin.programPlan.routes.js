@@ -18,7 +18,10 @@ const {
   deletePlan,
 } = require("../controllers/admin.programPlan.controller");
 
-const { protectAdmin } = require("../middleware/admin.auth.middleware");
+const {
+  protectAdmin,
+  requireSuperAdmin,
+} = require("../middleware/admin.auth.middleware");
 
 const router = express.Router();
 
@@ -35,7 +38,9 @@ const planLimiter = rateLimit({
 });
 
 // 🔒 All routes require admin auth + rate limit
+// 💰 Pricing / plans are SUPER ADMIN ONLY — portal admins never see them
 router.use(protectAdmin);
+router.use(requireSuperAdmin);
 router.use(planLimiter);
 
 // 📋 LIST — GET /api/admin/program-plans?programId=yogat20

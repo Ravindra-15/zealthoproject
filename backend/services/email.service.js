@@ -275,7 +275,23 @@ const sendWelcomeEmail = async ({ to, recipientName }) => {
   }
 };
 
+// ============================================
+// 📨 GENERIC SEND — used by the admin-portal notifications
+// Unlike the helpers above this THROWS on failure, so the caller can
+// report whether the email was really delivered.
+// ============================================
+const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho" }) => {
+  await transporter.sendMail({
+    from: `"${fromName}" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html,
+    text,
+  });
+};
+
 module.exports = sendEmail;
+module.exports.sendRawEmail = sendRawEmail;
 module.exports.sendWelcomeEmail = sendWelcomeEmail;
 module.exports.sendAppointmentReminder24h = sendAppointmentReminder24h;
 module.exports.sendAppointmentReminder1h = sendAppointmentReminder1h;

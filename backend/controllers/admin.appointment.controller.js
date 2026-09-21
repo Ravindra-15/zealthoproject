@@ -5,6 +5,11 @@
  */
 
 const appointmentService = require("../services/admin.appointment.service");
+const {
+  isSuperAdmin,
+  omit,
+  APPOINTMENT_FINANCIAL_FIELDS,
+} = require("../utils/adminAccess");
 
 // ============================================
 // 📋 LIST APPOINTMENTS
@@ -18,6 +23,13 @@ const listAppointments = async (req, res) => {
       search,
       status,
     });
+
+    // 💰 Portal admins never see fees / payment status
+    if (!isSuperAdmin(req.admin)) {
+      result.appointments = result.appointments.map((apt) =>
+        omit(apt, APPOINTMENT_FINANCIAL_FIELDS)
+      );
+    }
 
     return res.status(200).json({
       success: true,

@@ -22,7 +22,10 @@ const {
   validateUpdateUser,
 } = require("../validators/admin.user.validator");
 
-const { protectAdmin } = require("../middleware/admin.auth.middleware");
+const {
+  protectAdmin,
+  requireSuperAdmin,
+} = require("../middleware/admin.auth.middleware");
 
 const router = express.Router();
 
@@ -75,10 +78,11 @@ router.put(
   updateUser
 );
 
-// 🔄 Toggle active/inactive status
+// 🔄 Toggle active/inactive status (super admin only — portal admins can't deactivate users)
 router.patch(
   "/:id/toggle-status",
   userWriteLimiter,
+  requireSuperAdmin,
   validateUserId,
   toggleStatus
 );

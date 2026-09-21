@@ -22,7 +22,10 @@ const {
   deleteHabit,
 } = require("../controllers/admin.habitConfig.controller");
 
-const { protectAdmin } = require("../middleware/admin.auth.middleware");
+const {
+  protectAdmin,
+  requireSuperAdmin,
+} = require("../middleware/admin.auth.middleware");
 
 const router = express.Router();
 
@@ -103,7 +106,9 @@ const habitLimiter = rateLimit({
 });
 
 // 🔒 All routes require admin auth + rate limit
+// ⚙️ Habit configuration is SUPER ADMIN ONLY
 router.use(protectAdmin);
+router.use(requireSuperAdmin);
 router.use(habitLimiter);
 
 // 📋 LIST

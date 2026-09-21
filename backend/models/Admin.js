@@ -90,6 +90,22 @@ const adminSchema = new mongoose.Schema(
             default: [],
         },
 
+        // 📱 ADMIN: Mobile number — set when a super admin creates a portal user.
+        // Optional at schema level (the seeded super admin has none).
+        phone: {
+            type: String,
+            trim: true,
+            default: "",
+            match: [/^\+?[0-9\s-]{7,20}$/, "Please provide a valid mobile number"],
+        },
+
+        // 👤 ADMIN: Which super admin created this account (audit trail)
+        createdBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Admin",
+            default: null,
+        },
+
         // ============================================
         // 🔐 SECURITY & AUDIT FIELDS
         // ============================================
