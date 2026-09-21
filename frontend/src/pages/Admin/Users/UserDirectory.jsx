@@ -11,6 +11,7 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import UserTable from "./components/UserTable";
 import useUsers from "../../../hooks/useUsers";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
 
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
@@ -19,6 +20,8 @@ const STATUS_FILTERS = [
 ];
 
 const UserDirectory = () => {
+  // 🔒 Portal admins see masked contacts, so they can't search by email/phone
+  const { isSuperAdmin } = useAdminAuth();
   const {
     users,
     pagination,
@@ -60,7 +63,11 @@ const UserDirectory = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search users by name, nickname, email, or phone..."
+            placeholder={
+              isSuperAdmin
+                ? "Search users by name, nickname, email, or phone..."
+                : "Search users by name or nickname..."
+            }
             className="
               w-full pl-10 pr-4 py-2.5
               bg-white border border-gray-200 rounded-xl

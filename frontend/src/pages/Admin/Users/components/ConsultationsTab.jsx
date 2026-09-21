@@ -7,6 +7,7 @@
 
 import React from "react";
 import { CalendarX } from "lucide-react";
+import { useAdminAuth } from "../../../../context/AdminAuthContext";
 
 // ============================================
 // 🗓️ Format date
@@ -33,6 +34,8 @@ const formatFee = (fee) => {
 // ============================================
 const ConsultationRow = ({ consultation }) => {
   const { doctorName, durationMinutes, consultedAt, fee } = consultation;
+  // 💰 Fees are hidden from portal admins
+  const { isSuperAdmin } = useAdminAuth();
 
   return (
     <div
@@ -53,7 +56,9 @@ const ConsultationRow = ({ consultation }) => {
 
       <div className="flex sm:flex-col sm:items-end gap-3 sm:gap-1 text-xs">
         <p className="font-semibold text-gray-700">{formatDate(consultedAt)}</p>
-        <p className="font-bold text-indigo-600">{formatFee(fee)}</p>
+        {isSuperAdmin && (
+          <p className="font-bold text-indigo-600">{formatFee(fee)}</p>
+        )}
       </div>
     </div>
   );

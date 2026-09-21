@@ -71,6 +71,10 @@ import AddEditPlan from "./pages/Admin/SubscriptionConfigurator/AddEditPlan";
 import ClinicalVideoCMS from "./pages/Admin/ClinicalVideoCMS/ClinicalVideoCMS";
 import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
 import ReferralEngine from "./pages/Admin/Referrals/ReferralEngine";
+import PortalUsers from "./pages/Admin/PortalUsers/PortalUsers";
+import SuperAdminRoute, {
+  AdminHomeRedirect,
+} from "./components/admin/auth/SuperAdminRoute";
 // 🩺 DOCTOR PAGES & GUARDS
 import { DoctorAuthProvider } from "./context/DoctorAuthContext";
 import ProtectedDoctorRoute from "./components/common/ProtectedDoctorRoute";
@@ -227,23 +231,84 @@ function App() {
             </ProtectedAdminRoute>
           }
         >
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
+          {/* 🏠 Super admin → Dashboard, portal admins → Doctor Directory */}
+          <Route index element={<AdminHomeRedirect />} />
+          {/* 🛡️ SUPER ADMIN ONLY pages are wrapped in <SuperAdminRoute> */}
+          <Route
+            path="dashboard"
+            element={
+              <SuperAdminRoute>
+                <Dashboard />
+              </SuperAdminRoute>
+            }
+          />
           <Route path="doctors" element={<DoctorDirectory />} />
           <Route path="doctors/new" element={<AddDoctor />} />
           <Route path="doctors/:id/edit" element={<EditDoctor />} />
           <Route path="doctors/:id" element={<DoctorProfile />} />
-          <Route path="financial-reports" element={<FinancialReports />} />
+          <Route
+            path="financial-reports"
+            element={
+              <SuperAdminRoute>
+                <FinancialReports />
+              </SuperAdminRoute>
+            }
+          />
           <Route path="enquiries" element={<Enquiries />} />
-          <Route path="billing/receipt/:id" element={<AdminReceipt />} />
+          <Route
+            path="billing/receipt/:id"
+            element={
+              <SuperAdminRoute>
+                <AdminReceipt />
+              </SuperAdminRoute>
+            }
+          />
           <Route path="videos" element={<ClinicalVideoCMS />} />
-          <Route path="habits" element={<HabitConfigurator />} />
+          <Route
+            path="habits"
+            element={
+              <SuperAdminRoute>
+                <HabitConfigurator />
+              </SuperAdminRoute>
+            }
+          />
           <Route path="/admin/referrals" element={<ReferralEngine />} />
           {/* 🆕 Subscription Configurator */}
 
-          <Route path="subscriptions" element={<SubscriptionConfigurator />} />
-          <Route path="subscriptions/new" element={<AddEditPlan />} />
-          <Route path="subscriptions/:id/edit" element={<AddEditPlan />} />
+          <Route
+            path="subscriptions"
+            element={
+              <SuperAdminRoute>
+                <SubscriptionConfigurator />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="subscriptions/new"
+            element={
+              <SuperAdminRoute>
+                <AddEditPlan />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="subscriptions/:id/edit"
+            element={
+              <SuperAdminRoute>
+                <AddEditPlan />
+              </SuperAdminRoute>
+            }
+          />
+
+          {/* 🛡️ PORTAL USERS — super admin creates & manages admin accounts */}
+          <Route
+            path="portal-users"
+            element={
+              <SuperAdminRoute>
+                <PortalUsers />
+              </SuperAdminRoute>
+            }
+          />
 
           {/* 👥 USERS */}
           <Route path="users" element={<UserDirectory />} />

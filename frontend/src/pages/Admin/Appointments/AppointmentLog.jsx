@@ -10,6 +10,7 @@ import { Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import AppointmentTable from "./components/AppointmentTable";
 import useAppointments from "../../../hooks/useAppointments";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
 
 // 🎨 Status options — match backend enum
 const STATUS_OPTIONS = [
@@ -22,6 +23,7 @@ const STATUS_OPTIONS = [
 ];
 
 const AppointmentLog = () => {
+  const { isSuperAdmin } = useAdminAuth();
   const {
     appointments,
     pagination,
@@ -39,7 +41,11 @@ const AppointmentLog = () => {
       {/* 🏷️ Page header */}
       <AdminPageHeader
         title="Appointment Log"
-        subtitle="Tracking all consultation requests, statuses, and payments"
+        subtitle={
+          isSuperAdmin
+            ? "Tracking all consultation requests, statuses, and payments"
+            : "Tracking all consultation requests and statuses"
+        }
       />
 
       {/* ============================================ */}

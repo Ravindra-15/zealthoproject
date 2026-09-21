@@ -177,14 +177,16 @@ const VideosList = ({
                         <Pencil size={14} />
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(video)}
-                        className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 text-sm font-semibold transition-colors"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(video)}
+                          className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 text-sm font-semibold transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -273,14 +275,16 @@ const VideosList = ({
                   <Pencil size={12} />
                   Edit
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(video)}
-                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-semibold"
-                >
-                  <Trash2 size={12} />
-                  Delete
-                </button>
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(video)}
+                    className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-semibold"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))

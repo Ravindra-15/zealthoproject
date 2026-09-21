@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import UserDangerZone from "./components/UserDangerZone";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
 import {
   getUserDetails,
   updateUser,
@@ -29,6 +30,8 @@ const LIMITS = {
 const EditUser = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  // 🛡️ Only the super admin can activate / deactivate users
+  const { isSuperAdmin } = useAdminAuth();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -321,7 +324,9 @@ const EditUser = () => {
       {/* ============================================ */}
       {/* ⚠️ DANGER ZONE */}
       {/* ============================================ */}
-      <UserDangerZone user={user} onUserUpdated={handleUserUpdated} />
+      {isSuperAdmin && (
+        <UserDangerZone user={user} onUserUpdated={handleUserUpdated} />
+      )}
     </div>
   );
 };

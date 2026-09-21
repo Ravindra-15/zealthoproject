@@ -9,6 +9,7 @@ import React from "react";
 import { CalendarX } from "lucide-react";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 import { formatUtcDateTime12h } from "../../../../utils/time";
+import { useAdminAuth } from "../../../../context/AdminAuthContext";
 // ============================================
 // 🎨 STATUS PILL CONFIG
 // ============================================
@@ -79,6 +80,9 @@ const formatFee = (fee, currency = "USD") => {
 // 📋 MAIN TABLE
 // ============================================
 const AppointmentTable = ({ appointments = [], loading = false }) => {
+  // 💰 Fees / payment info are hidden from portal admins
+  const { isSuperAdmin } = useAdminAuth();
+
   if (loading) return <TableSkeleton rows={5} />;
 
   if (!appointments || appointments.length === 0) {
@@ -127,9 +131,11 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
               <th className="px-6 py-3.5 text-left text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
                 Date & Time
               </th>
-              <th className="px-6 py-3.5 text-left text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-                Payment
-              </th>
+              {isSuperAdmin && (
+                <th className="px-6 py-3.5 text-left text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                  Payment
+                </th>
+              )}
               <th className="px-6 py-3.5 text-center text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
                 Status
               </th>
@@ -160,17 +166,19 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                     {formatUtcDateTime12h(apt.scheduledAt)}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  {apt.paidWithCredit ? (
-                    <span className="text-sm font-semibold text-emerald-600">
-                      Free (Credit)
-                    </span>
-                  ) : (
-                    <span className="text-sm font-semibold text-indigo-600">
-                      {formatFee(apt.fee, apt.currency)}
-                    </span>
-                  )}
-                </td>
+                {isSuperAdmin && (
+                  <td className="px-6 py-4">
+                    {apt.paidWithCredit ? (
+                      <span className="text-sm font-semibold text-emerald-600">
+                        Free (Credit)
+                      </span>
+                    ) : (
+                      <span className="text-sm font-semibold text-indigo-600">
+                        {formatFee(apt.fee, apt.currency)}
+                      </span>
+                    )}
+                  </td>
+                )}
                 <td className="px-6 py-4 text-center">
                   <StatusPill status={apt.status} />
                 </td>
@@ -199,15 +207,16 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
               <span className="text-gray-700">
                 {formatUtcDateTime12h(apt.scheduledAt)}
               </span>
-              {apt.paidWithCredit ? (
-                <span className="font-semibold text-emerald-600">
-                  Free (Credit)
-                </span>
-              ) : (
-                <span className="font-semibold text-indigo-600">
-                  {formatFee(apt.fee, apt.currency)}
-                </span>
-              )}
+              {isSuperAdmin &&
+                (apt.paidWithCredit ? (
+                  <span className="font-semibold text-emerald-600">
+                    Free (Credit)
+                  </span>
+                ) : (
+                  <span className="font-semibold text-indigo-600">
+                    {formatFee(apt.fee, apt.currency)}
+                  </span>
+                ))}
             </div>
           </div>
         ))}

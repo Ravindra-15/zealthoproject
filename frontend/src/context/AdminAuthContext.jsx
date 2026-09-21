@@ -113,6 +113,8 @@ export const AdminAuthProvider = ({ children }) => {
     admin,
     isLoading,
     isAuthenticated: !!admin,
+    // 🛡️ true only for the super admin — portal admins (staff_admin) get false
+    isSuperAdmin: admin?.role === "super_admin",
     login,
     logout,
   };

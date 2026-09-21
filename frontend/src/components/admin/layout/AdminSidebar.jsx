@@ -13,7 +13,8 @@
  *    Configurator, Settings, Referral Engine)
  *
  * Used by: AdminLayout
- * Access: Super Admin only
+ * Access: Super Admin (all tabs) and portal admins (restricted tabs —
+ *         no Dashboard, Financial Reports, configuration or Portal Users)
  * ============================================
  */
 
@@ -34,6 +35,7 @@ import {
   FileText,
   LogOut,
   Check,
+  UserCog,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
@@ -89,7 +91,7 @@ const AdminSidebar = ({ onNavigate }) => {
   }, [isProgramOpen]);
 
   // 🚪 ADMIN: Logout handler — clears admin session
-  const { logout } = useAdminAuth();
+  const { logout, admin, isSuperAdmin } = useAdminAuth();
   const handleLogout = async () => {
     await logout();
     toast.success("Logged out successfully");
@@ -115,16 +117,21 @@ const AdminSidebar = ({ onNavigate }) => {
   // 🧭 ADMIN: Navigation structure — grouped by feature area
   // Built dynamically so Configuration section only renders for child programs
   const navSections = [
-    {
-      title: null,
-      items: [
-        {
-          icon: LayoutDashboard,
-          label: "Dashboard",
-          to: "/admin/dashboard",
-        },
-      ],
-    },
+    // 📊 Dashboard carries revenue figures — super admin only
+    ...(isSuperAdmin
+      ? [
+          {
+            title: null,
+            items: [
+              {
+                icon: LayoutDashboard,
+                label: "Dashboard",
+                to: "/admin/dashboard",
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "USER OPERATIONS",
       collapsible: true,
@@ -141,7 +148,8 @@ const AdminSidebar = ({ onNavigate }) => {
     },
     // 🏢 CONFIGURATION section — only for child programs (yogat20, diabmukt, etc.)
     // Zealtho is the parent platform and doesn't have program-specific configuration.
-    ...(isChildProgram
+    // (super admin only — pricing / habit configuration is hidden from portal admins)
+    ...(isChildProgram && isSuperAdmin
       ? [
           {
             title: "CONFIGURATION",
@@ -174,10 +182,35 @@ const AdminSidebar = ({ onNavigate }) => {
           ? [{ icon: Gift, label: "Referral Engine", to: "/admin/referrals" }]
           : []),
         { icon: MessageSquare, label: "Enquiries", to: "/admin/enquiries" },
-        { icon: FileText, label: "Financial Reports", to: "/admin/financial-reports" },
+        // 💰 Financial Reports — super admin only
+        ...(isSuperAdmin
+          ? [
+              {
+                icon: FileText,
+                label: "Financial Reports",
+                to: "/admin/financial-reports",
+              },
+            ]
+          : []),
         
       ],
     },
+    // 🛡️ ADMINISTRATION — Portal Users: super admin only, in the Zealtho (parent) view
+    ...(isSuperAdmin && !isChildProgram
+      ? [
+          {
+            title: "ADMINISTRATION",
+            collapsible: true,
+            items: [
+              {
+                icon: UserCog,
+                label: "Portal Users",
+                to: "/admin/portal-users",
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -190,7 +223,7 @@ const AdminSidebar = ({ onNavigate }) => {
         <div className="min-w-0">
           <p className="font-bold text-gray-900 leading-tight">Zealtho</p>
           <p className="text-[10px] font-semibold text-gray-500 tracking-wider">
-            SUPER ADMIN
+            {isSuperAdmin ? "SUPER ADMIN" : "ADMIN"}
           </p>
         </div>
       </div>
@@ -288,9 +321,11 @@ const AdminSidebar = ({ onNavigate }) => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-gray-900 truncate">
-              Admin User
+              {admin?.fullName || "Admin User"}
             </p>
-            <p className="text-xs text-gray-500 truncate">admin@zealtho.com</p>
+            <p className="text-xs text-gray-500 truncate">
+              {admin?.email || "admin@zealtho.com"}
+            </p>
           </div>
         </div>
 

@@ -26,11 +26,14 @@ import {
   toggleDoctorStatus,
 } from "../../../../services/doctorService";
 import CredentialsModal from "./CredentialsModal";
+import { useAdminAuth } from "../../../../context/AdminAuthContext";
 
 const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
   const [resetting, setResetting] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [resetCredentials, setResetCredentials] = useState(null);
+  // 🛡️ Portal admins can reset a doctor's password but not deactivate them
+  const { isSuperAdmin } = useAdminAuth();
 
   // ============================================
   // 🔐 RESET PASSWORD
@@ -129,7 +132,11 @@ const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
         {/* ============================================ */}
         {/* 🔐 Reset Password Row                         */}
         {/* ============================================ */}
-        <div className="px-6 sm:px-8 py-5 border-b border-red-100/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div
+          className={`px-6 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            isSuperAdmin ? "border-b border-red-100/60" : ""
+          }`}
+        >
           <div className="flex-1">
             <h4 className="text-sm font-semibold text-gray-900 mb-0.5">
               Reset Password
@@ -174,6 +181,7 @@ const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
         {/* ============================================ */}
         {/* 🔄 Activate / Deactivate Row                  */}
         {/* ============================================ */}
+        {isSuperAdmin && (
         <div className="px-6 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex-1">
             <h4 className="text-sm font-semibold text-gray-900 mb-0.5">
@@ -226,6 +234,7 @@ const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
             )}
           </button>
         </div>
+        )}
       </div>
 
       {/* 🎉 Reset password credentials modal */}

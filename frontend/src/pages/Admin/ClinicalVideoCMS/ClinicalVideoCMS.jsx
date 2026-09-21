@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
 import {
   listVideos,
   createVideo,
@@ -37,6 +38,8 @@ export const YOGA_TYPES = [
 
 const ClinicalVideoCMS = () => {
   const { selectedProgramId, selectedProgram } = useSelectedProgram();
+  // 🛡️ Only the super admin can delete videos
+  const { isSuperAdmin } = useAdminAuth();
 
   const isZealtho = selectedProgramId === "zealtho";
   const isWeekly = WEEKLY_PROGRAMS.includes(selectedProgramId);
@@ -234,7 +237,7 @@ const ClinicalVideoCMS = () => {
         videos={videos}
         loading={loadingList}
         yogaTypeLabel={isWeekly ? selectedProgram.label : currentYogaType.label}
-        onDelete={handleDelete}
+        onDelete={isSuperAdmin ? handleDelete : undefined}
         onEdit={handleEdit}
       />
     </div>

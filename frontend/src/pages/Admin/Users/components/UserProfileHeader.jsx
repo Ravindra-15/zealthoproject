@@ -12,6 +12,7 @@ import { User, Power, Loader2 } from "lucide-react";
 
 import { buildUserDisplayId, toggleUserStatus} from "../../../../services/userService";
 import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
+import { useAdminAuth } from "../../../../context/AdminAuthContext";
 
 // ============================================
 // 🛡️ Mask helpers
@@ -30,6 +31,8 @@ const maskPhone = (phone) => {
 
 const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
   const [toggling, setToggling] = useState(false);
+  // 🛡️ Only the super admin can activate / deactivate users
+  const { isSuperAdmin } = useAdminAuth();
 
   const weekCurrent = bodyProfile?.weekCurrent || 0;
   const weekTotal = bodyProfile?.weekTotal || 14;
@@ -130,6 +133,7 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
               {user.isActive ? "Subscription Active" : "Subscription Inactive"}
             </span>
 
+            {isSuperAdmin && (
             <button
               type="button"
               onClick={handleToggle}
@@ -154,6 +158,7 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
               )}
               {user.isActive ? "Deactivate" : "Activate"}
             </button>
+            )}
           </div>
 
           {/* 📅 Week progress */}
