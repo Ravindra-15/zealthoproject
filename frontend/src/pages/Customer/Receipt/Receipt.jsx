@@ -7,6 +7,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { ArrowLeft, Printer } from "lucide-react";
 import { fetchReceipt } from "../../../services/customerBillingService";
+import { formatUtcDate, formatUtcDateTime12h } from "../../../utils/time";
 
 export default function Receipt() {
   const navigate = useNavigate();
@@ -27,19 +28,12 @@ export default function Receipt() {
     })();
   }, [id]);
 
-  const formatDate = (d) =>
-    d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" }) : "—";
-
-  const formatDateTime = (d) =>
-    d
-      ? new Date(d).toLocaleString("en-US", {
-          month: "long",
-          day: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "—";
+  // 🌍 Routed through the shared, zone-aware formatters (auto-detects the
+  // viewer's own timezone) instead of the browser's bare default — keeps
+  // this page consistent with the rest of the app and safe if the zone
+  // name is ever missing/invalid.
+  const formatDate = (d) => formatUtcDate(d);
+  const formatDateTime = (d) => formatUtcDateTime12h(d);
 
   const symbol = receipt?.summary?.currency === "INR" ? "₹" : "$";
 

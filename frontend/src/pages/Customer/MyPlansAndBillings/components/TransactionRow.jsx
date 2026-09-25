@@ -4,6 +4,7 @@
 
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, XCircle, Clock, Download } from "lucide-react";
+import { formatUtcDate } from "../../../../utils/time";
 
 const statusMeta = {
   successful: { label: "Successful", icon: CheckCircle2, bg: "bg-green-50", color: "text-green-600", border: "border-green-200" },
@@ -12,14 +13,8 @@ const statusMeta = {
   pending: { label: "Pending", icon: Clock, bg: "bg-yellow-50", color: "text-yellow-600", border: "border-yellow-200" },
 };
 
-const formatDate = (date) => {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
-};
+// 🌍 Viewer's own detected zone — auto-detected, no forced UTC
+const formatDate = (date) => formatUtcDate(date);
 
 const formatAmount = (amount, currency = "USD") => {
   const symbol = currency === "USD" ? "$" : currency === "INR" ? "₹" : "";

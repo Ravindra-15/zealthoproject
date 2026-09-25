@@ -34,6 +34,7 @@ import {
   fetchDoctorById,
   buildPhotoUrl,
 } from "../../../services/doctorService";
+import { formatUtcDateTime12h } from "../../../utils/time";
 
 // 🛡️ Sanitize HTML before rendering (XSS protection)
 const sanitizeBioHtml = (html) => {
@@ -443,7 +444,7 @@ const DoctorProfile = () => {
                   <span className="font-semibold text-gray-700">
                     Last login:
                   </span>{" "}
-                  {new Date(doctor.lastLogin).toLocaleString()}
+                  {formatUtcDateTime12h(doctor.lastLogin)}
                 </p>
                 <p>
                   <span className="font-semibold text-gray-700">

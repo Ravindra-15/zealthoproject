@@ -11,6 +11,8 @@
 
 import React from "react";
 import { Trash2, Calendar, ExternalLink, Pencil } from "lucide-react";
+import { getViewerTimezone } from "../../../../utils/time";
+
 
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
@@ -30,10 +32,13 @@ const formatDate = (date) => {
 
   const d = new Date(date);
 
+  // 🌍 Same DD/MM/YYYY style as before, now explicit about which zone
+  // it's rendered in (the viewer's own) instead of an implicit default.
   return d.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: getViewerTimezone(),
   });
 };
 

@@ -138,6 +138,21 @@ const getZonedHHMM = (date, timeZone = DEFAULT_TIMEZONE) => {
 };
 
 /**
+ * Given a real Date, returns "YYYY-MM-DD" for the calendar day it falls on
+ * IN `timeZone` — e.g. near midnight UTC, a doctor ahead of UTC can already
+ * be on a different local calendar date than the server's raw UTC date.
+ */
+const getZonedDateStr = (date, timeZone = DEFAULT_TIMEZONE) => {
+  const dtf = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return dtf.format(new Date(date)); // en-CA formats as YYYY-MM-DD
+};
+
+/**
  * Given a real Date, returns the day-of-week (0=Sunday..6=Saturday) it
  * falls on IN `timeZone`. Needed because a UTC instant can land on a
  * different calendar day locally near midnight (e.g. 11:30 PM in one zone
@@ -195,6 +210,7 @@ module.exports = {
   zonedTimeToUtc,
   buildZonedSlotDate,
   getZonedHHMM,
+  getZonedDateStr,
   getZonedDayOfWeek,
   formatInZone,
 };

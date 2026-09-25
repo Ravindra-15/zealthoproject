@@ -7,6 +7,13 @@ const Appointment = require("../models/Appointment");
 const Consultation = require("../models/Consultation");
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
 const TimeOff = require("../models/TimeOff");
+const Doctor = require("../models/Doctor");
+const {
+  buildZonedSlotDate,
+  getZonedDayOfWeek,
+  getZonedDateStr,
+  DEFAULT_TIMEZONE,
+} = require("../utils/timezone");
 
 // 💰 Revenue split: Doctor keeps 60%, Admin/platform keeps 40%
 const DOCTOR_SHARE_PERCENT = 60;
@@ -15,6 +22,12 @@ const calculateDoctorRevenue = (totalAmount) =>
 
 const getDashboardData = async (doctorId) => {
   const now = new Date();
+
+  // 🌍 This doctor's own zone — "today", its day-of-week, and which exact
+  // instant each of their "HH:MM" slots falls on are all relative to THEIR
+  // practice location, not the server's.
+  const doctorDoc = await Doctor.findById(doctorId).select("timezone").lean();
+  const doctorTimezone = doctorDoc?.timezone || DEFAULT_TIMEZONE;
 
   // Month bounds
   const startOfMonth = new Date(
@@ -37,32 +50,18 @@ const getDashboardData = async (doctorId) => {
     999
   );
 
-  // // Today bounds
-  // const startOfToday = new Date(
-  //   now.getFullYear(),
-  //   now.getMonth(),
-  //   now.getDate(),
-  //   0,
-  //   0,
-  //   0,
-  //   0
-  // );
-
-  // const endOfToday = new Date(
-  //   now.getFullYear(),
-  //   now.getMonth(),
-  //   now.getDate(),
-  //   23,
-  //   59,
-  //   59,
-  //   999
-  // );
-
-  const startOfToday = new Date(now);
-startOfToday.setUTCHours(0, 0, 0, 0);
-
-const endOfToday = new Date(now);
-endOfToday.setUTCHours(23, 59, 59, 999);
+  // 🌍 "Today" bounds — this doctor's own local midnight to midnight, not
+  // the server's UTC day. Near midnight UTC these can genuinely differ.
+  const todayDateStr = getZonedDateStr(now, doctorTimezone);
+  const startOfToday = buildZonedSlotDate(todayDateStr, "00:00", doctorTimezone);
+  const nextDayStr = (() => {
+    const d = new Date(`${todayDateStr}T12:00:00.000Z`); // noon avoids any DST edge on the date math itself
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().split("T")[0];
+  })();
+  const endOfToday = new Date(
+    buildZonedSlotDate(nextDayStr, "00:00", doctorTimezone).getTime() - 1
+  );
 
   const [
     totalConsultations,
@@ -148,7 +147,9 @@ endOfToday.setUTCHours(23, 59, 59, 999);
   // ⚡ QUICK ACTION SLOTS
   // ============================================
 
-  const todayDayOfWeek = now.getUTCDay();
+  // 🌍 This doctor's own local day-of-week (0-6) — can differ from the
+  // server's UTC day-of-week near midnight, same reasoning as above.
+  const todayDayOfWeek = getZonedDayOfWeek(now, doctorTimezone);
 
   const todaySlots =
     template?.weekly?.find(
@@ -156,14 +157,10 @@ endOfToday.setUTCHours(23, 59, 59, 999);
     )?.slots || [];
 
   const quickActionSlots = todaySlots.map((time) => {
-    const [h, m] = time.split(":").map(Number);
-
-    const slotStart = new Date(now);
-    slotStart.setUTCHours(h, m, 0, 0);
-
-    const slotEnd = new Date(
-      slotStart.getTime() + 30 * 60000
-    );
+    // 🌍 "time" is this doctor's own local "HH:MM" — convert through
+    // their zone to get the real instant, not a raw UTC guess.
+    const slotStart = buildZonedSlotDate(todayDateStr, time, doctorTimezone);
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60000);
 
     // Check blocked
     const blocked = todayTimeOffs.find(
@@ -172,13 +169,12 @@ endOfToday.setUTCHours(23, 59, 59, 999);
         new Date(t.endsAt) > slotStart
     );
 
-    // Check booked
+    // Check booked — real-instant overlap (not exact-equality), same
+    // pattern used everywhere else a slot is matched against a booking.
     const booked = todaySchedule.find((a) => {
       const aStart = new Date(a.scheduledAt);
-
-      return (
-        aStart.getTime() === slotStart.getTime()
-      );
+      const aEnd = new Date(aStart.getTime() + (a.durationMinutes || 30) * 60000);
+      return aStart < slotEnd && aEnd > slotStart;
     });
 
     return {

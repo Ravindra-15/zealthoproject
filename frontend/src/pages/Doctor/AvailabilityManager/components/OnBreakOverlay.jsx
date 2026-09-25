@@ -7,15 +7,19 @@
 
 import React from "react";
 import { X, Coffee } from "lucide-react";
+import { DEFAULT_TIMEZONE } from "../../../../utils/time";
 
-const OnBreakOverlay = ({ onBreak, onDismiss, onEndBreak }) => {
+const OnBreakOverlay = ({ onBreak, onDismiss, onEndBreak, doctorTimezone = DEFAULT_TIMEZONE }) => {
   if (!onBreak) return null;
 
+  // 🌍 This doctor's own zone — the break's end instant was set relative
+  // to their local midnight, so it should read back in that same zone.
   const endDate = new Date(onBreak.endsAt).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: doctorTimezone,
   });
 
   return (

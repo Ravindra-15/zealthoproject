@@ -6,6 +6,7 @@
 
 import React, { useEffect } from "react";
 import { X, Phone, Mail, MessageSquare } from "lucide-react";
+import { formatUtcDate, formatUtcTime12h } from "../../../../utils/time";
 
 const EnquiryDetailDrawer = ({ enquiry, onClose }) => {
   const isOpen = !!enquiry;
@@ -34,17 +35,10 @@ const EnquiryDetailDrawer = ({ enquiry, onClose }) => {
 
   if (!isOpen) return null;
 
+  // 🌍 Admin's own detected zone — auto-detected, no forced UTC
   const formatDateTime = (date) => {
     if (!date) return "—";
-    const d = new Date(date);
-    return `${d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    })} - ${d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
+    return `${formatUtcDate(date)} - ${formatUtcTime12h(date)}`;
   };
 
   const sourceLabels = {

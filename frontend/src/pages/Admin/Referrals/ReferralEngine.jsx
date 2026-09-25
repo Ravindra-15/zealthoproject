@@ -18,6 +18,7 @@ import {
   setRewardDays as saveRewardDays,
   listReferrals,
 } from "../../../services/adminReferralService";
+import { formatUtcDate } from "../../../utils/time";
 
 // 🏷️ program label + color for the "solution joined" pill
 const programMeta = {
@@ -28,14 +29,8 @@ const programMeta = {
   slimfitter: { label: "SlimFitter", cls: "bg-purple-50 text-purple-700" },
 };
 
-const formatDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "—";
+// 🌍 Admin's own detected zone — auto-detected, no forced UTC
+const formatDate = (d) => formatUtcDate(d);
 
 const displayName = (u) =>
   u?.nickName || u?.fullName || u?.email || "Unknown";

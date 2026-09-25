@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import DoctorForm from "./components/DoctorForm";
 import DoctorDangerZone from "./components/DoctorDangerZone";
+import { getViewerTimezone } from "../../../utils/time";
 import {
   fetchDoctorById,
   updateDoctor,
@@ -345,6 +346,7 @@ const EditDoctor = () => {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
+                    timeZone: getViewerTimezone(), // 🌍 admin's own zone
                   })}
                 </strong>
               </p>

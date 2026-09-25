@@ -18,6 +18,7 @@ import toast from "react-hot-toast";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import { listEnquiries } from "../../../services/adminEnquiryService";
 import EnquiryDetailDrawer from "./components/EnquiryDetailDrawer";
+import { formatUtcDate, formatUtcTime12h } from "../../../utils/time";
 
 const Enquiries = () => {
   const [enquiries, setEnquiries] = useState([]);
@@ -74,17 +75,10 @@ const Enquiries = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
   }, [search, startDate, endDate]);
 
+  // 🌍 Admin's own detected zone — auto-detected, no forced UTC
   const formatDateTime = (date) => {
     if (!date) return "—";
-    const d = new Date(date);
-    return `${d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    })} - ${d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
+    return `${formatUtcDate(date)} - ${formatUtcTime12h(date)}`;
   };
 
   const nextPage = () => {

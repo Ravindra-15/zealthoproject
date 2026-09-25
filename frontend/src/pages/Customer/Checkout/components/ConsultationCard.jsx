@@ -11,27 +11,6 @@ import {
   formatUtcDate,
   formatUtcTime24h,
 } from "../../../../utils/time";
-// 🗓️ Format ISO → "Jan 25, 2026"
-const formatDate = (isoString) => {
-  if (!isoString) return "—";
-  return new Date(isoString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-// ⏰ Format ISO → "10:00 AM"
-// const formatTime = (isoString) => {
-//   if (!isoString) return "—";
-//   return new Date(isoString).toLocaleTimeString("en-US", {
-//     hour: "numeric",
-//     minute: "2-digit",
-//     hour12: true,
-//     timeZone: "UTC",
-//   });
-// };
-
 const ConsultationCard = ({
   doctor,            // { fullName, domain, photo, updatedAt }
   scheduledAt,       // ISO string

@@ -8,18 +8,12 @@
 import React from "react";
 import { CalendarX } from "lucide-react";
 import { useAdminAuth } from "../../../../context/AdminAuthContext";
+import { formatUtcDate } from "../../../../utils/time";
 
 // ============================================
-// 🗓️ Format date
+// 🗓️ Format date — admin's own detected zone
 // ============================================
-const formatDate = (date) => {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
+const formatDate = (date) => formatUtcDate(date);
 
 // ============================================
 // 💰 Format fee

@@ -8,6 +8,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { ArrowLeft, Printer } from "lucide-react";
 import { getAdminReceipt } from "../../../services/adminFinancialReportService";
+import { formatUtcDate, formatUtcDateTime12h } from "../../../utils/time";
 
 export default function AdminReceipt() {
   const navigate = useNavigate();
@@ -31,25 +32,9 @@ export default function AdminReceipt() {
     })();
   }, [id, type]);
 
-  const formatDate = (d) =>
-    d
-      ? new Date(d).toLocaleDateString("en-US", {
-          month: "long",
-          day: "2-digit",
-          year: "numeric",
-        })
-      : "—";
-
-  const formatDateTime = (d) =>
-    d
-      ? new Date(d).toLocaleString("en-US", {
-          month: "long",
-          day: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "—";
+  // 🌍 Admin's own detected zone — auto-detected, no forced UTC
+  const formatDate = (d) => formatUtcDate(d);
+  const formatDateTime = (d) => formatUtcDateTime12h(d);
 
   if (loading) {
     return (

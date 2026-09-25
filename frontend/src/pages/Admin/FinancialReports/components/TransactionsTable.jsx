@@ -13,6 +13,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { formatUtcDate } from "../../../../utils/time";
 
 const TransactionsTable = ({
   transactions = [],
@@ -23,16 +24,8 @@ const TransactionsTable = ({
 }) => {
   const navigate = useNavigate();
 
-  // 📅 Format date as "Mar 1, 2026"
-  const formatDate = (date) => {
-    if (!date) return "—";
-    const d = new Date(date);
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  // 📅 Format date as "Mar 1, 2026", in the admin's own zone
+  const formatDate = (date) => formatUtcDate(date);
 
   // 💵 Format amount in USD
   const formatAmount = (amount) => {

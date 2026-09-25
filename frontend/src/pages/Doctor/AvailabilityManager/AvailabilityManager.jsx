@@ -275,6 +275,7 @@ const handleCancelAppointment = async (appointmentId) => {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
+                timeZone: doctorTimezone, // 🌍 this doctor's own zone
               })}
               {weekData.onBreak.reason && ` — ${weekData.onBreak.reason}`}
             </p>
@@ -365,6 +366,7 @@ const handleCancelAppointment = async (appointmentId) => {
           onBreak={weekData.onBreak}
           onDismiss={() => setOverlayDismissed(true)}
           onEndBreak={handleEndBreak}
+          doctorTimezone={doctorTimezone}
         />
       )}
     </div>

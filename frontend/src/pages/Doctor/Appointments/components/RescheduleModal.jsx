@@ -4,6 +4,13 @@
  * Used by both doctor-side and customer-side appointment cards.
  * Theme color is passed via prop so one file works across all programs.
  *
+ * 🌍 Timezone: slot times come back as the DOCTOR's own local "HH:MM"
+ * label plus `doctorTimezone`. We convert through the doctor's zone to get
+ * the real instant, then display it in the VIEWER's own detected zone —
+ * same pattern as the main booking flow (TimeSlotGrid.jsx). Also re-checks
+ * every 30s so a slot that lapses while this modal is open disappears
+ * live instead of erroring only at submit time.
+ *
  * Props:
  *  - open: boolean
  *  - onClose: () => void
@@ -13,17 +20,25 @@
  *  - themeColor?: string                             // hex, default orange
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { X, Loader2, ChevronLeft, ChevronRight, CalendarOff } from "lucide-react";
 import useDoctorDayAvailability from "../../../../hooks/useDoctorDayAvailability";
+import {
+  buildZonedSlotDate,
+  formatUtcTime12h,
+  getZonedDateStr,
+  DEFAULT_TIMEZONE,
+} from "../../../../utils/time";
 
-// ── date helpers (UTC, matches project convention) ──────────────────────────
+// ── date helpers (UTC, matches project convention — pure calendar dates,
+// not real instants, so no timezone conversion needed here) ────────────────
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 const MAX_DAYS_AHEAD = 60;
+const SLOT_DURATION_MINUTES = 30;
 
 const toIsoDate = (date) => {
   const y = date.getUTCFullYear();
@@ -57,11 +72,20 @@ const RescheduleModal = ({
 
   const [reason, setReason] = useState("");
   const [selectedDate, setSelectedDate] = useState(""); // "YYYY-MM-DD"
-  const [selectedTime, setSelectedTime] = useState(""); // "HH:MM"
+  const [selectedTime, setSelectedTime] = useState(""); // "HH:MM" (doctor-local label)
   const [view, setView] = useState(() => ({
     year: today.getUTCFullYear(),
     month: today.getUTCMonth(),
   }));
+
+  // ⏰ Ticks every 30s so a slot that lapses while this modal is open
+  // disappears live, same as the main booking slot grid.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [open]);
 
   // fetch slots for the chosen date (hook no-ops when date empty)
   const { data, loading: slotsLoading } = useDoctorDayAvailability(
@@ -69,8 +93,22 @@ const RescheduleModal = ({
     selectedDate || null
   );
 
+  const doctorTimezone = data?.doctorTimezone || DEFAULT_TIMEZONE;
   const slots = data?.slots || [];
-  const bookable = slots.filter((s) => s.isBookable);
+  const bookable = useMemo(() => {
+    return slots
+      .filter((s) => s.isBookable)
+      .map((s) => {
+        const instant = selectedDate
+          ? buildZonedSlotDate(selectedDate, s.time, doctorTimezone)
+          : null;
+        const isPastNow = instant
+          ? instant.getTime() + SLOT_DURATION_MINUTES * 60000 <= now
+          : false;
+        return { ...s, instant, isPastNow };
+      })
+      .filter((s) => !s.isPastNow);
+  }, [slots, selectedDate, doctorTimezone, now]);
 
   // calendar grid cells
   const cells = useMemo(() => {
@@ -113,10 +151,14 @@ const RescheduleModal = ({
 
   const handleConfirm = () => {
     if (!reason.trim() || !selectedDate || !selectedTime || loading) return;
-    // build ISO UTC datetime from date + time
-    const [h, m] = selectedTime.split(":").map(Number);
-    const dt = new Date(`${selectedDate}T00:00:00.000Z`);
-    dt.setUTCHours(h, m, 0, 0);
+    // 🌍 selectedTime is the DOCTOR's own local "HH:MM" label — convert it
+    // through their zone to get the real instant (not a naive UTC guess).
+    const dt = buildZonedSlotDate(selectedDate, selectedTime, doctorTimezone);
+    if (!dt || dt.getTime() < Date.now()) {
+      // lapsed between picking it and confirming — clear and let them repick
+      setSelectedTime("");
+      return;
+    }
     onConfirm({ scheduledAt: dt.toISOString(), reason: reason.trim() });
   };
 
@@ -237,7 +279,12 @@ const RescheduleModal = ({
         </div>
 
         {/* time slots */}
-        <p className="text-xs font-semibold text-gray-700 mt-4 mb-2">Select a time</p>
+        <div className="flex items-baseline justify-between mt-4 mb-2">
+          <p className="text-xs font-semibold text-gray-700">Select a time</p>
+          {selectedDate && (
+            <p className="text-[10px] text-gray-400">Shown in your local time</p>
+          )}
+        </div>
         {!selectedDate ? (
           <div className="text-center py-8">
             <p className="text-xs text-gray-400">Select a date to see available slots</p>
@@ -260,19 +307,40 @@ const RescheduleModal = ({
           <div className="grid grid-cols-3 gap-2.5">
             {bookable.map((slot) => {
               const isSel = selectedTime === slot.time;
+              // 🌍 Convert the doctor-local "HH:MM" label into the real
+              // instant, then show it in the viewer's own zone.
+              const label = slot.instant ? formatUtcTime12h(slot.instant.toISOString()) : slot.time;
+              const dayShift =
+                slot.instant && selectedDate
+                  ? (() => {
+                      const viewerDate = getZonedDateStr(slot.instant);
+                      if (viewerDate === selectedDate) return 0;
+                      return viewerDate > selectedDate ? 1 : -1;
+                    })()
+                  : 0;
               return (
                 <button
                   key={slot.time}
                   type="button"
                   onClick={() => !loading && setSelectedTime(slot.time)}
                   disabled={loading}
-                  className={`h-10 rounded-lg text-xs sm:text-sm font-semibold transition-colors border ${
+                  className={`relative h-10 rounded-lg text-xs sm:text-sm font-semibold transition-colors border ${
                     isSel ? "text-white" : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
                   }`}
                   style={isSel ? { backgroundColor: themeColor, borderColor: themeColor } : undefined}
                   aria-pressed={isSel}
+                  title={
+                    dayShift
+                      ? `${label} your time (${dayShift > 0 ? "next" : "previous"} day)`
+                      : `${label} your time`
+                  }
                 >
-                  {slot.time}
+                  {label}
+                  {dayShift !== 0 && (
+                    <sup className="ml-0.5 text-[9px] font-bold align-super">
+                      {dayShift > 0 ? "+1" : "-1"}
+                    </sup>
+                  )}
                 </button>
               );
             })}

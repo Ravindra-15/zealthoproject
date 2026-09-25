@@ -18,7 +18,7 @@ import {
   deleteTimeOff,
 } from "../../../services/doctorAvailabilityService";
 import toast from "react-hot-toast";
-import { formatUtcTime24h } from "../../../utils/time";
+import { formatUtcTime24h, buildZonedSlotDate, getZonedDateStr, DEFAULT_TIMEZONE } from "../../../utils/time";
 // ============================================
 // 🌅 Greeting helper
 // ============================================
@@ -41,7 +41,7 @@ const formatToday = () => {
 // ============================================
 // ⚡ Quick Action Slot (toggle on/off)
 // ============================================
-const QuickActionSlot = ({ slot, onToggle }) => {
+const QuickActionSlot = ({ slot, onToggle, doctorTimezone = DEFAULT_TIMEZONE }) => {
   const [loading, setLoading] = useState(false);
 
   // const formatTime = (hhmm) => {
@@ -63,15 +63,17 @@ const QuickActionSlot = ({ slot, onToggle }) => {
 
     try {
       setLoading(true);
-      const today = new Date().toISOString().split("T")[0];
+      // 🌍 "today" in the DOCTOR's own zone — near midnight UTC, their real
+      // local calendar day can already differ from UTC's.
+      const today = getZonedDateStr(new Date(), doctorTimezone);
 
       if (slot.isBlocked) {
         await deleteTimeOff(slot.timeOffId);
         toast.success("Slot enabled");
       } else {
-        const [h, m] = slot.time.split(":").map(Number);
-        const startsAt = new Date(`${today}T00:00:00.000Z`);
-        startsAt.setUTCHours(h, m, 0, 0);
+        // 🌍 "slot.time" is this doctor's own local "HH:MM" — convert
+        // through their zone, not a raw UTC guess.
+        const startsAt = buildZonedSlotDate(today, slot.time, doctorTimezone);
         const endsAt = new Date(startsAt.getTime() + 30 * 60000);
         await createTimeOff({
           type: "slot",
@@ -152,6 +154,7 @@ const StatCard = ({ icon: Icon, label, value, hint, accent }) => {
 
 const Dashboard = () => {
   const { doctor } = useDoctorAuth();
+  const doctorTimezone = doctor?.timezone || DEFAULT_TIMEZONE;
 
   const greeting = useMemo(() => getGreeting(), []);
   const today = useMemo(() => formatToday(), []);
@@ -315,6 +318,7 @@ const Dashboard = () => {
                   key={slot.time}
                   slot={slot}
                   onToggle={refetch}
+                  doctorTimezone={doctorTimezone}
                 />
               ))
             )}
