@@ -49,11 +49,11 @@ const send24hReminders = async () => {
     for (const apt of appointments) {
         try {
             const [user, doctor] = await Promise.all([
-                User.findById(apt.user).select("email fullName nickName").lean(),
-                Doctor.findById(apt.doctor).select("personalEmail fullName").lean(),
+                User.findById(apt.user).select("email fullName nickName timezone").lean(),
+                Doctor.findById(apt.doctor).select("personalEmail fullName timezone").lean(),
             ]);
 
-            // 📧 Send to user
+            // 📧 Send to user (rendered in their own zone)
             if (user?.email) {
                 await sendAppointmentReminder24h({
                     to: user.email,
@@ -61,10 +61,11 @@ const send24hReminders = async () => {
                     otherPartyName: apt.doctorName,
                     scheduledAt: apt.scheduledAt,
                     isDoctor: false,
+                    timezone: user.timezone,
                 });
             }
 
-            // 📧 Send to doctor
+            // 📧 Send to doctor (rendered in their own zone)
             if (doctor?.personalEmail) {
                 await sendAppointmentReminder24h({
                     to: doctor.personalEmail,
@@ -72,6 +73,7 @@ const send24hReminders = async () => {
                     otherPartyName: apt.patientName,
                     scheduledAt: apt.scheduledAt,
                     isDoctor: true,
+                    timezone: doctor.timezone,
                 });
             }
 
@@ -110,8 +112,8 @@ const send1hReminders = async () => {
         // console.log("[DEBUG] Processing appointment:", apt._id, "scheduledAt:", apt.scheduledAt);
         try {
             const [user, doctor] = await Promise.all([
-                User.findById(apt.user).select("email fullName nickName").lean(),
-                Doctor.findById(apt.doctor).select("personalEmail fullName").lean(),
+                User.findById(apt.user).select("email fullName nickName timezone").lean(),
+                Doctor.findById(apt.doctor).select("personalEmail fullName timezone").lean(),
             ]);
 
             if (user?.email) {
@@ -121,6 +123,7 @@ const send1hReminders = async () => {
                     otherPartyName: apt.doctorName,
                     scheduledAt: apt.scheduledAt,
                     isDoctor: false,
+                    timezone: user.timezone,
                 });
             }
 
@@ -131,6 +134,7 @@ const send1hReminders = async () => {
                     otherPartyName: apt.patientName,
                     scheduledAt: apt.scheduledAt,
                     isDoctor: true,
+                    timezone: doctor.timezone,
                 });
             }
 
@@ -163,7 +167,7 @@ const sendPlanExpiryReminders = async () => {
             if (sub.lastExpiryNotifiedOn === todayKey) continue;
 
             const user = await User.findById(sub.customer)
-                .select("email fullName nickName")
+                .select("email fullName nickName timezone")
                 .lean();
             if (!user) continue;
 
@@ -179,6 +183,7 @@ const sendPlanExpiryReminders = async () => {
                     programName,
                     endDate: sub.endDate,
                     daysLeft,
+                    timezone: user.timezone,
                 });
             }
 

@@ -12,12 +12,17 @@ import toast from "react-hot-toast";
 import { X, Calendar as CalIcon, Clock, Loader2 } from "lucide-react";
 
 import { createTimeOff } from "../../../../services/doctorAvailabilityService";
+import { useDoctorAuth } from "../../../../context/DoctorAuthContext";
+import { buildZonedSlotDate, DEFAULT_TIMEZONE } from "../../../../utils/time";
 
 const MORNING_SLOTS = ["08:00", "09:00", "10:00", "11:00"];
 const AFTERNOON_SLOTS = ["12:00", "13:00", "14:00"];
 const EVENING_SLOTS = ["15:00", "16:00", "17:00", "18:00"];
 
 const AddBreakModal = ({ open, onClose, onCreated }) => {
+  const { doctor } = useDoctorAuth();
+  const doctorTimezone = doctor?.timezone || DEFAULT_TIMEZONE;
+
   const [mode, setMode] = useState("slot"); // "slot" | "days"
   const [submitting, setSubmitting] = useState(false);
 
@@ -80,10 +85,10 @@ const AddBreakModal = ({ open, onClose, onCreated }) => {
           return;
         }
 
-        // Create a "slot" TimeOff for each selected hour (1-hour blocks)
+        // Create a "slot" TimeOff for each selected hour (1-hour blocks).
+        // 🌍 hhmm is this doctor's own local hour — convert through their zone.
         for (const hhmm of selectedSlots) {
-          const [h] = hhmm.split(":").map(Number);
-          const startsAt = new Date(`${slotDate}T${String(h).padStart(2, "0")}:00:00.000Z`);
+          const startsAt = buildZonedSlotDate(slotDate, hhmm, doctorTimezone);
           const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
           await createTimeOff({
             type: "slot",
@@ -93,9 +98,15 @@ const AddBreakModal = ({ open, onClose, onCreated }) => {
           });
         }
       } else {
-        // Range break
-        const startsAt = new Date(`${fromDate}T00:00:00.000Z`);
-        const endsAt = new Date(`${toDate}T23:59:59.999Z`);
+        // Range break — this doctor's own local midnight-to-midnight span,
+        // from the start of `fromDate` through the end of `toDate`.
+        const startsAt = buildZonedSlotDate(fromDate, "00:00", doctorTimezone);
+        const dayAfterTo = (() => {
+          const d = new Date(`${toDate}T12:00:00.000Z`); // noon avoids any DST edge on the date math itself
+          d.setUTCDate(d.getUTCDate() + 1);
+          return d.toISOString().split("T")[0];
+        })();
+        const endsAt = buildZonedSlotDate(dayAfterTo, "00:00", doctorTimezone);
 
         if (endsAt <= startsAt) {
           toast.error("End date must be after start date");

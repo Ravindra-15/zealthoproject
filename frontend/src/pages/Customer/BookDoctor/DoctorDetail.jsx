@@ -24,6 +24,7 @@ import {
 import { getPublicDoctor } from "../../../services/customerDoctorService";
 import { listMyAppointments } from "../../../services/customerAppointmentService";
 import useDoctorDayAvailability from "../../../hooks/useDoctorDayAvailability";
+import { buildZonedSlotDate, getViewerTimezone, DEFAULT_TIMEZONE } from "../../../utils/time";
 
 // 🗓️ Default to today (UTC YYYY-MM-DD)
 const todayIso = () => {
@@ -50,6 +51,10 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
 
   const isMountedRef = useRef(false);
   const conflictTimerRef = useRef(null);
+
+  // 🌍 The patient's own detected zone — stable for the session, used only
+  // for the "shown in your local time" hint (actual conversion is per-slot).
+  const viewerTimezoneLabel = getViewerTimezone().replace(/_/g, " ");
 
   // 📥 Load the logged-in user's upcoming appointment times (for conflict check)
   useEffect(() => {
@@ -95,17 +100,6 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
     setConflictOpen(false);
   };
 
-  // Handle slot selection — block if user already booked at this time
-  const handleSelectTime = (time) => {
-    if (!time) return;
-    const candidateMs = new Date(`${selectedDate}T${time}:00.000Z`).getTime();
-    if (myUpcomingTimes.includes(candidateMs)) {
-      showConflict(); // re-shows every time a conflicting slot is picked
-      return; // do NOT select the slot
-    }
-    setSelectedTime(time);
-  };
-
   // ============================================
   // 📥 LOAD DOCTOR
   // ============================================
@@ -142,6 +136,22 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
     selectedDate,
   );
 
+  // 🌍 Doctor's own zone — governs how their "HH:MM" slot labels convert
+  // to real instants. Falls back safely until the doctor/day data loads.
+  const doctorTimezone = doctor?.timezone || dayData?.doctorTimezone || DEFAULT_TIMEZONE;
+
+  // Handle slot selection — block if user already booked at this time
+  const handleSelectTime = (time) => {
+    if (!time) return;
+    const candidate = buildZonedSlotDate(selectedDate, time, doctorTimezone);
+    const candidateMs = candidate ? candidate.getTime() : NaN;
+    if (myUpcomingTimes.includes(candidateMs)) {
+      showConflict(); // re-shows every time a conflicting slot is picked
+      return; // do NOT select the slot
+    }
+    setSelectedTime(time);
+  };
+
   // 🔄 Reset selected time when date changes
   useEffect(() => {
     setSelectedTime("");
@@ -157,14 +167,24 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
     }
 
     // 📦 Stash booking intent — Checkout page reads this
+    // 🌍 selectedTime is the DOCTOR's own local "HH:MM" label — convert it
+    // through their zone to get the real instant (not a naive UTC guess).
+    const scheduledInstant = buildZonedSlotDate(selectedDate, selectedTime, doctorTimezone);
+
+    // ⏰ Guard against a slot that lapsed between picking it and clicking
+    // here (e.g. left the page open) — catch it now with a clear message
+    // instead of a confusing error later at checkout.
+    if (scheduledInstant.getTime() < Date.now()) {
+      toast.error("That slot just passed — please pick another time");
+      setSelectedTime("");
+      return;
+    }
+
     const intent = {
       doctorId: id,
       scheduledDate: selectedDate,
       scheduledTime: selectedTime,
-      // Build full ISO timestamp (UTC)
-      scheduledAt: new Date(
-        `${selectedDate}T${selectedTime}:00.000Z`,
-      ).toISOString(),
+      scheduledAt: scheduledInstant.toISOString(),
     };
     sessionStorage.setItem("bookingIntent", JSON.stringify(intent));
 
@@ -243,15 +263,22 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
 
                   {/* Time slots */}
                   <div>
-                    <p className="text-sm font-bold text-gray-900 mb-3">
-                      Select A Time
-                    </p>
+                    <div className="flex items-baseline justify-between mb-3">
+                      <p className="text-sm font-bold text-gray-900">
+                        Select A Time
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        Shown in your local time ({viewerTimezoneLabel})
+                      </p>
+                    </div>
                     <TimeSlotGrid
                       slots={dayData?.slots || []}
                       selectedTime={selectedTime}
                       onSelect={handleSelectTime}
                       loading={slotsLoading}
                       noDateSelected={!selectedDate}
+                      date={selectedDate}
+                      doctorTimezone={doctorTimezone}
                     />
                   </div>
                 </div>

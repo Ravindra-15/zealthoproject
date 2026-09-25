@@ -19,6 +19,13 @@ const {
   SLOT_DURATION_MINUTES,
   generateSlotStartTimes,
 } = require("../utils/availabilityConstants");
+const {
+  getZonedHHMM,
+  getZonedDayOfWeek,
+  formatInZone,
+  isValidTimezone,
+  DEFAULT_TIMEZONE,
+} = require("../utils/timezone");
 const paymentService = require("./payment.service");
 const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
@@ -31,7 +38,7 @@ const BOOKING_CURRENCY = "USD";
 // ============================================
 // 🛡️ HELPER — verify a slot is still available (atomic safety net)
 // ============================================
-const isSlotStillAvailable = async ({ doctorId, slotStart, slotEnd, dayOfWeek }) => {
+const isSlotStillAvailable = async ({ doctorId, slotStart, slotEnd, dayOfWeek, timezone = DEFAULT_TIMEZONE }) => {
   // 1. Doctor must be open for this slot in their template
   const template = await AvailabilityTemplate.findOne({ doctor: doctorId }).lean();
   if (!template) return false;
@@ -39,9 +46,9 @@ const isSlotStillAvailable = async ({ doctorId, slotStart, slotEnd, dayOfWeek })
   const dayConfig = template.weekly?.find((d) => d.dayOfWeek === dayOfWeek);
   if (!dayConfig) return false;
 
-  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
-  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
-  const slotKey = `${hh}:${mm}`;
+  // 🌍 Recover the "HH:MM" this instant represents in the DOCTOR's own
+  // zone (their template is keyed by their own local wall-clock time).
+  const slotKey = getZonedHHMM(slotStart, timezone);
   if (!dayConfig.slots.includes(slotKey)) return false;
 
   // 2. No time-off overlap
@@ -111,19 +118,19 @@ const userHasConflictingAppointment = async ({ userId, slotStart, slotEnd, exclu
  *
  * @returns { appointment, paymentResult } | { error }
  */
-const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho" }) => {
+const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null }) => {
   // ============================================
   // STEP 1 — Validate user + doctor
   // ============================================
 
   const [user, doctor] = await Promise.all([
-    User.findById(userId).select("fullName nickName isActive").lean(),
+    User.findById(userId).select("fullName nickName isActive timezone").lean(),
     Doctor.findOne({
       _id: doctorId,
       isActive: true,
       isProfileComplete: true,
     })
-      .select("fullName")
+      .select("fullName timezone")
       .lean(),
   ]);
 
@@ -134,6 +141,21 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     return { error: { status: 404, message: "Doctor not available" } };
   }
 
+  const doctorTimezone = doctor.timezone || DEFAULT_TIMEZONE;
+
+  // 🌍 Opportunistically sync the patient's live browser-detected zone onto
+  // their profile, so future reminder/confirmation emails render correctly
+  // without needing a dedicated settings screen. Best-effort — never blocks
+  // or fails the booking.
+  if (viewerTimezone && viewerTimezone !== user.timezone && isValidTimezone(viewerTimezone)) {
+    try {
+      await User.findByIdAndUpdate(userId, { timezone: viewerTimezone });
+      user.timezone = viewerTimezone; // keep in-memory copy in sync for the notification below
+    } catch (err) {
+      console.log("TIMEZONE SYNC ERROR:", err.message);
+    }
+  }
+
   // ============================================
   // STEP 2 — Validate slot timing
   // ============================================
@@ -142,11 +164,11 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     return { error: { status: 400, message: "Invalid scheduledAt" } };
   }
 
-  // Must align to a valid slot boundary (e.g., 09:00, 09:30, etc.)
+  // Must align to a valid slot boundary (e.g., 09:00, 09:30, etc.) — checked
+  // in the DOCTOR's own zone, since that's whose wall-clock grid this is.
   const validSlots = generateSlotStartTimes();
-  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
-  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
-  if (!validSlots.includes(`${hh}:${mm}`)) {
+  const slotKey = getZonedHHMM(slotStart, doctorTimezone);
+  if (!validSlots.includes(slotKey)) {
     return {
       error: {
         status: 400,
@@ -160,7 +182,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   }
 
   const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
-  const dayOfWeek = slotStart.getUTCDay();
+  const dayOfWeek = getZonedDayOfWeek(slotStart, doctorTimezone);
 
   // ============================================
   // STEP 2.5 — Block double-booking by the SAME USER at this time (any doctor)
@@ -188,6 +210,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     slotStart,
     slotEnd,
     dayOfWeek,
+    timezone: doctorTimezone,
   });
   if (!stillFree) {
     return {
@@ -282,6 +305,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     slotStart,
     slotEnd,
     dayOfWeek,
+    timezone: doctorTimezone,
   });
 
  if (!stillFreeAfterPayment) {
@@ -343,7 +367,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       userId: userId,
       type: "appointment_confirmed",
       title: "Appointment Confirmed",
-      body: `Your consultation with ${doctor.fullName} has been confirmed for ${slotStart.toLocaleString()}. Please join on time.`,
+      body: `Your consultation with ${doctor.fullName} has been confirmed for ${formatInZone(slotStart, user.timezone || DEFAULT_TIMEZONE)}. Please join on time.`,
       metadata: { appointmentId: appointment._id, doctorId },
     });
   } catch (err) {
@@ -356,7 +380,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       userType: "doctor",                  // 👈 new field
       type: "appointment_confirmed",
       title: "New Appointment Booked",
-      body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${slotStart.toLocaleString()}.`,
+      body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${formatInZone(slotStart, doctorTimezone)}.`,
       metadata: { appointmentId: appointment._id, patientId: userId },
     });
   } catch (err) {
@@ -464,14 +488,15 @@ const cancelByUser = async (userId, appointmentId, reason = "") => {
       console.log("CARD CANCEL SYNC ERROR:", err.message);
     }
   }
-  // 🔔 Notify doctor
+  // 🔔 Notify doctor (rendered in the doctor's own zone)
   try {
+    const doctorForZone = await Doctor.findById(appointment.doctor).select("timezone").lean();
     await Notification.create({
       userId: appointment.doctor,
       userType: "doctor",
       type: "appointment_cancelled",
       title: "Appointment Cancelled",
-      body: `${appointment.patientName} cancelled their appointment scheduled for ${new Date(appointment.scheduledAt).toLocaleString()}.${cleanReason ? ` Reason: ${cleanReason}` : ""}`,
+      body: `${appointment.patientName} cancelled their appointment scheduled for ${formatInZone(appointment.scheduledAt, doctorForZone?.timezone || DEFAULT_TIMEZONE)}.${cleanReason ? ` Reason: ${cleanReason}` : ""}`,
       metadata: { appointmentId: appointment._id, reason: cleanReason },
     });
   } catch (err) { }
@@ -482,7 +507,7 @@ const cancelByUser = async (userId, appointmentId, reason = "") => {
 // ============================================
 // 🛡️ HELPER — is a slot free, EXCLUDING one appointment (for reschedule)
 // ============================================
-const isSlotFreeForReschedule = async ({ doctorId, slotStart, slotEnd, dayOfWeek, excludeAppointmentId }) => {
+const isSlotFreeForReschedule = async ({ doctorId, slotStart, slotEnd, dayOfWeek, excludeAppointmentId, timezone = DEFAULT_TIMEZONE }) => {
   // 1. Doctor must be open for this slot in their template
   const template = await AvailabilityTemplate.findOne({ doctor: doctorId }).lean();
   if (!template) return false;
@@ -490,9 +515,9 @@ const isSlotFreeForReschedule = async ({ doctorId, slotStart, slotEnd, dayOfWeek
   const dayConfig = template.weekly?.find((d) => d.dayOfWeek === dayOfWeek);
   if (!dayConfig) return false;
 
-  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
-  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
-  if (!dayConfig.slots.includes(`${hh}:${mm}`)) return false;
+  // 🌍 Recover the "HH:MM" this instant represents in the DOCTOR's own zone.
+  const slotKey = getZonedHHMM(slotStart, timezone);
+  if (!dayConfig.slots.includes(slotKey)) return false;
 
   // 2. No time-off overlap
   const blocked = await TimeOff.findOne({
@@ -544,6 +569,13 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
     return { error: { status: 400, message: "This appointment has already been rescheduled once" } };
   }
 
+  // 🌍 Fetch the doctor's zone once — their wall-clock grid governs slot
+  // alignment, day-of-week matching, and how times read in notifications.
+  const doctorForReschedule = await Doctor.findById(appointment.doctor)
+    .select("fullName email timezone")
+    .lean();
+  const doctorTimezone = doctorForReschedule?.timezone || DEFAULT_TIMEZONE;
+
   // Validate new slot timing
   const slotStart = new Date(scheduledAt);
   if (isNaN(slotStart.getTime())) {
@@ -551,9 +583,8 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
   }
 
   const validSlots = generateSlotStartTimes();
-  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
-  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
-  if (!validSlots.includes(`${hh}:${mm}`)) {
+  const slotKey = getZonedHHMM(slotStart, doctorTimezone);
+  if (!validSlots.includes(slotKey)) {
     return { error: { status: 400, message: `Slot must align to ${SLOT_DURATION_MINUTES}-min grid` } };
   }
 
@@ -567,7 +598,7 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
   }
 
   const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
-  const dayOfWeek = slotStart.getUTCDay();
+  const dayOfWeek = getZonedDayOfWeek(slotStart, doctorTimezone);
 
  const free = await isSlotFreeForReschedule({
     doctorId: appointment.doctor,
@@ -575,6 +606,7 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
     slotEnd,
     dayOfWeek,
     excludeAppointmentId: appointment._id,
+    timezone: doctorTimezone,
   });
   if (!free) {
     return { error: { status: 409, message: "This slot is no longer available. Please pick another." } };
@@ -611,14 +643,14 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
   appointment.meetingLinkSentAt = null;
   await appointment.save();
 
-  // 🔔 In-app notify doctor
+  // 🔔 In-app notify doctor (rendered in the doctor's own zone)
   try {
     await Notification.create({
       userId: appointment.doctor,
       userType: "doctor",
       type: "appointment_rescheduled",
       title: "Appointment Rescheduled",
-      body: `${appointment.patientName} rescheduled their appointment from ${new Date(oldTime).toLocaleString()} to ${slotStart.toLocaleString()}. Reason: ${cleanReason}`,
+      body: `${appointment.patientName} rescheduled their appointment from ${formatInZone(oldTime, doctorTimezone)} to ${formatInZone(slotStart, doctorTimezone)}. Reason: ${cleanReason}`,
       metadata: { appointmentId: appointment._id, reason: cleanReason },
     });
   } catch (err) { }
@@ -626,7 +658,7 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
   // 📧 Email doctor
   try {
     const emailService = require("./email.service");
-    const doctorDoc = await Doctor.findById(appointment.doctor).select("fullName email").lean();
+    const doctorDoc = doctorForReschedule;
     if (doctorDoc?.email) {
       await emailService.sendRescheduleNotification({
         to: doctorDoc.email,
@@ -637,6 +669,7 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
         reason: cleanReason,
         rescheduledByLabel: "patient",
         isDoctor: true,
+        timezone: doctorTimezone,
       });
     }
   } catch (err) {

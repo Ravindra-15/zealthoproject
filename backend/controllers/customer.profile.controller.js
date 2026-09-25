@@ -21,7 +21,7 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const allowed = ["fullName", "nickName", "dob", "country", "city", "whatsapp", "profilePhoto"];
+    const allowed = ["fullName", "nickName", "dob", "country", "city", "whatsapp", "profilePhoto", "timezone"];
     const updates = {};
     allowed.forEach((key) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];

@@ -1,6 +1,7 @@
 // models/User.js
 
 const mongoose = require("mongoose");
+const { DEFAULT_TIMEZONE, isValidTimezone } = require("../utils/timezone");
 
 const userSchema = new mongoose.Schema(
   {
@@ -101,6 +102,19 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
       match: [/^\+?[0-9\s-]{0,20}$/, "Invalid whatsapp number"],
+    },
+
+    // ============================================
+    // 🌍 TIMEZONE (for appointment/notification display)
+    // ============================================
+    // Auto-captured from the browser on signup/login (Intl API); editable
+    // in profile. Defaults to the company's home zone so nothing changes
+    // for existing India-based users until they're detected otherwise.
+    timezone: {
+      type: String,
+      trim: true,
+      default: DEFAULT_TIMEZONE,
+      validate: [isValidTimezone, "Invalid timezone"],
     },
 
     profilePhoto: {

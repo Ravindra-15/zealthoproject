@@ -13,6 +13,8 @@ import PhotoUploader from "../../../Admin/Doctors/components/PhotoUploader";
 import ChipsInput from "../../../Admin/Doctors/components/ChipsInput";
 import { useDoctorAuth } from "../../../../context/DoctorAuthContext";
 import { updateDoctorProfile } from "../../../../services/doctorAuthService";
+import TimezoneSelect from "../../../../components/common/TimezoneSelect";
+import { DEFAULT_TIMEZONE, isValidTimezone } from "../../../../utils/time";
 // import { fetchDoctorOptions } from "../../../../services/doctorService";
 
 // 📏 Limits
@@ -73,6 +75,7 @@ const IdentityCard = () => {
     phone: "",
     qualifications: "",
     yearsOfExperience: "",
+    timezone: DEFAULT_TIMEZONE,
     photo: null,
     photoRemoved: false,
   });
@@ -107,6 +110,7 @@ const IdentityCard = () => {
         doctor.yearsOfExperience !== null && doctor.yearsOfExperience !== undefined
           ? String(doctor.yearsOfExperience)
           : "",
+      timezone: doctor.timezone || DEFAULT_TIMEZONE,
       photo: null,
       photoRemoved: false,
     };
@@ -148,6 +152,7 @@ const IdentityCard = () => {
     if (form.phone !== initialSnapshot.phone) return true;
     if (form.qualifications !== initialSnapshot.qualifications) return true;
     if (form.yearsOfExperience !== initialSnapshot.yearsOfExperience) return true;
+    if (form.timezone !== initialSnapshot.timezone) return true;
     if (
       JSON.stringify(form.specializations) !==
       JSON.stringify(initialSnapshot.specializations)
@@ -202,6 +207,9 @@ const IdentityCard = () => {
     if (!Number.isInteger(yoe) || yoe < 0 || yoe > LIMITS.YOE_MAX)
       return `Years of experience must be 0–${LIMITS.YOE_MAX}`;
 
+    if (!form.timezone.trim()) return "Timezone is required";
+    if (!isValidTimezone(form.timezone.trim())) return "Invalid timezone";
+
     return null;
   };
 
@@ -249,6 +257,9 @@ const IdentityCard = () => {
       if (form.yearsOfExperience !== initialSnapshot.yearsOfExperience)
         formData.append("yearsOfExperience", String(Number(form.yearsOfExperience)));
 
+      if (form.timezone !== initialSnapshot.timezone)
+        formData.append("timezone", form.timezone.trim());
+
       if (form.photo) formData.append("photo", form.photo);
       if (form.photoRemoved) formData.append("removePhoto", "true");
 
@@ -278,6 +289,7 @@ const IdentityCard = () => {
           data.doctor.yearsOfExperience !== undefined
             ? String(data.doctor.yearsOfExperience)
             : "",
+        timezone: data.doctor.timezone || DEFAULT_TIMEZONE,
         photo: null,
         photoRemoved: false,
       });
@@ -488,6 +500,23 @@ const IdentityCard = () => {
             placeholder="e.g., 12"
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
+        </div>
+
+        {/* Timezone */}
+        <div>
+          <label htmlFor="doctor-timezone" className="block text-sm font-medium text-gray-700 mb-2">
+            Timezone <span className="text-red-500">*</span>
+          </label>
+          <TimezoneSelect
+            id="doctor-timezone"
+            value={form.timezone}
+            onChange={(tz) => handleField("timezone", tz)}
+            disabled={submitting}
+          />
+          <p className="mt-1.5 text-xs text-gray-400">
+            Where you practice — governs your availability hours and appointment
+            reminders. Start typing to search (e.g. "Kolkata", "New York").
+          </p>
         </div>
       </div>
 

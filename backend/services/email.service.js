@@ -2,6 +2,7 @@
 // Sends OTP + appointment reminder emails via Nodemailer (Gmail SMTP).
 
 const nodemailer = require("nodemailer");
+const { formatInZone, DEFAULT_TIMEZONE } = require("../utils/timezone");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -36,17 +37,11 @@ const sendEmail = async (to, otp) => {
 // ============================================
 // 🛠️ HELPER — format date/time for emails
 // ============================================
-const formatAppointmentTime = (date) => {
-  return new Date(date).toLocaleString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  });
+// Renders in the RECIPIENT's own zone (not a fixed UTC/server zone) —
+// pass the recipient's stored `timezone`; defaults to the company's home
+// zone if none is known (matches pre-existing behavior for old data).
+const formatAppointmentTime = (date, timeZone = DEFAULT_TIMEZONE) => {
+  return formatInZone(date, timeZone, "dateTime12");
 };
 
 // ============================================
@@ -58,8 +53,9 @@ const sendAppointmentReminder24h = async ({
   otherPartyName,
   scheduledAt,
   isDoctor = false,
+  timezone = DEFAULT_TIMEZONE,
 }) => {
-  const formattedTime = formatAppointmentTime(scheduledAt);
+  const formattedTime = formatAppointmentTime(scheduledAt, timezone);
   const otherPartyLabel = isDoctor ? "patient" : "doctor";
 
   try {
@@ -94,8 +90,9 @@ const sendAppointmentReminder1h = async ({
   otherPartyName,
   scheduledAt,
   isDoctor = false,
+  timezone = DEFAULT_TIMEZONE,
 }) => {
-  const formattedTime = formatAppointmentTime(scheduledAt);
+  const formattedTime = formatAppointmentTime(scheduledAt, timezone);
   const otherPartyLabel = isDoctor ? "patient" : "doctor";
 
   try {
@@ -134,9 +131,10 @@ const sendRescheduleNotification = async ({
   reason,
   rescheduledByLabel, // "patient" | "doctor"
   isDoctor = false,
+  timezone = DEFAULT_TIMEZONE,
 }) => {
-  const oldFormatted = formatAppointmentTime(oldTime);
-  const newFormatted = formatAppointmentTime(newTime);
+  const oldFormatted = formatAppointmentTime(oldTime, timezone);
+  const newFormatted = formatAppointmentTime(newTime, timezone);
   const otherPartyLabel = isDoctor ? "patient" : "doctor";
 
   try {
@@ -176,14 +174,9 @@ const sendPlanExpiryReminder = async ({
   programName,
   endDate,
   daysLeft,
+  timezone = DEFAULT_TIMEZONE,
 }) => {
-  const formattedEnd = new Date(endDate).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const formattedEnd = formatInZone(endDate, timezone, "date");
   const dayLabel = daysLeft <= 0 ? "today" : daysLeft === 1 ? "in 1 day" : `in ${daysLeft} days`;
 
   try {

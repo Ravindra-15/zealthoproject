@@ -5,6 +5,7 @@
  */
 
 import axios from "axios";
+import { getViewerTimezone } from "../utils/time";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
@@ -54,6 +55,9 @@ export const createBooking = async ({ doctorId, scheduledAt, notes, platform }) 
     scheduledAt,
     notes,
     platform, // program identifier so appointments don't mix across subprograms
+    // 🌍 Opportunistic profile sync — lets reminder/confirmation emails
+    // render in the patient's real zone without a dedicated settings screen.
+    timezone: getViewerTimezone(),
   });
   return response.data.data;
 };

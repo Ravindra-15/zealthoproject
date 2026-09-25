@@ -5,6 +5,7 @@
  */
 
 const Doctor = require("../models/Doctor");
+const { buildZonedSlotDate, DEFAULT_TIMEZONE } = require("../utils/timezone");
 
 // ============================================
 // 🔒 PUBLIC FIELD WHITELIST
@@ -22,6 +23,7 @@ const PUBLIC_FIELDS = [
   "updatedAt",
   "isFeatured",
   "featuredUntil",
+  "timezone",
 ].join(" ");
 
 // ============================================
@@ -150,9 +152,11 @@ const getDayAvailability = async (doctorId, dateStr) => {
     isActive: true,
     isProfileComplete: true,
   })
-    .select("_id")
+    .select("_id timezone")
     .lean();
   if (!doctor) return null;
+
+  const doctorTimezone = doctor.timezone || DEFAULT_TIMEZONE;
 
   // 🗓️ Build day bounds (UTC) — start = 00:00, end = next day 00:00
   const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
@@ -169,6 +173,7 @@ const getDayAvailability = async (doctorId, dateStr) => {
     return {
       date: dateStr,
       dayOfWeek,
+      doctorTimezone,
       slots: generateSlotStartTimes().map((time) => ({
         time,
         isBookable: false,
@@ -216,22 +221,13 @@ const getDayAvailability = async (doctorId, dateStr) => {
   const slotTimes = generateSlotStartTimes();
 
   const slots = slotTimes.map((hhmm) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    const slotStart = new Date(dayStart);
-    slotStart.setUTCHours(h, m, 0, 0);
+    // 🌍 "hhmm" is the doctor's own local wall-clock time (e.g. "09:00" =
+    // 9 AM where the doctor practices) — convert through THEIR zone to get
+    // the real instant, not a raw UTC guess.
+    const slotStart = buildZonedSlotDate(dateStr, hhmm, doctorTimezone);
     const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
 
     // ❌ Past slot today
-    // if (isToday && slotStart < now) 
-    //  if (isToday && slotEnd <= now) return { time: hhmm, isBookable: false };
-    // if (isToday && slotEnd <= nowUtc) return { time: hhmm, isBookable: false };
-    console.log("TIME:", hhmm);
-    console.log("SLOT START:", slotStart.toISOString());
-    console.log("SLOT END:", slotEnd.toISOString());
-    console.log("NOW UTC:", nowUtc.toISOString());
-    console.log("IS TODAY:", isToday);
-    console.log("IS PAST:", slotEnd <= nowUtc);
-
     if (isToday && slotEnd <= nowUtc)
       return { time: hhmm, isBookable: false };
     // ❌ Doctor not open on this dayOfWeek
@@ -259,6 +255,7 @@ const getDayAvailability = async (doctorId, dateStr) => {
   return {
     date: dateStr,
     dayOfWeek,
+    doctorTimezone,
     slots,
   };
 };

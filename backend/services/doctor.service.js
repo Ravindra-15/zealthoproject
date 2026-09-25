@@ -434,6 +434,7 @@ const updateDoctorOwnProfile = async (doctorId, updates, options = {}) => {
     "phone",
     "qualifications",
     "yearsOfExperience",
+    "timezone",
     // "domain", // 🔒 Read-only by default — uncomment to allow doctor editing
   ];
 

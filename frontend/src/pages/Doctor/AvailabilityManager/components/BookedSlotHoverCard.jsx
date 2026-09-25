@@ -6,6 +6,7 @@
 
 import React from "react";
 import { Clock, User, CalendarDays } from "lucide-react";
+import { formatUtcDate, formatUtcTime24h, DEFAULT_TIMEZONE } from "../../../../utils/time";
 
 // Maps appointment status → label + color
 const statusBadge = (status) => {
@@ -21,22 +22,15 @@ const statusBadge = (status) => {
   }
 };
 
-// Formats an ISO datetime → "Jun 9, 2026 · 13:00" (UTC)
-const formatWhen = (iso) => {
+// Formats an ISO datetime → "Jun 9, 2026 · 13:00", in the doctor's own zone
+// (their calendar, so it should read in their own practice hours — not
+// wherever their browser happens to physically be right now).
+const formatWhen = (iso, timeZone) => {
   if (!iso) return "—";
-  const d = new Date(iso);
-  const date = d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${date} · ${hh}:${mm}`;
+  return `${formatUtcDate(iso, timeZone)} · ${formatUtcTime24h(iso, timeZone)}`;
 };
 
-const BookedSlotHoverCard = ({ position, slot }) => {
+const BookedSlotHoverCard = ({ position, slot, doctorTimezone = DEFAULT_TIMEZONE }) => {
   if (!position || !slot) return null;
 
   const badge = statusBadge(slot.appointmentStatus);
@@ -66,7 +60,7 @@ const BookedSlotHoverCard = ({ position, slot }) => {
       {/* scheduled time */}
       <div className="flex items-center gap-1.5 text-[11px] text-gray-600 mb-1">
         <CalendarDays size={11} className="text-gray-400" />
-        {formatWhen(slot.scheduledAt)}
+        {formatWhen(slot.scheduledAt, doctorTimezone)}
       </div>
 
       {/* payment status */}

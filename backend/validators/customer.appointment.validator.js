@@ -5,6 +5,7 @@
  */
 
 const mongoose = require("mongoose");
+const { isValidTimezone } = require("../utils/timezone");
 
 // ============================================
 // 📅 DAY AVAILABILITY QUERY
@@ -43,7 +44,7 @@ const validateDayAvailabilityQuery = (req, res, next) => {
 // ============================================
 // Body: { doctorId, scheduledAt (ISO), notes? }
 const validateCreateBooking = (req, res, next) => {
-  const { doctorId, scheduledAt, notes, platform } = req.body;
+  const { doctorId, scheduledAt, notes, platform, timezone } = req.body;
   const errors = [];
 
   if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
@@ -78,6 +79,8 @@ const validateCreateBooking = (req, res, next) => {
   }
 
   // 🧹 Replace req.body with cleaned values
+  // 🌍 timezone is optional/best-effort (opportunistic profile sync) — an
+  // invalid value is just dropped rather than failing the whole booking.
   req.body = {
   doctorId,
   scheduledAt: new Date(scheduledAt),
@@ -85,6 +88,7 @@ const validateCreateBooking = (req, res, next) => {
   platform: typeof platform === "string"
     ? platform.trim().toLowerCase()
     : "zealtho",
+  timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
 };
 
   next();

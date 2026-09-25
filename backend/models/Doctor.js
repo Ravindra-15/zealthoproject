@@ -18,6 +18,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { DOCTOR_LIMITS } = require("../utils/doctorConstants");
+const { DEFAULT_TIMEZONE, isValidTimezone } = require("../utils/timezone");
 
 const BCRYPT_ROUNDS = 12;
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -132,6 +133,21 @@ const doctorSchema = new mongoose.Schema(
       default: null,
       min: [0, "Years of experience cannot be negative"],
       max: [80, "Invalid years of experience"],
+    },
+
+    // ============================================
+    // 🌍 TIMEZONE (doctor's own practice location)
+    // ============================================
+    // IANA zone name, e.g. "Asia/Kolkata". Governs how their weekly
+    // availability ("9:00 AM") is converted to a real UTC instant, and
+    // which zone their appointment reminder emails are shown in.
+    // Defaults to the company's home zone — safe for every doctor today,
+    // since that's what "9:00 AM" has always meant in practice.
+    timezone: {
+      type: String,
+      trim: true,
+      default: DEFAULT_TIMEZONE,
+      validate: [isValidTimezone, "Invalid timezone"],
     },
 
     isProfileComplete: {

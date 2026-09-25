@@ -12,23 +12,26 @@ const AvailabilityTemplate = require("../models/AvailabilityTemplate");
 const Notification = require("../models/Notification");
 const TimeOff = require("../models/TimeOff");
 const Appointment = require("../models/Appointment");
+const Doctor = require("../models/Doctor");
+const User = require("../models/User");
 const {
   generateSlotStartTimes,
   SLOT_DURATION_MINUTES,
 } = require("../utils/availabilityConstants");
+const { buildZonedSlotDate, getZonedHHMM, formatInZone, DEFAULT_TIMEZONE } = require("../utils/timezone");
 
 // ============================================
 // 🛠️ DATE HELPERS
 // ============================================
 
 /**
- * Convert "HH:MM" + Date → full UTC Date for that day.
+ * Convert "HH:MM" (the doctor's own local wall-clock time) + a calendar
+ * Date → the real UTC instant that slot represents, using the doctor's
+ * own IANA timezone. DST-safe (see utils/timezone.js).
  */
-const buildSlotStartDate = (baseDate, hhmm) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(baseDate);
-  d.setUTCHours(h, m, 0, 0);
-  return d;
+const buildSlotStartDate = (baseDate, hhmm, timezone = DEFAULT_TIMEZONE) => {
+  const dateStr = isoDate(new Date(baseDate));
+  return buildZonedSlotDate(dateStr, hhmm, timezone);
 };
 
 /**
@@ -85,7 +88,8 @@ const getWeeklyView = async (doctorId, startDate) => {
   weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
   // 📥 Fetch all data in parallel
-  const [template, timeOffs, appointments] = await Promise.all([
+  const [doctorDoc, template, timeOffs, appointments] = await Promise.all([
+    Doctor.findById(doctorId).select("timezone").lean(),
     AvailabilityTemplate.getOrCreateForDoctor(doctorId),
     TimeOff.find({
       doctor: doctorId,
@@ -100,13 +104,35 @@ const getWeeklyView = async (doctorId, startDate) => {
     }).lean(),
   ]);
 
+  const doctorTimezone = doctorDoc?.timezone || DEFAULT_TIMEZONE;
+
   // 🔧 Build per-day templates lookup (dayOfWeek → Set of "HH:MM")
   const templateByDay = new Map();
   for (const day of template.weekly) {
     templateByDay.set(day.dayOfWeek, new Set(day.slots));
   }
 
-  const slotTimes = generateSlotStartTimes();
+  // 🌍 The normal 9-to-6 grid is fixed and zone-independent — but a booked
+  // appointment's real committed instant must NEVER go invisible just
+  // because a doctor edited their profile timezone after booking it. If a
+  // doctor changes zone, any of their pre-existing appointments can land
+  // outside that fixed window once reinterpreted through the new zone
+  // (e.g. a 9 AM IST booking becomes 4:30 AM once the doctor switches to
+  // London). Rather than silently dropping it, we extend this week's grid
+  // with whatever extra "HH:MM" labels those appointments now fall on —
+  // computed once, in the SAME order for every day, so the calendar's
+  // positional row-alignment (see WeeklyCalendar.jsx) stays correct.
+  const baseSlotTimes = generateSlotStartTimes();
+  const extraLabels = new Set();
+  for (const appt of appointments) {
+    const label = getZonedHHMM(appt.scheduledAt, doctorTimezone);
+    if (!baseSlotTimes.includes(label)) extraLabels.add(label);
+  }
+  const slotTimes =
+    extraLabels.size === 0
+      ? baseSlotTimes
+      : [...baseSlotTimes, ...extraLabels].sort();
+
   const days = [];
 
   // 🔁 For each day in the week
@@ -120,7 +146,7 @@ const getWeeklyView = async (doctorId, startDate) => {
     const slots = slotTimes.map((hhmm) => {
 
 
-      const slotStart = buildSlotStartDate(dayDate, hhmm);
+      const slotStart = buildSlotStartDate(dayDate, hhmm, doctorTimezone);
       const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
 
       // 🟢 Booked? (highest precedence — checked even for past slots so history shows)
@@ -189,6 +215,7 @@ const getWeeklyView = async (doctorId, startDate) => {
   return {
     weekStart: isoDate(weekStart),
     weekEnd: isoDate(new Date(weekEnd.getTime() - 1)),
+    doctorTimezone,
     days,
     onBreak: activeRangeBreak
       ? {
@@ -241,13 +268,14 @@ const cancelAppointment = async (doctorId, appointmentId, reason = "") => {
   appointment.status = "cancelled";
   appointment.cancelledReason = reason || "Cancelled by doctor";
   await appointment.save();
-  // 🔔 Notify customer
+  // 🔔 Notify customer (rendered in THEIR own zone, not the doctor's)
   try {
+    const patientForZone = await User.findById(appointment.user).select("timezone").lean();
     await Notification.create({
       userId: appointment.user,
       type: "appointment_cancelled",
       title: "Appointment Cancelled",
-      body: `Your consultation with Dr. ${appointment.doctorName} on ${new Date(appointment.scheduledAt).toLocaleString()} has been cancelled. ${reason ? `Reason: ${reason}` : ""}`,
+      body: `Your consultation with Dr. ${appointment.doctorName} on ${formatInZone(appointment.scheduledAt, patientForZone?.timezone || DEFAULT_TIMEZONE)} has been cancelled. ${reason ? `Reason: ${reason}` : ""}`,
       metadata: { appointmentId: appointment._id },
     });
   } catch (err) {

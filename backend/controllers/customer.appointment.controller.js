@@ -53,6 +53,10 @@ const createBooking = async (req, res) => {
       scheduledAt: req.body.scheduledAt,
       notes: req.body.notes,
       platform: req.body.platform || "zealtho",
+      // 🌍 Optional: the patient's browser-detected zone, piggybacked on
+      // the booking action so their profile self-corrects without a
+      // dedicated settings screen (used for reminder/confirmation emails).
+      viewerTimezone: req.body.timezone,
     });
 
     if (result.error) {

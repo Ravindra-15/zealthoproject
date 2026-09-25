@@ -2,6 +2,7 @@
  * DOCTOR MODULE — Auth Validators
  * Validates inputs for login, change-password, and complete-profile.
  */
+const { isValidTimezone } = require("../utils/timezone");
 
 // ============================================
 // 🔑 LOGIN VALIDATOR
@@ -168,6 +169,7 @@ const validateUpdateProfile = (req, res, next) => {
     phone,
     qualifications,
     yearsOfExperience,
+    timezone,
     // domain,  // 🔒 Read-only by default — uncomment to allow doctor editing
   } = req.body;
 
@@ -313,6 +315,19 @@ const validateUpdateProfile = (req, res, next) => {
       errors.push("Years of experience must be between 0 and 80");
     } else {
       cleaned.yearsOfExperience = num;
+    }
+  }
+
+  // ============================================
+  // 🌍 timezone (optional) — governs their availability grid + emails
+  // ============================================
+  if (timezone !== undefined) {
+    if (typeof timezone !== "string" || !timezone.trim()) {
+      errors.push("Timezone cannot be empty");
+    } else if (!isValidTimezone(timezone.trim())) {
+      errors.push("Invalid timezone");
+    } else {
+      cleaned.timezone = timezone.trim();
     }
   }
 

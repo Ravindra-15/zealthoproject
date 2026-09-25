@@ -15,6 +15,7 @@ import {
   formatMonthDay,
   isToday,
 } from "../../../../services/doctorAvailabilityService";
+import { buildZonedSlotDate, DEFAULT_TIMEZONE } from "../../../../utils/time";
 
 // ============================================
 // 🎨 SLOT CELL
@@ -29,6 +30,7 @@ const SlotCell = ({
   onBookedClick,
   onBookedHover,
   onBookedHoverEnd,
+  doctorTimezone = DEFAULT_TIMEZONE,
 }) => {
   if (!slot)
      return <div className="h-12 border border-gray-100 rounded-md" />;
@@ -38,8 +40,14 @@ const SlotCell = ({
     onContextMenu?.(e, slot, date);
   };
 // 🚫 Past slot check
-const slotDateTime = new Date(`${date}T${slot.time}:00`);
-const isPast = slotDateTime < new Date();
+// 🌍 "slot.time" is this doctor's own local wall-clock label — convert it
+// through THEIR profile zone, not the browser's own clock/zone. Using the
+// browser's local time here was the bug: a doctor's browser can be in a
+// different zone than their practice (travel, a DevTools zone override
+// while testing, etc.), which made genuinely-future slots look already
+// past and become unclickable.
+const slotDateTime = buildZonedSlotDate(date, slot.time, doctorTimezone);
+const isPast = slotDateTime ? slotDateTime.getTime() < Date.now() : false;
 
 if (isPast && slot.status !== "booked") {
   return (
@@ -197,6 +205,7 @@ const WeeklyCalendar = ({
   onBookedClick,      // click booked slot → redirect to appointment
   onBookedHover,      // hover booked slot → show info card
   onBookedHoverEnd,   // leave booked slot → hide card
+  doctorTimezone = DEFAULT_TIMEZONE,
 }) => {
   if (loading || !weekData) {
     return (
@@ -282,6 +291,7 @@ const WeeklyCalendar = ({
                     onBookedClick={onBookedClick}
                     onBookedHover={onBookedHover}
                     onBookedHoverEnd={onBookedHoverEnd}
+                    doctorTimezone={doctorTimezone}
                   />
                 );
               })}
