@@ -227,8 +227,11 @@ const getDayAvailability = async (doctorId, dateStr) => {
     const slotStart = buildZonedSlotDate(dateStr, hhmm, doctorTimezone);
     const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60000);
 
-    // ❌ Past slot today
-    if (isToday && slotEnd <= nowUtc)
+    // ❌ Past slot today — cut off at the slot's START, not its end. This
+    // must match createBooking's own "cannot book in the past" check
+    // (also start-based), otherwise a slot can show as bookable here for
+    // its whole duration while actually failing the moment it's booked.
+    if (isToday && slotStart <= nowUtc)
       return { time: hhmm, isBookable: false };
     // ❌ Doctor not open on this dayOfWeek
     if (!openSet.has(hhmm)) return { time: hhmm, isBookable: false };

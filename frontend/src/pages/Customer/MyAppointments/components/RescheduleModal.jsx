@@ -102,9 +102,10 @@ const RescheduleModal = ({
         const instant = selectedDate
           ? buildZonedSlotDate(selectedDate, s.time, doctorTimezone)
           : null;
-        const isPastNow = instant
-          ? instant.getTime() + SLOT_DURATION_MINUTES * 60000 <= now
-          : false;
+        // ⏰ Cut off at the slot's START, matching the booking gate itself
+        // (createBooking/reschedule reject a start time that's already
+        // passed) — not the slot's end.
+        const isPastNow = instant ? instant.getTime() <= now : false;
         return { ...s, instant, isPastNow };
       })
       .filter((s) => !s.isPastNow);

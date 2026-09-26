@@ -81,9 +81,11 @@ const TimeSlotGrid = ({
   // (not just as of whenever the data was fetched).
   const withInstants = slots.map((slot) => {
     const instant = date ? buildZonedSlotDate(date, slot.time, doctorTimezone) : null;
-    const isPastNow = instant
-      ? instant.getTime() + SLOT_DURATION_MINUTES * 60000 <= now
-      : false;
+    // ⏰ Cut off at the slot's START, matching the booking gate itself
+    // (createBooking rejects a start time that's already passed) — not the
+    // slot's end, or it would show as bookable for its whole duration while
+    // actually failing the moment someone tries to book it.
+    const isPastNow = instant ? instant.getTime() <= now : false;
     return { ...slot, instant, isPastNow };
   });
 
