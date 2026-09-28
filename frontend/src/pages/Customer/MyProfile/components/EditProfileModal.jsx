@@ -114,7 +114,8 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
           ? cityList.find((c) => c.name.toLowerCase() === user.city.trim().toLowerCase())
           : null;
         if (cityMatch) setCity(cityMatch);
-        else setManualCity(true);
+        else if (cityList.length === 0) setManualCity(true);
+        // else: leave unselected — real dropdown, user just hasn't picked yet
         setResolving(false);
         return;
       }
@@ -124,8 +125,13 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
         : null;
 
       if (!stateMatch) {
-        setManualState(true);
-        setManualCity(true);
+        // 🎯 Real states exist for this country (stateList.length > 0 here) —
+        // the user just hasn't picked one yet (old profile saved before
+        // `state` existed, or their old text didn't match). Show the real
+        // dropdown so they pick a proper value, same as onboarding — don't
+        // fall back to a free-text field just because nothing's selected
+        // yet. Manual fallback is reserved for when the dataset itself has
+        // no options to offer (handled above and below).
         setResolving(false);
         return;
       }
@@ -140,7 +146,8 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
         ? cityList.find((c) => c.name.toLowerCase() === user.city.trim().toLowerCase())
         : null;
       if (cityMatch) setCity(cityMatch);
-      else setManualCity(true);
+      else if (cityList.length === 0) setManualCity(true);
+      // else: leave unselected — real dropdown, user just hasn't picked yet
 
       setResolving(false);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,6 +337,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
               </label>
               <input
                 name="stateManual"
+                autoComplete="off"
                 value={form.stateManual}
                 onChange={handleChange}
                 required
@@ -356,6 +364,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
               </label>
               <input
                 name="cityManual"
+                autoComplete="off"
                 value={form.cityManual}
                 onChange={handleChange}
                 required
