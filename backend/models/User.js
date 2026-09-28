@@ -100,14 +100,31 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       minlength: [2, "Country name too short"],
-      match: [/^[a-zA-Z\s]+$/, "Invalid country"],
+      match: [/^[\p{L}\s.'-]+$/u, "Invalid country"],
+    },
+
+    // 🌍 ISO2 of `country` (e.g. "IN") — the reliable key for mapping to
+    // currency later; `country` stays the display name for backward
+    // compatibility with profiles saved before this field existed.
+    countryIso: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+
+    state: {
+      type: String,
+      trim: true,
+      minlength: [2, "State name too short"],
+      match: [/^[\p{L}\s.'-]+$/u, "Invalid state"],
     },
 
     city: {
       type: String,
       trim: true,
       minlength: [2, "City name too short"],
-      match: [/^[a-zA-Z\s]+$/, "Invalid city"],
+      match: [/^[\p{L}\s.'-]+$/u, "Invalid city"],
     },
     whatsapp: {
       type: String,

@@ -120,15 +120,19 @@ exports.validateProfileStep1 = (req, res, next) => {
 
 // 📍 Profile Step 2
 exports.validateProfileStep2 = (req, res, next) => {
-  let { dob, country, city } = req.body;
+  let { dob, country, countryIso, state, city } = req.body;
 
   country = country?.trim();
+  countryIso = countryIso?.trim().toUpperCase() || "";
+  state = state?.trim();
   city = city?.trim();
 
   req.body.country = country;
+  req.body.countryIso = countryIso;
+  req.body.state = state;
   req.body.city = city;
 
-  if (!dob || !country || !city) {
+  if (!dob || !country || !state || !city) {
     return res.status(400).json({ success: false, message: "All fields are required" });
   }
 
@@ -163,22 +167,21 @@ exports.validateProfileStep2 = (req, res, next) => {
     return res.status(400).json({ success: false, message: "Enter a valid date of birth" });
   }
 
-  const textRegex = /^[a-zA-Z\s]+$/;
+  // 🌍 Unicode letters — values come from the country/state/city dataset
+  // (or the manual fallback for places it doesn't cover), so accented names
+  // like "Wörgl" must not be rejected.
+  const textRegex = /^[\p{L}\s.'-]+$/u;
 
   if (!textRegex.test(country) || country.length < 2 || country.length > 60) {
     return res.status(400).json({ success: false, message: "Invalid country name" });
   }
 
-  if (/\s{2,}/.test(country)) {
-    return res.status(400).json({ success: false, message: "Country name cannot have multiple spaces" });
+  if (!textRegex.test(state) || state.length < 2 || state.length > 60) {
+    return res.status(400).json({ success: false, message: "Invalid state name" });
   }
 
   if (!textRegex.test(city) || city.length < 2 || city.length > 60) {
     return res.status(400).json({ success: false, message: "Invalid city name" });
-  }
-
-  if (/\s{2,}/.test(city)) {
-    return res.status(400).json({ success: false, message: "City name cannot have multiple spaces" });
   }
 
   next();

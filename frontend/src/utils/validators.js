@@ -104,10 +104,10 @@ export const validateProfileStep1 = ({ fullName, nickName }) => {
 };
 
 // 📍 Profile Step 2
-export const validateProfileStep2 = ({ dob, country, city }) => {
-  if (!dob || !country || !city) return "All fields are required";
+export const validateProfileStep2 = ({ dob, country, state, city }) => {
+  if (!dob || !country || !state || !city) return "All fields are required";
 
-  if (!country.trim() || !city.trim())
+  if (!country.trim() || !state.trim() || !city.trim())
     return "Fields cannot be empty or whitespace";
 
   const selectedDate = new Date(dob);
@@ -135,7 +135,10 @@ export const validateProfileStep2 = ({ dob, country, city }) => {
   if (actualAge < 5) return "You must be at least 5 years old";
   if (actualAge > 120) return "Enter a valid date of birth";
 
-  const textRegex = /^[a-zA-Z\s]+$/;
+  // 🌍 Unicode letters (so accented names like "Wörgl" or "Curaçao" — which
+  // come straight from the country/state/city dataset — aren't rejected),
+  // plus the punctuation real place names actually use.
+  const textRegex = /^[\p{L}\s.'-]+$/u;
 
   // Country
   if (!textRegex.test(country.trim()))
@@ -143,7 +146,13 @@ export const validateProfileStep2 = ({ dob, country, city }) => {
   if (country.trim().length < 2)
     return "Country name must be at least 2 characters";
   if (country.trim().length > 60) return "Country name is too long";
-  if (/\s{2,}/.test(country)) return "Country name cannot have multiple spaces";
+
+  // State
+  if (!textRegex.test(state.trim()))
+    return "State name can only contain letters";
+  if (state.trim().length < 2)
+    return "State name must be at least 2 characters";
+  if (state.trim().length > 60) return "State name is too long";
 
   // City
   if (!textRegex.test(city.trim()))
@@ -151,7 +160,6 @@ export const validateProfileStep2 = ({ dob, country, city }) => {
   if (city.trim().length < 2)
     return "City name must be at least 2 characters";
   if (city.trim().length > 60) return "City name is too long";
-  if (/\s{2,}/.test(city)) return "City name cannot have multiple spaces";
 
   return null;
 };

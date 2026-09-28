@@ -6,6 +6,8 @@ import CustomerNavbar from "../../components/customer/layout/CustomerNavbar";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import ProgressBar from "../../components/common/ProgressBar";
+import LocationSelect from "../../components/common/LocationSelect";
+import { loadCountries, loadStates, loadCities } from "../../data/location";
 import { profileStepTwo } from "../../services/authService";
 import { validateProfileStep2 } from "../../utils/validators";
 import toast from "react-hot-toast";
@@ -13,13 +15,33 @@ import toast from "react-hot-toast";
 const ProfileStepTwo = () => {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    dob: "",
-    country: "",
-    city: "",
-  });
+  const [form, setForm] = useState({ dob: "" });
+
+  // 🌍 Country → State → City cascade. Each holds the selected { code, name }
+  // (or null), plus the option lists fetched for the level below it.
+  const [country, setCountry] = useState(null);
+  const [state, setState] = useState(null);
+  const [city, setCity] = useState(null);
+
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  // 📝 Manual fallback — some small countries/territories have no state or
+  // city data in the dataset. Rather than block signup, we fall back to a
+  // free-text field for that level once we know the dropdown has nothing.
+  const [manualState, setManualState] = useState(false);
+  const [manualCity, setManualCity] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  // 🌍 Country list loads once, up front (small — ~58KB gzipped)
+  useEffect(() => {
+    loadCountries().then(setCountries);
+  }, []);
 
   useEffect(() => {
     const user =
@@ -31,26 +53,93 @@ const ProfileStepTwo = () => {
       return;
     }
 
-    if (user?.dob || user?.country || user?.city) {
-      setForm({
-        dob: user.dob ? user.dob.split("T")[0] : "",
-        country: user.country || "",
-        city: user.city || "",
-      });
-    }
+    if (user?.dob) setForm((f) => ({ ...f, dob: user.dob.split("T")[0] }));
+    // Pre-filling the cascade itself needs the country list loaded first
+    // (to resolve the stored country name back to an ISO code), so it's
+    // handled once `countries` arrives, below.
   }, [navigate]);
+
+  // ↩️ Restore a partially-completed profile once we can match the stored
+  // country name back to an option in the loaded list.
+  useEffect(() => {
+    if (!countries.length) return;
+    const user =
+      JSON.parse(localStorage.getItem("user")) ||
+      JSON.parse(sessionStorage.getItem("user"));
+    if (user?.country && !country) {
+      const match = countries.find((c) => c.name === user.country);
+      if (match) setCountry(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countries]);
+
+  // 🔁 Country changed → fetch its states, reset everything below it
+  useEffect(() => {
+    setState(null);
+    setCity(null);
+    setStates([]);
+    setCities([]);
+    setManualState(false);
+    setManualCity(false);
+
+    if (!country) return;
+
+    setStatesLoading(true);
+    loadStates(country.code)
+      .then((list) => {
+        setStates(list);
+        if (list.length === 0) {
+          // No states for this country — skip straight to city, scoped by
+          // country only.
+          setManualState(true);
+          setCitiesLoading(true);
+          loadCities(country.code, undefined)
+            .then((cityList) => {
+              setCities(cityList);
+              if (cityList.length === 0) setManualCity(true);
+            })
+            .finally(() => setCitiesLoading(false));
+        }
+      })
+      .finally(() => setStatesLoading(false));
+  }, [country]);
+
+  // 🔁 State changed → fetch its cities, reset city
+  useEffect(() => {
+    setCity(null);
+    setCities([]);
+    setManualCity(false);
+
+    if (!country || !state) return;
+
+    setCitiesLoading(true);
+    loadCities(country.code, state.code)
+      .then((list) => {
+        setCities(list);
+        if (list.length === 0) setManualCity(true);
+      })
+      .finally(() => setCitiesLoading(false));
+  }, [state]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async () => {
-    const error = validateProfileStep2(form);
+    const payload = {
+      dob: form.dob,
+      country: country?.name || "",
+      countryIso: country?.code || "",
+      state: manualState ? form.stateManual?.trim() || "" : state?.name || "",
+      city: manualCity ? form.cityManual?.trim() || "" : city?.name || "",
+    };
+
+    const error = validateProfileStep2(payload);
     if (error) return toast.error(error);
 
     try {
       setLoading(true);
-      await profileStepTwo(form);
+      await profileStepTwo(payload);
 
       const storedUser =
         JSON.parse(localStorage.getItem("user")) ||
@@ -58,9 +147,10 @@ const ProfileStepTwo = () => {
 
       const updatedUser = {
         ...storedUser,
-        dob: form.dob,
-        country: form.country,
-        city: form.city,
+        dob: payload.dob,
+        country: payload.country,
+        state: payload.state,
+        city: payload.city,
       };
 
       localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -133,21 +223,60 @@ const ProfileStepTwo = () => {
                 onChange={handleChange}
               />
 
-              <Input
-                label="Enter your Country"
-                placeholder="e.g India"
-                name="country"
-                value={form.country}
-                onChange={handleChange}
+              <LocationSelect
+                label="Select your Country"
+                placeholder="Select a country"
+                value={country}
+                options={countries}
+                onChange={setCountry}
+                showFlag
               />
 
-              <Input
-                label="Enter your City"
-                placeholder="e.g Bangalore"
-                name="city"
-                value={form.city}
-                onChange={handleChange}
-              />
+              {manualState ? (
+                <Input
+                  label="Enter your State / Region"
+                  placeholder="e.g Maharashtra"
+                  name="stateManual"
+                  value={form.stateManual || ""}
+                  onChange={handleChange}
+                />
+              ) : (
+                <LocationSelect
+                  label="Select your State"
+                  placeholder={
+                    !country ? "Select a country first" : "Select a state"
+                  }
+                  value={state}
+                  options={states}
+                  onChange={setState}
+                  disabled={!country}
+                  loading={statesLoading}
+                />
+              )}
+
+              {manualCity ? (
+                <Input
+                  label="Enter your City"
+                  placeholder="e.g Mumbai"
+                  name="cityManual"
+                  value={form.cityManual || ""}
+                  onChange={handleChange}
+                />
+              ) : (
+                <LocationSelect
+                  label="Select your City"
+                  placeholder={
+                    !state && !manualState
+                      ? "Select a state first"
+                      : "Select a city"
+                  }
+                  value={city}
+                  options={cities}
+                  onChange={setCity}
+                  disabled={!state && !manualState}
+                  loading={citiesLoading}
+                />
+              )}
 
               <div className="border-t border-gray-200 mt-3 pt-6">
                 <Button

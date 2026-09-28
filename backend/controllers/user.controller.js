@@ -41,9 +41,9 @@ exports.updateProfileStepOne = async (req, res) => {
 // Step 2
 exports.updateProfileStepTwo = async (req, res) => {
   try {
-    const { dob, country, city } = req.body;
+    const { dob, country, countryIso, state, city } = req.body;
 
-    if (!dob || !country || !city) {
+    if (!dob || !country || !state || !city) {
       return errorResponse(res, "All fields are required", 400);
     }
 
@@ -55,6 +55,8 @@ exports.updateProfileStepTwo = async (req, res) => {
 
     user.dob = dob;
     user.country = country;
+    user.countryIso = countryIso || "";
+    user.state = state;
     user.city = city;
 
     await user.save();
@@ -65,6 +67,8 @@ exports.updateProfileStepTwo = async (req, res) => {
         user: {
           dob: user.dob,
           country: user.country,
+          countryIso: user.countryIso,
+          state: user.state,
           city: user.city,
         },
       },

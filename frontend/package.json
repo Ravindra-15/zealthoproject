@@ -13,6 +13,7 @@
     "@react-oauth/google": "^0.13.5",
     "axios": "^1.15.2",
     "clsx": "^2.1.1",
+    "countries-states-cities-service": "^1.5.1",
     "dompurify": "^3.4.2",
     "framer-motion": "^12.38.0",
     "html2pdf.js": "^0.14.0",
