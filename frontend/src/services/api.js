@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isAccountDeactivatedError, forceLogoutDeactivated } from "../utils/authGuard";
 
 const API = axios.create({
   // baseURL: import.meta.env.VITE_API_BASE_URL, 
@@ -31,6 +32,12 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (res) => res,
   (error) => {
+    // 🚫 Account deactivated → sign out now, don't wait for the token to expire
+    if (isAccountDeactivatedError(error)) {
+      forceLogoutDeactivated(error.response.data.message);
+      return Promise.reject(error);
+    }
+
     // 🔴 Auto logout if token expired
     if (error.response?.status === 401) {
       localStorage.removeItem("token");

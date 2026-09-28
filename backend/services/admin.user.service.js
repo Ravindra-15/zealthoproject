@@ -121,18 +121,25 @@ const updateUser = async (userId, updates) => {
 };
 
 // ============================================
-// 🔄 TOGGLE STATUS (soft delete / reactivate)
+// 🔄 SET STATUS (soft delete / reactivate)
+// `targetIsActive` (optional) — the desired end state, matching the confirm
+// modal ("Deactivate this user?" already means "set isActive: false"). Falls
+// back to a blind flip if omitted, for backward compatibility.
 // ============================================
-const toggleUserStatus = async (userId) => {
+const toggleUserStatus = async (userId, targetIsActive) => {
   const user = await User.findById(userId);
   if (!user) return null;
 
-  user.isActive = !user.isActive;
+  const nextIsActive =
+    typeof targetIsActive === "boolean" ? targetIsActive : !user.isActive;
+
+  const changed = user.isActive !== nextIsActive;
+  user.isActive = nextIsActive;
   await user.save();
 
   const obj = user.toObject();
   delete obj.password;
-  return obj;
+  return { user: obj, changed };
 };
 
 module.exports = {

@@ -65,6 +65,10 @@ exports.signup = async (req, res) => {
     let user = await User.findOne({ email });
 
     if (user && user.isVerified) {
+      // 🚫 Deactivated accounts can't re-signup their way back in
+      if (user.isActive === false) {
+        return errorResponse(res, "This account has been deactivated. Contact support.", 403);
+      }
       return errorResponse(res, "User already exists", 400);
     }
 
@@ -182,6 +186,11 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
     if (!user || !user.isVerified) {
       return errorResponse(res, "Invalid email or password", 401);
+    }
+
+    // 🚫 Block deactivated accounts (mirrors the Google-login check below)
+    if (user.isActive === false) {
+      return errorResponse(res, "Your account has been deactivated. Contact support.", 403);
     }
 
     const isMatch = await bcrypt.compare(password, user.password);

@@ -6,6 +6,7 @@
  */
 
 const userService = require("../services/admin.user.service");
+const { notifyUserStatusChanged } = require("../services/customerNotification.service");
 const {
   isSuperAdmin,
   omit,
@@ -115,22 +116,32 @@ const updateUser = async (req, res) => {
 
 // ============================================
 // 🔄 TOGGLE STATUS
+// Body may include `isActive` (the desired end state, from the confirm
+// modal) — falls back to a blind flip if omitted.
 // ============================================
 const toggleStatus = async (req, res) => {
   try {
-    const user = await userService.toggleUserStatus(req.params.id);
+    const { isActive } = req.body;
+    const result = await userService.toggleUserStatus(req.params.id, isActive);
 
-    if (!user) {
+    if (!result) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
+    const { user, changed } = result;
+
+    // 📧 + 📱 tell the user (never throws) — only when the status actually flipped
+    const notifications = changed
+      ? await notifyUserStatusChanged({ user, isActive: user.isActive })
+      : null;
+
     return res.status(200).json({
       success: true,
       message: `User ${user.isActive ? "activated" : "deactivated"} successfully`,
-      data: { user },
+      data: { user, notifications, changed },
     });
   } catch (err) {
     console.error("[ADMIN TOGGLE USER STATUS ERROR]:", err);

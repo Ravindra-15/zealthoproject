@@ -5,6 +5,7 @@
  */
 
 import axios from "axios";
+import { attachDeactivationGuard } from "../utils/authGuard";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
@@ -22,6 +23,11 @@ authApi.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// 📌 This call fires on essentially every page navigation (the navbar bell
+// badge, see CustomerNavbar), so it's the most reliable place to catch a
+// deactivation quickly regardless of what page the user is sitting on.
+attachDeactivationGuard(authApi);
 
 // ============================================
 // 📋 LIST MY NOTIFICATIONS

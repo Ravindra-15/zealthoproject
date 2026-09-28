@@ -11,27 +11,26 @@ import toast from "react-hot-toast";
 import { AlertTriangle, Power, Loader2 } from "lucide-react";
 
 import { toggleUserStatus } from "../../../../services/userService";
+import UserStatusModal from "./UserStatusModal";
 
 const UserDangerZone = ({ user, onUserUpdated }) => {
   const [toggling, setToggling] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const handleToggle = async () => {
+  const handleConfirm = async () => {
     if (toggling) return;
 
     const action = user.isActive ? "deactivate" : "activate";
-    const confirmMsg = user.isActive
-      ? "Deactivate this user? They will lose access to the platform until reactivated."
-      : "Activate this user? They will regain access to the platform.";
-
-    if (!window.confirm(confirmMsg)) return;
+    const targetIsActive = !user.isActive;
 
     try {
       setToggling(true);
-      const data = await toggleUserStatus(user._id);
+      const data = await toggleUserStatus(user._id, targetIsActive);
       toast.success(
         `User ${data.user.isActive ? "activated" : "deactivated"} successfully`
       );
       onUserUpdated?.(data.user);
+      setModalOpen(false);
     } catch (err) {
       const msg = err?.response?.data?.message || `Failed to ${action} user`;
       toast.error(msg);
@@ -76,7 +75,7 @@ const UserDangerZone = ({ user, onUserUpdated }) => {
 
         <button
           type="button"
-          onClick={handleToggle}
+          onClick={() => setModalOpen(true)}
           disabled={toggling}
           className={`
             inline-flex items-center justify-center gap-1.5
@@ -100,6 +99,14 @@ const UserDangerZone = ({ user, onUserUpdated }) => {
           {user.isActive ? "Deactivate" : "Activate"}
         </button>
       </div>
+
+      <UserStatusModal
+        isOpen={modalOpen}
+        user={user}
+        loading={toggling}
+        onConfirm={handleConfirm}
+        onClose={() => setModalOpen(false)}
+      />
     </div>
   );
 };

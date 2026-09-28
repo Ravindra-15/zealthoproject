@@ -1,9 +1,15 @@
 // middleware/auth.middleware.js
 
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 const { errorResponse } = require("../utils/responseHandler");
 
-exports.protect = (req, res, next) => {
+// 🔍 Re-fetches the user on every request (not just at login) so a
+// deactivated account is rejected on its very next call — same pattern as
+// protectDoctor. `code: "ACCOUNT_DEACTIVATED"` is a distinct signal from a
+// plain 403 (already used elsewhere for "no active subscription", which
+// must NOT force a logout) so the frontend can tell the two apart.
+exports.protect = async (req, res, next) => {
   let token;
 
   if (req.headers.authorization?.startsWith("Bearer")) {
@@ -17,10 +23,23 @@ exports.protect = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    const user = await User.findById(decoded.id).select("_id isActive");
+    if (!user) {
+      return errorResponse(res, "Not authorized, user not found", 401);
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been deactivated. Contact support.",
+        code: "ACCOUNT_DEACTIVATED",
+      });
+    }
+
     req.user = {
-  id: decoded.id,
-  _id: decoded.id,
-};
+      id: decoded.id,
+      _id: decoded.id,
+    };
     next();
   } catch (error) {
     return errorResponse(res, "Invalid or expired token", 401);

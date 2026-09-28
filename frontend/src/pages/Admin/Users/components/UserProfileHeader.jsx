@@ -13,6 +13,7 @@ import { User, Power, Loader2 } from "lucide-react";
 import { buildUserDisplayId, toggleUserStatus} from "../../../../services/userService";
 import { buildUserPhotoUrl } from "../../../../services/customerProfileService";
 import { useAdminAuth } from "../../../../context/AdminAuthContext";
+import UserStatusModal from "./UserStatusModal";
 
 // ============================================
 // 🛡️ Mask helpers
@@ -31,6 +32,7 @@ const maskPhone = (phone) => {
 
 const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
   const [toggling, setToggling] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   // 🛡️ Only the super admin can activate / deactivate users
   const { isSuperAdmin } = useAdminAuth();
 
@@ -39,16 +41,16 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
   const weeksRemaining = Math.max(0, weekTotal - weekCurrent);
   const progressPercent = weekTotal > 0 ? Math.min(100, (weekCurrent / weekTotal) * 100) : 0;
 
-  const handleToggle = async () => {
+  const handleConfirm = async () => {
     if (toggling) return;
-    const action = user.isActive ? "deactivate" : "activate";
-    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+    const targetIsActive = !user.isActive;
 
     try {
       setToggling(true);
-      const data = await toggleUserStatus(user._id);
+      const data = await toggleUserStatus(user._id, targetIsActive);
       toast.success(`User ${data.user.isActive ? "activated" : "deactivated"}`);
       onUserUpdated?.(data.user);
+      setModalOpen(false);
     } catch (err) {
       const msg = err?.response?.data?.message || "Failed to update status";
       toast.error(msg);
@@ -136,7 +138,7 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
             {isSuperAdmin && (
             <button
               type="button"
-              onClick={handleToggle}
+              onClick={() => setModalOpen(true)}
               disabled={toggling}
               className={`
                 inline-flex items-center gap-1.5
@@ -183,6 +185,16 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
           )}
         </div>
       </div>
+
+      {isSuperAdmin && (
+        <UserStatusModal
+          isOpen={modalOpen}
+          user={user}
+          loading={toggling}
+          onConfirm={handleConfirm}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

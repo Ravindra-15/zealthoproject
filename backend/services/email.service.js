@@ -269,6 +269,57 @@ const sendWelcomeEmail = async ({ to, recipientName }) => {
 };
 
 // ============================================
+// 🚫 ACCOUNT DEACTIVATED
+// ============================================
+const sendAccountDeactivatedEmail = async ({ to, recipientName }) => {
+  const name = recipientName || "there";
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Your Zealtho account has been deactivated",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">Account Deactivated</h2>
+          <p>Hi ${name},</p>
+          <p>Your Zealtho account has been deactivated by an administrator. You will not be able to sign in until it is reactivated.</p>
+          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px;">If you believe this is a mistake, please contact our support team.</p>
+          </div>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Account Deactivated Email Error:", error.message);
+  }
+};
+
+// ============================================
+// ✅ ACCOUNT REACTIVATED
+// ============================================
+const sendAccountReactivatedEmail = async ({ to, recipientName }) => {
+  const name = recipientName || "there";
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Your Zealtho account has been reactivated",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #16a34a;">Account Reactivated</h2>
+          <p>Hi ${name},</p>
+          <p>Good news — your Zealtho account has been reactivated. You can sign in again as usual.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Account Reactivated Email Error:", error.message);
+  }
+};
+
+// ============================================
 // 📨 GENERIC SEND — used by the admin-portal notifications
 // Unlike the helpers above this THROWS on failure, so the caller can
 // report whether the email was really delivered.
@@ -291,3 +342,5 @@ module.exports.sendAppointmentReminder1h = sendAppointmentReminder1h;
 module.exports.sendRescheduleNotification = sendRescheduleNotification;
 module.exports.sendPlanExpiryReminder = sendPlanExpiryReminder;
 module.exports.sendBirthdayWish = sendBirthdayWish;
+module.exports.sendAccountDeactivatedEmail = sendAccountDeactivatedEmail;
+module.exports.sendAccountReactivatedEmail = sendAccountReactivatedEmail;
