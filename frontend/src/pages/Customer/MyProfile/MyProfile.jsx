@@ -54,8 +54,13 @@ export default function MyProfile() {
     try {
       const data = await fetchMyProfile();
       setUser(data);
-    } catch {
-      toast.error("Failed to load profile");
+    } catch (err) {
+      // 🔎 Surface the real reason (status + backend message) instead of a
+      // generic toast — this call has intermittently failed for already
+      // logged-in sessions (works again after logout/login) and the vague
+      // message made it impossible to tell why from a bug report alone.
+      console.error("[MyProfile] fetchMyProfile failed:", err?.response?.status, err?.response?.data || err.message);
+      toast.error(err?.response?.data?.message || `Failed to load profile${err?.response?.status ? ` (${err.response.status})` : ""}`);
     }
   };
 
@@ -278,7 +283,9 @@ export default function MyProfile() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <MapPin size={14} className="text-gray-400" />
 
-                    {user?.city ? `${user.city}, ${user.country || ""}` : "—"}
+                    {user?.city
+                      ? [user.city, user.state, user.country].filter(Boolean).join(", ")
+                      : "—"}
                   </div>
 
                   <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -293,7 +300,7 @@ export default function MyProfile() {
                   </div>
 
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="text-gray-400">Whatsapp</span>
+                    <span className="text-gray-400">Phone Number</span>
 
                     <span>{fullPhone}</span>
                   </div>
