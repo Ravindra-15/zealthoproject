@@ -214,14 +214,15 @@ export const COUNTRIES = [
   { name: "Zimbabwe", iso2: "ZW", dialCode: "263", min: 8, max: 9 },
 ];
 
-// 🏳️ Flag from ISO 3166-1 alpha-2 code — built from Unicode Regional
-// Indicator Symbols, so it needs no image asset and stays crisp at any size.
-export const flagEmoji = (iso2) =>
-  iso2
-    .toUpperCase()
-    .replace(/./g, (char) =>
-      String.fromCodePoint(127397 + char.charCodeAt(0))
-    );
+// 🏳️ Flag image URL from ISO 3166-1 alpha-2 code.
+// (Unicode regional-indicator flag emoji don't render as flags on Windows —
+// it shows the raw two letters instead — so we use small hosted flag icons
+// instead, the same pattern already used for the Google/Facebook icons on
+// this page.)
+// flagcdn.com only serves fixed widths (20, 40, 80, 160, ...) — w40 here,
+// downscaled by CSS, so it stays crisp on retina screens.
+export const flagUrl = (iso2, width = 40) =>
+  `https://flagcdn.com/w${width}/${iso2.toLowerCase()}.png`;
 
 // 🇮🇳 Default: India, matching the platform's original hardcoded +91
 export const DEFAULT_COUNTRY =

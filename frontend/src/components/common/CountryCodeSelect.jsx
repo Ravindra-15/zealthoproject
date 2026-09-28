@@ -9,7 +9,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
-import { COUNTRIES, flagEmoji } from "../../data/countries";
+import { COUNTRIES, flagUrl } from "../../data/countries";
 
 const CountryCodeSelect = ({ value, onChange, hasError = false }) => {
   const [open, setOpen] = useState(false);
@@ -51,7 +51,11 @@ const CountryCodeSelect = ({ value, onChange, hasError = false }) => {
           hasError ? "border-red-400" : "border-gray-300"
         }`}
       >
-        <span className="text-base leading-none">{flagEmoji(value.iso2)}</span>
+        <img
+          src={flagUrl(value.iso2)}
+          alt=""
+          className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0"
+        />
         <span className="whitespace-nowrap">+{value.dialCode}</span>
         <ChevronDown size={14} className="text-gray-500" />
       </button>
@@ -90,7 +94,11 @@ const CountryCodeSelect = ({ value, onChange, hasError = false }) => {
                     c.iso2 === value.iso2 ? "bg-orange-50" : ""
                   }`}
                 >
-                  <span className="text-base leading-none">{flagEmoji(c.iso2)}</span>
+                  <img
+                    src={flagUrl(c.iso2)}
+                    alt=""
+                    className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0"
+                  />
                   <span className="flex-1 truncate">{c.name}</span>
                   <span className="text-gray-400 text-xs">+{c.dialCode}</span>
                 </button>
