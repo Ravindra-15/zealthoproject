@@ -35,7 +35,19 @@ const userSchema = new mongoose.Schema(
         },
         "Phone is required",
       ],
-      match: [/^[0-9]{10}$/, "Phone must be 10 digits"],
+      // 🌍 National number only (no country code) — length varies by
+      // country (e.g. 7 digits in Fiji, 11 in China), so this just guards
+      // against garbage. Per-country exactness is enforced on the frontend.
+      match: [/^[0-9]{4,14}$/, "Invalid phone number"],
+    },
+
+    // 🌍 Dial code of the country the user selected at signup, e.g. "+91".
+    // Defaults to India to match every account created before this field
+    // existed.
+    countryCode: {
+      type: String,
+      default: "+91",
+      trim: true,
     },
 
     provider: {

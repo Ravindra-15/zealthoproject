@@ -1,7 +1,10 @@
 // src/utils/validators.js
 
 // 🔐 Signup
-export const validateSignup = ({ email, password, phone }) => {
+// `country` = the selected entry from data/countries.js ({ dialCode, min, max, ... }),
+// used to check the phone field's digit length against that country's own rule
+// instead of the old hardcoded India-only regex.
+export const validateSignup = ({ email, password, phone, country }) => {
   if (!email || !password || !phone) return "All fields are required";
 
   // No whitespace only
@@ -28,8 +31,15 @@ export const validateSignup = ({ email, password, phone }) => {
   if (!/[^a-zA-Z0-9]/.test(password))
     return "Password must contain at least 1 special character";
 
-  const phoneRegex = /^[6-9]\d{9}$/;
-  if (!phoneRegex.test(phone.trim())) return "Invalid phone number";
+  const phoneDigits = phone.trim();
+  if (!/^\d+$/.test(phoneDigits)) return "Phone number can only contain digits";
+
+  const { min, max } = country || { min: 10, max: 10 };
+  if (phoneDigits.length < min || phoneDigits.length > max) {
+    return min === max
+      ? `Phone number must be ${min} digits for the selected country`
+      : `Phone number must be ${min}–${max} digits for the selected country`;
+  }
 
   return null;
 };

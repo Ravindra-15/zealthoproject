@@ -56,7 +56,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // 🔹 SIGNUP
 exports.signup = async (req, res) => {
   try {
-    let { email, password, phone } = req.body;
+    let { email, password, phone, countryCode } = req.body;
 
     // 🔥 Normalize again (defensive coding)
     email = email.toLowerCase().trim();
@@ -76,6 +76,7 @@ exports.signup = async (req, res) => {
         email,
         password: hashedPassword,
         phone,
+        countryCode,
         referralCode: await generateUniqueCode(), // own invite code
       });
       // 🔗 attach referral if friend signed up via a ref link
@@ -89,6 +90,7 @@ exports.signup = async (req, res) => {
       // Update unverified user
       user.password = hashedPassword;
       user.phone = phone;
+      user.countryCode = countryCode;
       await user.save();
     }
 

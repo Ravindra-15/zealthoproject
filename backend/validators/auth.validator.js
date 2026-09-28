@@ -1,16 +1,18 @@
 // validators/auth.validator.js
 
 exports.validateSignup = (req, res, next) => {
-  let { email, password, phone } = req.body;
+  let { email, password, phone, countryCode } = req.body;
 
   // 🔥 Normalize
   email = email?.toLowerCase().trim();
   password = password?.trim();
   phone = phone?.trim();
+  countryCode = countryCode?.trim() || "+91";
 
   req.body.email = email;
   req.body.password = password;
   req.body.phone = phone;
+  req.body.countryCode = countryCode;
 
   // Required
   if (!email || !password || !phone) {
@@ -51,10 +53,16 @@ exports.validateSignup = (req, res, next) => {
     return res.status(400).json({ success: false, message: "Password must contain at least 1 special character" });
   }
 
-  // Phone
-  const phoneRegex = /^[6-9]\d{9}$/;
+  // Phone — country-agnostic bound; exact per-country length is enforced
+  // on the frontend using the selected country's own rule.
+  const phoneRegex = /^\d{4,14}$/;
   if (!phoneRegex.test(phone)) {
     return res.status(400).json({ success: false, message: "Invalid phone number" });
+  }
+
+  // Country code — e.g. "+91", "+1"
+  if (!/^\+\d{1,4}$/.test(countryCode)) {
+    return res.status(400).json({ success: false, message: "Invalid country code" });
   }
 
   next();
