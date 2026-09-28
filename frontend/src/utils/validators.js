@@ -34,7 +34,19 @@ export const validateSignup = ({ email, password, phone, country }) => {
   const phoneDigits = phone.trim();
   if (!/^\d+$/.test(phoneDigits)) return "Phone number can only contain digits";
 
-  const { min, max } = country || { min: 10, max: 10 };
+  const { min, max, pattern } = country || { min: 10, max: 10 };
+
+  // 📱 Where we know the country's exact mobile format (e.g. Indian mobiles
+  // start 6-9), enforce that instead of just the digit count — catches
+  // numbers like "1234567890" that are the right length but not a real
+  // mobile number.
+  if (pattern) {
+    if (!new RegExp(pattern).test(phoneDigits)) {
+      return "Please enter a valid mobile number for the selected country";
+    }
+    return null;
+  }
+
   if (phoneDigits.length < min || phoneDigits.length > max) {
     return min === max
       ? `Phone number must be ${min} digits for the selected country`
