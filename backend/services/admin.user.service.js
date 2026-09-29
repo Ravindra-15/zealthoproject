@@ -125,8 +125,13 @@ const updateUser = async (userId, updates) => {
 // `targetIsActive` (optional) — the desired end state, matching the confirm
 // modal ("Deactivate this user?" already means "set isActive: false"). Falls
 // back to a blind flip if omitted, for backward compatibility.
+//
+// `flagInfo` (only meaningful when deactivating) — { reasonCode, reasonLabel,
+// description, flaggedBy }. Per the client spec, deactivating a user must
+// capture why, and that becomes the "flagged user" record on the account.
+// Cleared again on reactivation — a reactivated account isn't flagged.
 // ============================================
-const toggleUserStatus = async (userId, targetIsActive) => {
+const toggleUserStatus = async (userId, targetIsActive, flagInfo = {}) => {
   const user = await User.findById(userId);
   if (!user) return null;
 
@@ -135,6 +140,21 @@ const toggleUserStatus = async (userId, targetIsActive) => {
 
   const changed = user.isActive !== nextIsActive;
   user.isActive = nextIsActive;
+
+  if (!nextIsActive) {
+    user.flagged = true;
+    user.flagReason = flagInfo.reasonLabel || "";
+    user.flagDescription = flagInfo.description || "";
+    user.flaggedAt = new Date();
+    user.flaggedBy = flagInfo.flaggedBy || null;
+  } else {
+    user.flagged = false;
+    user.flagReason = "";
+    user.flagDescription = "";
+    user.flaggedAt = null;
+    user.flaggedBy = null;
+  }
+
   await user.save();
 
   const obj = user.toObject();

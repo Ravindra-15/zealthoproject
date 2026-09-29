@@ -193,6 +193,36 @@ const userSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+
+    // 🚩 Flagged users — set when a super admin deactivates this account
+    // with a reason, per the client spec: deactivation must capture why,
+    // and that reason is what the user is told in their notification.
+    // Cleared when the account is reactivated.
+    flagged: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    flagReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    flagDescription: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Description must be 500 characters or fewer"],
+      default: "",
+    },
+    flaggedAt: {
+      type: Date,
+      default: null,
+    },
+    flaggedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
   },
   { timestamps: true }
 );

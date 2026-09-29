@@ -17,7 +17,7 @@ const UserDangerZone = ({ user, onUserUpdated }) => {
   const [toggling, setToggling] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (flagInfo) => {
     if (toggling) return;
 
     const action = user.isActive ? "deactivate" : "activate";
@@ -25,7 +25,7 @@ const UserDangerZone = ({ user, onUserUpdated }) => {
 
     try {
       setToggling(true);
-      const data = await toggleUserStatus(user._id, targetIsActive);
+      const data = await toggleUserStatus(user._id, targetIsActive, flagInfo);
       toast.success(
         `User ${data.user.isActive ? "activated" : "deactivated"} successfully`
       );

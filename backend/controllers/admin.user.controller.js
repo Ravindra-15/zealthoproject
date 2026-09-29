@@ -7,6 +7,7 @@
 
 const userService = require("../services/admin.user.service");
 const { notifyUserStatusChanged } = require("../services/customerNotification.service");
+const { FLAG_REASON_CODES, getFlagReasonLabel } = require("../utils/userFlagReasons");
 const {
   isSuperAdmin,
   omit,
@@ -118,11 +119,47 @@ const updateUser = async (req, res) => {
 // 🔄 TOGGLE STATUS
 // Body may include `isActive` (the desired end state, from the confirm
 // modal) — falls back to a blind flip if omitted.
+//
+// When deactivating (`isActive: false`), a reason is required — per the
+// client spec: `reasonCode` (one of FLAG_REASON_CODES) and, when it's
+// "other", a non-empty `description` (max 500 chars, also enforced by the
+// User schema). A description is optional alongside any other reason.
 // ============================================
 const toggleStatus = async (req, res) => {
   try {
-    const { isActive } = req.body;
-    const result = await userService.toggleUserStatus(req.params.id, isActive);
+    const { isActive, reasonCode, description } = req.body;
+
+    if (isActive === false) {
+      if (!reasonCode || !FLAG_REASON_CODES.includes(reasonCode)) {
+        return res.status(400).json({
+          success: false,
+          message: "A deactivation reason is required",
+        });
+      }
+      if (reasonCode === "other" && !String(description || "").trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Please describe the reason for deactivation",
+        });
+      }
+      if (String(description || "").length > 500) {
+        return res.status(400).json({
+          success: false,
+          message: "Description must be 500 characters or fewer",
+        });
+      }
+    }
+
+    const flagInfo =
+      isActive === false
+        ? {
+            reasonLabel: getFlagReasonLabel(reasonCode),
+            description: String(description || "").trim(),
+            flaggedBy: req.admin?._id,
+          }
+        : {};
+
+    const result = await userService.toggleUserStatus(req.params.id, isActive, flagInfo);
 
     if (!result) {
       return res.status(404).json({
@@ -135,7 +172,12 @@ const toggleStatus = async (req, res) => {
 
     // 📧 + 📱 tell the user (never throws) — only when the status actually flipped
     const notifications = changed
-      ? await notifyUserStatusChanged({ user, isActive: user.isActive })
+      ? await notifyUserStatusChanged({
+          user,
+          isActive: user.isActive,
+          reasonLabel: user.flagReason,
+          description: user.flagDescription,
+        })
       : null;
 
     return res.status(200).json({

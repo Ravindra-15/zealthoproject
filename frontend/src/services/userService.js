@@ -49,12 +49,20 @@ export const updateUser = async (userId, payload) => {
 // ============================================
 // 🔄 TOGGLE STATUS
 // `targetIsActive` — the desired end state (from the confirm modal).
-// Omit to blind-flip the current state.
+// Omit to blind-flip the current state. `flagInfo` — only meaningful when
+// deactivating — { reasonCode, description }, required by the backend.
 // ============================================
-export const toggleUserStatus = async (userId, targetIsActive) => {
+export const toggleUserStatus = async (userId, targetIsActive, flagInfo = {}) => {
+  const body =
+    typeof targetIsActive === "boolean"
+      ? {
+          isActive: targetIsActive,
+          ...(targetIsActive === false ? flagInfo : {}),
+        }
+      : {};
   const response = await adminApi.patch(
     `/admin/users/${userId}/toggle-status`,
-    typeof targetIsActive === "boolean" ? { isActive: targetIsActive } : {}
+    body
   );
   return response.data.data;
 };

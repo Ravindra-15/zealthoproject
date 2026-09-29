@@ -12,6 +12,18 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// 🔒 Escapes admin-authored free text (e.g. a deactivation description)
+// before it's dropped into an HTML email, so stray "<"/">" can't break
+// rendering or inject markup.
+const escapeHtml = (str) =>
+  String(str || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c]);
+
 // ============================================
 // 🔐 OTP EMAIL (existing — unchanged)
 // ============================================
@@ -270,9 +282,13 @@ const sendWelcomeEmail = async ({ to, recipientName }) => {
 
 // ============================================
 // 🚫 ACCOUNT DEACTIVATED
+// `reasonLabel` — the admin's selected reason (e.g. "Violation of Terms &
+// Conditions"); `description` — their optional free-text detail, shown
+// verbatim to the user per the client spec.
 // ============================================
-const sendAccountDeactivatedEmail = async ({ to, recipientName }) => {
+const sendAccountDeactivatedEmail = async ({ to, recipientName, reasonLabel, description }) => {
   const name = recipientName || "there";
+  const reason = reasonLabel || "a violation of our Terms & Conditions";
   try {
     await transporter.sendMail({
       from: `"Zealtho" <${process.env.EMAIL_USER}>`,
@@ -282,9 +298,10 @@ const sendAccountDeactivatedEmail = async ({ to, recipientName }) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #dc2626;">Account Deactivated</h2>
           <p>Hi ${name},</p>
-          <p>Your Zealtho account has been deactivated by an administrator. You will not be able to sign in until it is reactivated.</p>
+          <p>Your Zealtho account has been deactivated for: <strong>${escapeHtml(reason)}</strong>.</p>
+          ${description ? `<div style="background: #f9fafb; border-left: 4px solid #9ca3af; padding: 12px 16px; margin: 16px 0;"><p style="margin: 0; font-size: 14px; color: #374151;">${escapeHtml(description)}</p></div>` : ""}
           <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; margin: 20px 0;">
-            <p style="margin: 0; font-size: 14px;">If you believe this is a mistake, please contact our support team.</p>
+            <p style="margin: 0; font-size: 14px;">Contact admin for support and help if you believe this is a mistake.</p>
           </div>
           <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
         </div>

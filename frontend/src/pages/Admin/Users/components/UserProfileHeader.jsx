@@ -41,13 +41,13 @@ const UserProfileHeader = ({ user, bodyProfile, onUserUpdated }) => {
   const weeksRemaining = Math.max(0, weekTotal - weekCurrent);
   const progressPercent = weekTotal > 0 ? Math.min(100, (weekCurrent / weekTotal) * 100) : 0;
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (flagInfo) => {
     if (toggling) return;
     const targetIsActive = !user.isActive;
 
     try {
       setToggling(true);
-      const data = await toggleUserStatus(user._id, targetIsActive);
+      const data = await toggleUserStatus(user._id, targetIsActive, flagInfo);
       toast.success(`User ${data.user.isActive ? "activated" : "deactivated"}`);
       onUserUpdated?.(data.user);
       setModalOpen(false);
