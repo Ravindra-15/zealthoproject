@@ -251,6 +251,8 @@ const EditDoctor = () => {
           shortBio: doctor.shortBio,
         }}
         existingPhotoUrl={buildPhotoUrl(doctor.photo, doctor.updatedAt)}
+        existingLicenceNumber={doctor.licenceNumber}
+        existingLicenceDocumentName={doctor.licenceDocumentOriginalName}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         submitting={submitting}

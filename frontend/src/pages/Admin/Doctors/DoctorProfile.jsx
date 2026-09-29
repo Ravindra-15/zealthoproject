@@ -26,6 +26,8 @@ import {
   Loader2,
   Pencil,
   AlertCircle,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import DOMPurify from "dompurify";
@@ -168,6 +170,11 @@ const DoctorProfile = () => {
  const photoUrl = buildPhotoUrl(doctor.photo, doctor.updatedAt);
   const hasEmail = !!doctor.personalEmail;
   const hasPhone = !!doctor.phone;
+  const hasLicenceNumber = !!doctor.licenceNumber;
+  const licenceDocumentUrl = buildPhotoUrl(doctor.licenceDocument, doctor.updatedAt);
+  const isPreviewable =
+    doctor.licenceDocumentMimeType === "application/pdf" ||
+    doctor.licenceDocumentMimeType?.startsWith("image/");
 
   return (
     <div className="space-y-6">
@@ -423,6 +430,74 @@ const DoctorProfile = () => {
             <p className="mt-4 text-xs text-gray-500 leading-relaxed italic">
               Contact details will be filled in by the doctor during profile
               completion on first login.
+            </p>
+          )}
+        </section>
+
+        {/* Divider */}
+        <div className="my-6 border-t border-gray-100" />
+
+        {/* 📄 Licence Information */}
+        <section>
+          <h2 className="text-base font-bold text-gray-900 mb-4">
+            Licence Information
+          </h2>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* 🆔 Licence number */}
+            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 flex-1">
+              <div className="w-10 h-10 rounded-lg flex-shrink-0 bg-amber-50 flex items-center justify-center">
+                <FileText size={18} className="text-amber-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold tracking-wider text-gray-500 uppercase mb-1">
+                  Licence Number
+                </p>
+                {hasLicenceNumber ? (
+                  <p className="text-sm text-gray-800 font-medium truncate">
+                    {doctor.licenceNumber}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Not yet provided</p>
+                )}
+              </div>
+            </div>
+
+            {/* 📎 Licence document */}
+            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 flex-1">
+              <div className="w-10 h-10 rounded-lg flex-shrink-0 bg-amber-50 flex items-center justify-center">
+                <FileText size={18} className="text-amber-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold tracking-wider text-gray-500 uppercase mb-1">
+                  Licence Document
+                </p>
+                {licenceDocumentUrl ? (
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-gray-800 font-medium truncate">
+                      {doctor.licenceDocumentOriginalName || "Document uploaded"}
+                    </p>
+                    <a
+                      href={licenceDocumentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex-shrink-0"
+                    >
+                      {isPreviewable ? "Preview" : "Download"}
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Not yet provided</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {(!hasLicenceNumber || !licenceDocumentUrl) && (
+            <p className="mt-4 text-xs text-gray-500 leading-relaxed italic">
+              This is required from the doctor during profile completion, unless
+              already provided here by an admin.
             </p>
           )}
         </section>

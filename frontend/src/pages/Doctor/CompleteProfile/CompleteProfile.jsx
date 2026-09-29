@@ -17,12 +17,26 @@ import {
   Loader2,
   UserCircle2,
   CheckCircle2,
+  IdCard,
+  FileText,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { useDoctorAuth } from "../../../context/DoctorAuthContext";
 import { completeDoctorProfile } from "../../../services/doctorAuthService";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
+const LICENCE_NUMBER_MAX = 50;
+const LICENCE_ALLOWED_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+const LICENCE_MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
@@ -33,9 +47,17 @@ const CompleteProfile = () => {
     phone: "",
     qualifications: "",
     yearsOfExperience: "",
+    licenceNumber: "",
   });
+  const [licenceFile, setLicenceFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const licenceInputRef = useRef(null);
+
+  // 📄 Already provided by the admin at onboarding? Then this doctor isn't
+  // forced to supply it again.
+  const hasExistingLicenceNumber = !!doctor?.licenceNumber;
+  const hasExistingLicenceDocument = !!doctor?.licenceDocument;
 
   const isMounted = useRef(false);
   useEffect(() => {
@@ -91,8 +113,38 @@ const CompleteProfile = () => {
       }
     }
 
+    // 📄 Mandatory unless the admin already provided it at onboarding
+    const licenceNumber = formData.licenceNumber.trim();
+    if (!licenceNumber && !hasExistingLicenceNumber) {
+      next.licenceNumber = "Licence number is required";
+    } else if (licenceNumber.length > LICENCE_NUMBER_MAX) {
+      next.licenceNumber = `Licence number cannot exceed ${LICENCE_NUMBER_MAX} characters`;
+    }
+
+    if (!licenceFile && !hasExistingLicenceDocument) {
+      next.licenceDocument = "Licence document is required";
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
+  };
+
+  const handleLicenceFileChange = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!LICENCE_ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Only PDF, Word documents, or images (JPEG/PNG/WebP) are allowed");
+      return;
+    }
+    if (file.size > LICENCE_MAX_SIZE_BYTES) {
+      toast.error(`File too large. Max size: ${LICENCE_MAX_SIZE_BYTES / (1024 * 1024)}MB`);
+      return;
+    }
+
+    setLicenceFile(file);
+    if (errors.licenceDocument) setErrors((prev) => ({ ...prev, licenceDocument: "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -108,6 +160,8 @@ const CompleteProfile = () => {
         phone: formData.phone.trim(),
         qualifications: formData.qualifications.trim(),
         yearsOfExperience: Number(formData.yearsOfExperience),
+        licenceNumber: formData.licenceNumber.trim(),
+        licenceDocument: licenceFile,
       });
 
       if (!isMounted.current) return;
@@ -370,6 +424,102 @@ const CompleteProfile = () => {
                   <p className="mt-1.5 text-xs text-red-500">{errors.yearsOfExperience}</p>
                 )}
               </div>
+
+              {/* Licence number — mandatory unless the admin already set it */}
+              {!hasExistingLicenceNumber && (
+                <div>
+                  <label htmlFor="licenceNumber" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Licence number
+                  </label>
+                  <div className="relative">
+                    <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
+                    <input
+                      id="licenceNumber"
+                      name="licenceNumber"
+                      type="text"
+                      placeholder="e.g., MCI-12345"
+                      value={formData.licenceNumber}
+                      onChange={handleChange}
+                      disabled={isSubmitting}
+                      maxLength={LICENCE_NUMBER_MAX}
+                      className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border transition-colors bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-60 ${
+                        errors.licenceNumber
+                          ? "border-red-300 focus:border-red-400"
+                          : "border-gray-200 focus:border-indigo-500"
+                      }`}
+                    />
+                  </div>
+                  {errors.licenceNumber && (
+                    <p className="mt-1.5 text-xs text-red-500">{errors.licenceNumber}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Licence document — mandatory unless the admin already uploaded one */}
+              {!hasExistingLicenceDocument && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Licence document
+                  </label>
+                  <div
+                    onClick={() => !isSubmitting && licenceInputRef.current?.click()}
+                    role="button"
+                    tabIndex={isSubmitting ? -1 : 0}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                      isSubmitting
+                        ? "cursor-not-allowed opacity-60 border-gray-200 bg-gray-50"
+                        : errors.licenceDocument
+                          ? "border-red-300"
+                          : licenceFile
+                            ? "border-gray-200 hover:border-indigo-300"
+                            : "border-dashed border-gray-300 hover:border-indigo-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    {licenceFile ? (
+                      <>
+                        <FileText size={18} className="text-indigo-500 flex-shrink-0" />
+                        <span className="flex-1 min-w-0 text-sm text-gray-800 truncate">
+                          {licenceFile.name}
+                        </span>
+                        {!isSubmitting && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLicenceFile(null);
+                            }}
+                            className="flex-shrink-0 w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-colors"
+                            aria-label="Remove licence document"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={18} className="text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-500">
+                          Click to upload your licence document
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    ref={licenceInputRef}
+                    type="file"
+                    accept={LICENCE_ALLOWED_TYPES.join(",")}
+                    onChange={handleLicenceFileChange}
+                    className="hidden"
+                    disabled={isSubmitting}
+                  />
+                  <p className="mt-1.5 text-[11px] text-gray-400">
+                    PDF, Word, or image · Max 5MB
+                  </p>
+                  {errors.licenceDocument && (
+                    <p className="mt-1.5 text-xs text-red-500">{errors.licenceDocument}</p>
+                  )}
+                </div>
+              )}
 
               {/* Submit */}
               <button

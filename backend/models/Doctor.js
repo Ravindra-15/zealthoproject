@@ -128,6 +128,29 @@ const doctorSchema = new mongoose.Schema(
       maxlength: [500, "Qualifications too long"],
     },
 
+    // ============================================
+    // 📄 LICENCE (optional from admin at onboarding, mandatory from the
+    // doctor during profile completion — reviewed by admin/super admin)
+    // ============================================
+    licenceNumber: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: [DOCTOR_LIMITS.LICENCE_NUMBER_MAX, "Licence number too long"],
+    },
+    licenceDocument: {
+      type: String, // File path relative to uploads folder
+      default: null,
+    },
+    licenceDocumentOriginalName: {
+      type: String,
+      default: null,
+    },
+    licenceDocumentMimeType: {
+      type: String,
+      default: null,
+    },
+
     yearsOfExperience: {
       type: Number,
       default: null,

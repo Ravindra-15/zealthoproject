@@ -22,14 +22,21 @@ const {
  */
 const createDoctor = async (req, res) => {
   let uploadedFilePath = null;
+  let uploadedLicencePath = null;
 
   try {
-    // 📸 If multer uploaded a file, capture its path
-    if (req.file) {
-      uploadedFilePath = `/uploads/doctors/${req.file.filename}`;
+    // 📸📄 multer's .fields() puts uploads under req.files.<fieldname>[0]
+    const photoFile = req.files?.photo?.[0];
+    const licenceFile = req.files?.licenceDocument?.[0];
+
+    if (photoFile) {
+      uploadedFilePath = `/uploads/doctors/${photoFile.filename}`;
+    }
+    if (licenceFile) {
+      uploadedLicencePath = `/uploads/doctors/${licenceFile.filename}`;
     }
 
-    const { fullName, domain, specializations, shortBio } = req.body;
+    const { fullName, domain, specializations, shortBio, licenceNumber } = req.body;
 
     const result = await doctorService.createDoctor(
       {
@@ -38,6 +45,10 @@ const createDoctor = async (req, res) => {
         specializations,
         shortBio,
         photo: uploadedFilePath,
+        licenceNumber: licenceNumber || null,
+        licenceDocument: uploadedLicencePath,
+        licenceDocumentOriginalName: licenceFile ? licenceFile.originalname : null,
+        licenceDocumentMimeType: licenceFile ? licenceFile.mimetype : null,
       },
       req.admin._id
     );
@@ -51,9 +62,10 @@ const createDoctor = async (req, res) => {
       },
     });
   } catch (err) {
-    // 🧹 Cleanup uploaded file if creation failed
-    if (uploadedFilePath) {
-      const filePath = path.join(__dirname, "..", uploadedFilePath);
+    // 🧹 Cleanup uploaded files if creation failed
+    for (const p of [uploadedFilePath, uploadedLicencePath]) {
+      if (!p) continue;
+      const filePath = path.join(__dirname, "..", p);
       try {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       } catch (cleanupErr) {
@@ -164,11 +176,16 @@ const getDoctor = async (req, res) => {
 const updateDoctor = async (req, res) => {
   let newUploadedPath = null;
   let oldPhotoPath = null;
+  let newLicencePath = null;
+  let oldLicencePath = null;
 
   try {
-    // 🖼️ CASE 1: New file uploaded
-    if (req.file) {
-      newUploadedPath = `/uploads/doctors/${req.file.filename}`;
+    const photoFile = req.files?.photo?.[0];
+    const licenceFile = req.files?.licenceDocument?.[0];
+
+    // 🖼️ PHOTO — new file / explicit removal / unchanged
+    if (photoFile) {
+      newUploadedPath = `/uploads/doctors/${photoFile.filename}`;
 
       const existing = await doctorService.getDoctorById(req.params.id);
       if (existing && existing.photo) {
@@ -176,29 +193,55 @@ const updateDoctor = async (req, res) => {
       }
 
       req.body.photo = newUploadedPath;
-    }
-    // 🖼️ CASE 2: Explicit photo removal (no file but removePhoto flag)
-    else if (req.body.removePhoto === "true" || req.body.removePhoto === true) {
+    } else if (req.body.removePhoto === "true" || req.body.removePhoto === true) {
       const existing = await doctorService.getDoctorById(req.params.id);
       if (existing && existing.photo) {
         oldPhotoPath = path.join(__dirname, "..", existing.photo);
       }
 
-      req.body.photo = null; // Set to null in DB
-    }
-    // 🖼️ CASE 3: No photo change — strip the key so service doesn't update it
-    else {
+      req.body.photo = null;
+    } else {
       delete req.body.photo;
     }
-
-    // 🧹 Don't pass removePhoto flag to service (it's not a valid field)
     delete req.body.removePhoto;
+
+    // 📄 LICENCE DOCUMENT — new file / explicit removal / unchanged
+    if (licenceFile) {
+      newLicencePath = `/uploads/doctors/${licenceFile.filename}`;
+
+      const existing = await doctorService.getDoctorById(req.params.id);
+      if (existing && existing.licenceDocument) {
+        oldLicencePath = path.join(__dirname, "..", existing.licenceDocument);
+      }
+
+      req.body.licenceDocument = newLicencePath;
+      req.body.licenceDocumentOriginalName = licenceFile.originalname;
+      req.body.licenceDocumentMimeType = licenceFile.mimetype;
+    } else if (
+      req.body.removeLicenceDocument === "true" ||
+      req.body.removeLicenceDocument === true
+    ) {
+      const existing = await doctorService.getDoctorById(req.params.id);
+      if (existing && existing.licenceDocument) {
+        oldLicencePath = path.join(__dirname, "..", existing.licenceDocument);
+      }
+
+      req.body.licenceDocument = null;
+      req.body.licenceDocumentOriginalName = null;
+      req.body.licenceDocumentMimeType = null;
+    } else {
+      delete req.body.licenceDocument;
+      delete req.body.licenceDocumentOriginalName;
+      delete req.body.licenceDocumentMimeType;
+    }
+    delete req.body.removeLicenceDocument;
 
     const updated = await doctorService.updateDoctor(req.params.id, req.body);
 
     if (!updated) {
-      if (newUploadedPath) {
-        const fullPath = path.join(__dirname, "..", newUploadedPath);
+      for (const p of [newUploadedPath, newLicencePath]) {
+        if (!p) continue;
+        const fullPath = path.join(__dirname, "..", p);
         try {
           if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
         } catch { }
@@ -210,12 +253,13 @@ const updateDoctor = async (req, res) => {
       });
     }
 
-    // 🧹 Delete old photo from disk if it was replaced or removed
-    if (oldPhotoPath) {
+    // 🧹 Delete old files from disk if they were replaced or removed
+    for (const p of [oldPhotoPath, oldLicencePath]) {
+      if (!p) continue;
       try {
-        if (fs.existsSync(oldPhotoPath)) fs.unlinkSync(oldPhotoPath);
+        if (fs.existsSync(p)) fs.unlinkSync(p);
       } catch (cleanupErr) {
-        console.error("[DOCTOR UPDATE] Old photo cleanup failed:", cleanupErr.message);
+        console.error("[DOCTOR UPDATE] Old file cleanup failed:", cleanupErr.message);
       }
     }
 
@@ -225,8 +269,9 @@ const updateDoctor = async (req, res) => {
       data: { doctor: updated },
     });
   } catch (err) {
-    if (newUploadedPath) {
-      const fullPath = path.join(__dirname, "..", newUploadedPath);
+    for (const p of [newUploadedPath, newLicencePath]) {
+      if (!p) continue;
+      const fullPath = path.join(__dirname, "..", p);
       try {
         if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
       } catch { }

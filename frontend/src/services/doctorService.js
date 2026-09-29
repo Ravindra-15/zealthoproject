@@ -58,6 +58,12 @@ export const createDoctor = async (data) => {
     formData.append("photo", data.photo);
   }
 
+  // 📄 Licence — both optional at this stage
+  if (data.licenceNumber) formData.append("licenceNumber", data.licenceNumber);
+  if (data.licenceDocument instanceof File) {
+    formData.append("licenceDocument", data.licenceDocument);
+  }
+
   const response = await adminApi.post("/admin/doctors", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
@@ -93,6 +99,18 @@ export const updateDoctor = async (doctorId, data, options = {}) => {
     formData.append("photo", data.photo);
   } else if (options.removePhoto) {
     formData.append("removePhoto", "true");
+  }
+
+  // 📄 Licence number (optional text field)
+  if (data.licenceNumber !== undefined) {
+    formData.append("licenceNumber", data.licenceNumber);
+  }
+
+  // 📄 Licence document: file upload OR explicit removal
+  if (data.licenceDocument instanceof File) {
+    formData.append("licenceDocument", data.licenceDocument);
+  } else if (data.licenceDocumentRemoved || options.removeLicenceDocument) {
+    formData.append("removeLicenceDocument", "true");
   }
 
   const response = await adminApi.put(`/admin/doctors/${doctorId}`, formData, {

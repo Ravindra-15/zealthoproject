@@ -238,6 +238,8 @@ const changePassword = async (req, res) => {
  * @body    { personalEmail, phone, qualifications, yearsOfExperience }
  */
 const completeProfile = async (req, res) => {
+  let uploadedLicencePath = null;
+
   try {
     const doctorId = req.doctorId;
 
@@ -249,12 +251,28 @@ const completeProfile = async (req, res) => {
       });
     }
 
+    // 📄 A new licence document was uploaded — attach its path before saving.
+    // (If none was uploaded, the validator already confirmed one already
+    // exists on file, so licenceDocument stays untouched here.)
+    if (req.file) {
+      uploadedLicencePath = `/uploads/doctors/${req.file.filename}`;
+      req.body.licenceDocument = uploadedLicencePath;
+      req.body.licenceDocumentOriginalName = req.file.originalname;
+      req.body.licenceDocumentMimeType = req.file.mimetype;
+    }
+
     const updatedDoctor = await doctorService.completeDoctorProfile(
       doctorId,
       req.body
     );
 
     if (!updatedDoctor) {
+      if (uploadedLicencePath) {
+        const fs = require("fs");
+        const path = require("path");
+        const fullPath = path.join(__dirname, "..", uploadedLicencePath);
+        try { if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath); } catch { }
+      }
       return res.status(404).json({
         success: false,
         message: "Doctor not found",
@@ -271,6 +289,13 @@ const completeProfile = async (req, res) => {
       },
     });
   } catch (err) {
+    if (uploadedLicencePath) {
+      const fs = require("fs");
+      const path = require("path");
+      const fullPath = path.join(__dirname, "..", uploadedLicencePath);
+      try { if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath); } catch { }
+    }
+
     // 🛡️ Handle Mongoose validation errors gracefully
     if (err.name === "ValidationError") {
       const firstError = Object.values(err.errors)[0]?.message || "Invalid data";

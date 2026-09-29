@@ -3,6 +3,7 @@
  * Validates inputs for login, change-password, and complete-profile.
  */
 const { isValidTimezone } = require("../utils/timezone");
+const { DOCTOR_LIMITS } = require("../utils/doctorConstants");
 
 // ============================================
 // 🔑 LOGIN VALIDATOR
@@ -140,7 +141,41 @@ const validateCompleteProfile = (req, res, next) => {
     req.body.yearsOfExperience = yoe;
   }
 
+  // ============================================
+  // 📄 Licence number + document — mandatory for the doctor UNLESS the
+  // admin already provided both when onboarding them (then it's already
+  // on file and the doctor isn't forced to re-upload).
+  // ============================================
+  const { licenceNumber } = req.body;
+  const alreadyHasNumber = !!req.doctor?.licenceNumber;
+  const alreadyHasDocument = !!req.doctor?.licenceDocument;
+
+  const providingNumber = typeof licenceNumber === "string" && licenceNumber.trim();
+
+  if (!providingNumber && !alreadyHasNumber) {
+    errors.push("Licence number is required");
+  } else if (providingNumber) {
+    const trimmed = licenceNumber.trim();
+    if (trimmed.length > DOCTOR_LIMITS.LICENCE_NUMBER_MAX) {
+      errors.push(`Licence number cannot exceed ${DOCTOR_LIMITS.LICENCE_NUMBER_MAX} characters`);
+    } else {
+      req.body.licenceNumber = trimmed;
+    }
+  }
+
+  if (!req.file && !alreadyHasDocument) {
+    errors.push("Licence document is required");
+  }
+
   if (errors.length > 0) {
+    // 🧹 A licence document may already be sitting on disk (multer runs
+    // before this validator) — don't leave it orphaned on a rejected request.
+    if (req.file) {
+      const fs = require("fs");
+      try {
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      } catch { /* best-effort cleanup */ }
+    }
     return res.status(400).json({
       success: false,
       message: errors[0],

@@ -22,6 +22,7 @@ import "react-quill-new/dist/quill.snow.css";
 import DOMPurify from "dompurify";
 
 import PhotoUploader from "./PhotoUploader";
+import LicenceUploader from "./LicenceUploader";
 import ChipsInput from "./ChipsInput";
 import { fetchDoctorOptions } from "../../../../services/doctorService";
 
@@ -33,6 +34,7 @@ const LIMITS = {
   SPECS_MIN: 1,
   SPECS_MAX: 10,
   BIO_MAX: 500,
+  LICENCE_NUMBER_MAX: 50,
 };
 
 // 🧮 Count visible chars in HTML (excludes tags, attributes)
@@ -81,6 +83,8 @@ const DoctorForm = ({
   submitting = false,
   submitLabel = "Onboard Doctor",
   existingPhotoUrl = null,
+  existingLicenceNumber = null,
+  existingLicenceDocumentName = null,
 }) => {
   // ============================================
   // 📝 FORM STATE
@@ -92,6 +96,9 @@ const DoctorForm = ({
     shortBio: initialValues.shortBio || "",
     photo: null, // File object (only set when user picks new file)
     photoRemoved: false,
+    licenceNumber: existingLicenceNumber || "",
+    licenceDocument: null, // File object (only set when admin picks a new one)
+    licenceDocumentRemoved: false,
   });
 
   // ============================================
@@ -201,6 +208,12 @@ const DoctorForm = ({
       return false;
     }
 
+    // 📄 Licence number — optional, but must fit the limit if provided
+    if (form.licenceNumber.trim().length > LIMITS.LICENCE_NUMBER_MAX) {
+      toast.error(`Licence number cannot exceed ${LIMITS.LICENCE_NUMBER_MAX} characters`);
+      return false;
+    }
+
     return true;
   };
 
@@ -221,6 +234,9 @@ const DoctorForm = ({
       shortBio: sanitizeHtml(form.shortBio), // 🛡️ Strip dangerous HTML
       photo: form.photo,
       photoRemoved: form.photoRemoved,
+      licenceNumber: form.licenceNumber.trim(),
+      licenceDocument: form.licenceDocument,
+      licenceDocumentRemoved: form.licenceDocumentRemoved,
     });
   };
 
@@ -378,6 +394,57 @@ const DoctorForm = ({
                 {countVisibleChars(form.shortBio)} / {LIMITS.BIO_MAX} characters
               </span>
             </div>
+          </div>
+
+          {/* 📄 Licence — optional here; the doctor is required to provide
+              it themselves during profile completion if it's still missing. */}
+          <div>
+            <label
+              htmlFor="licenceNumber"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Licence Number{" "}
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              id="licenceNumber"
+              type="text"
+              value={form.licenceNumber}
+              onChange={(e) => handleField("licenceNumber", e.target.value)}
+              disabled={submitting}
+              maxLength={LIMITS.LICENCE_NUMBER_MAX}
+              placeholder="e.g., MCI-12345"
+              className="
+                w-full px-4 py-3
+                bg-white border border-gray-200 rounded-xl
+                text-sm text-gray-900 placeholder-gray-400
+                focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
+                disabled:bg-gray-50 disabled:cursor-not-allowed
+                transition-colors
+              "
+            />
+            <p className="mt-1.5 text-xs text-gray-400">
+              If left blank, the doctor will be asked to provide this when they complete their profile.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Licence Document{" "}
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <LicenceUploader
+              value={form.licenceDocument}
+              onChange={(file, meta = {}) => {
+                setForm((prev) => ({
+                  ...prev,
+                  licenceDocument: file,
+                  licenceDocumentRemoved: meta.removed || false,
+                }));
+              }}
+              existingName={existingLicenceDocumentName}
+              disabled={submitting}
+            />
           </div>
         </div>
       </div>

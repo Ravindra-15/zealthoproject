@@ -42,6 +42,19 @@ const DOCTOR_LIMITS = {
   SHORT_BIO_MAX: 500,
   PHOTO_MAX_SIZE_BYTES: 2 * 1024 * 1024, // 2MB
   ALLOWED_PHOTO_MIME_TYPES: ["image/jpeg", "image/png", "image/webp"],
+
+  // 📄 Licence document — admin can optionally upload one when onboarding a
+  // doctor; the doctor must upload their own during profile completion.
+  LICENCE_NUMBER_MAX: 50,
+  LICENCE_MAX_SIZE_BYTES: 5 * 1024 * 1024, // 5MB
+  ALLOWED_LICENCE_MIME_TYPES: [
+    "application/pdf",
+    "application/msword", // .doc
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ],
 };
 
 module.exports = {

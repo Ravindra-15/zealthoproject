@@ -112,18 +112,39 @@ export const changeDoctorPassword = async ({
 
 /**
  * Complete profile after first password change.
+ * `licenceDocument` (File, optional) — only sent as multipart when the
+ * doctor actually picked a new file. If the admin already uploaded one
+ * during onboarding, this can be omitted entirely.
  */
 export const completeDoctorProfile = async ({
   personalEmail,
   phone,
   qualifications,
   yearsOfExperience,
+  licenceNumber,
+  licenceDocument,
 }) => {
+  if (licenceDocument instanceof File) {
+    const formData = new FormData();
+    formData.append("personalEmail", personalEmail);
+    formData.append("phone", phone);
+    formData.append("qualifications", qualifications);
+    formData.append("yearsOfExperience", yearsOfExperience);
+    if (licenceNumber) formData.append("licenceNumber", licenceNumber);
+    formData.append("licenceDocument", licenceDocument);
+
+    const response = await doctorApi.patch("/doctor/auth/complete-profile", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data;
+  }
+
   const response = await doctorApi.patch("/doctor/auth/complete-profile", {
     personalEmail,
     phone,
     qualifications,
     yearsOfExperience,
+    ...(licenceNumber ? { licenceNumber } : {}),
   });
   return response.data.data;
 };

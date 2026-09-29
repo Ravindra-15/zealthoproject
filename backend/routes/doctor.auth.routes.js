@@ -21,6 +21,8 @@ const { authLoginLimiter } = require("../middleware/rateLimit.middleware");
 const {
   doctorPhotoUpload,
   handleDoctorPhotoUploadError,
+  doctorLicenceUpload,
+  handleDoctorLicenceUploadError,
 } = require("../middleware/upload.middleware");
 
 const router = express.Router();
@@ -47,6 +49,8 @@ router.post(
 router.patch(
   "/complete-profile",
   protectDoctor,
+  doctorLicenceUpload.single("licenceDocument"),
+  handleDoctorLicenceUploadError,
   validateCompleteProfile,
   completeProfile
 );

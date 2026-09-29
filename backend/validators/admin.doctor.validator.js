@@ -176,6 +176,20 @@ const validateCreateDoctor = (req, res, next) => {
     });
   }
 
+  // ============================================
+  // 📄 licenceNumber (optional at admin-onboarding time)
+  // ============================================
+  const { licenceNumber } = req.body;
+  if (licenceNumber !== undefined && licenceNumber !== null && licenceNumber !== "") {
+    if (typeof licenceNumber !== "string" || licenceNumber.trim().length > DOCTOR_LIMITS.LICENCE_NUMBER_MAX) {
+      return res.status(400).json({
+        success: false,
+        message: `Licence number cannot exceed ${DOCTOR_LIMITS.LICENCE_NUMBER_MAX} characters`,
+      });
+    }
+    req.body.licenceNumber = licenceNumber.trim();
+  }
+
   // ✅ All checks passed
   next();
 };
@@ -284,6 +298,20 @@ const validateUpdateDoctor = (req, res, next) => {
         message: "Short bio HTML too large",
       });
     }
+  }
+
+  // ============================================
+  // 📄 licenceNumber (optional)
+  // ============================================
+  const { licenceNumber } = req.body;
+  if (licenceNumber !== undefined && licenceNumber !== null && licenceNumber !== "") {
+    if (typeof licenceNumber !== "string" || licenceNumber.trim().length > DOCTOR_LIMITS.LICENCE_NUMBER_MAX) {
+      return res.status(400).json({
+        success: false,
+        message: `Licence number cannot exceed ${DOCTOR_LIMITS.LICENCE_NUMBER_MAX} characters`,
+      });
+    }
+    req.body.licenceNumber = licenceNumber.trim();
   }
 
   // ============================================

@@ -31,8 +31,8 @@ const {
 } = require("../middleware/admin.auth.middleware");
 
 const {
-  doctorPhotoUpload,
-  handleDoctorPhotoUploadError,
+  doctorFormUpload,
+  handleDoctorFormUploadError,
 } = require("../middleware/upload.middleware");
 
 const router = express.Router();
@@ -89,14 +89,15 @@ router.get("/", doctorReadLimiter, validateListQuery, listDoctors);
 
 /**
  * @route   POST /api/admin/doctors
- * @desc    Create doctor (with optional photo upload)
- * @body    multipart/form-data: fullName, domain, specializations, shortBio, photo
+ * @desc    Create doctor (with optional photo + licence document upload)
+ * @body    multipart/form-data: fullName, domain, specializations, shortBio,
+ *          photo, licenceNumber, licenceDocument
  */
 router.post(
   "/",
   doctorWriteLimiter,
-  doctorPhotoUpload.single("photo"),
-  handleDoctorPhotoUploadError,
+  doctorFormUpload,
+  handleDoctorFormUploadError,
   validateCreateDoctor,
   createDoctor
 );
@@ -109,14 +110,14 @@ router.get("/:id", doctorReadLimiter, validateDoctorId, getDoctor);
 
 /**
  * @route   PUT /api/admin/doctors/:id
- * @desc    Update doctor (with optional new photo)
+ * @desc    Update doctor (with optional new photo and/or licence document)
  */
 router.put(
   "/:id",
   doctorWriteLimiter,
   validateDoctorId,
-  doctorPhotoUpload.single("photo"),
-  handleDoctorPhotoUploadError,
+  doctorFormUpload,
+  handleDoctorFormUploadError,
   validateUpdateDoctor,
   updateDoctor
 );

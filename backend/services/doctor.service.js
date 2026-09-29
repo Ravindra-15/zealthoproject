@@ -62,6 +62,13 @@ const createDoctor = async (doctorData, createdBy) => {
     specializations: doctorData.specializations.map((s) => s.trim()),
     shortBio: doctorData.shortBio.trim(),
     photo: doctorData.photo || null,
+    // 📄 Optional at admin-onboarding time — the doctor is required to
+    // provide/confirm this during their own profile completion if it's
+    // still missing.
+    licenceNumber: doctorData.licenceNumber || null,
+    licenceDocument: doctorData.licenceDocument || null,
+    licenceDocumentOriginalName: doctorData.licenceDocumentOriginalName || null,
+    licenceDocumentMimeType: doctorData.licenceDocumentMimeType || null,
     username,
     password: plainPassword,
     mustChangePassword: true,
@@ -193,18 +200,30 @@ const updateDoctor = async (doctorId, updates) => {
     "specializations",
     "shortBio",
     "photo",
+    "licenceNumber",
+    "licenceDocument",
+    "licenceDocumentOriginalName",
+    "licenceDocumentMimeType",
     "isFeatured",
     "featuredUntil",
   ];
 
+  // 🖼️📄 File-path fields allow explicit null (removal) — everything else
+  // is only set when actually provided.
+  const NULLABLE_FIELDS = new Set([
+    "photo",
+    "licenceDocument",
+    "licenceDocumentOriginalName",
+    "licenceDocumentMimeType",
+  ]);
+
   const safeUpdates = {};
   for (const key of ALLOWED_FIELDS) {
-    // 🖼️ Special handling for photo: allow explicit null (for removal)
-    if (key === "photo") {
-      if (updates.photo === null) {
-        safeUpdates.photo = null; // Explicit removal
-      } else if (typeof updates.photo === "string") {
-        safeUpdates.photo = updates.photo;
+    if (NULLABLE_FIELDS.has(key)) {
+      if (updates[key] === null) {
+        safeUpdates[key] = null;
+      } else if (typeof updates[key] === "string") {
+        safeUpdates[key] = updates[key];
       }
       continue;
     }
@@ -378,6 +397,10 @@ const completeDoctorProfile = async (doctorId, profileData) => {
     "phone",
     "qualifications",
     "yearsOfExperience",
+    "licenceNumber",
+    "licenceDocument",
+    "licenceDocumentOriginalName",
+    "licenceDocumentMimeType",
   ];
 
   const safeUpdates = {};

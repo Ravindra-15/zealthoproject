@@ -94,7 +94,142 @@ const handleDoctorPhotoUploadError = (err, req, res, next) => {
   next();
 };
 
+// ============================================
+// 📄 DOCTOR LICENCE DOCUMENT STORAGE
+// ============================================
+const doctorLicenceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const randomName = crypto.randomBytes(16).toString("hex");
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `licence_${Date.now()}_${randomName}${ext}`);
+  },
+});
+
+const doctorLicenceFileFilter = (req, file, cb) => {
+  if (DOCTOR_LIMITS.ALLOWED_LICENCE_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Licence document must be a PDF, Word document, or image"), false);
+  }
+};
+
+// ============================================
+// 🎯 EXPORTED MIDDLEWARE: doctor licence document upload
+// ============================================
+const doctorLicenceUpload = multer({
+  storage: doctorLicenceStorage,
+  fileFilter: doctorLicenceFileFilter,
+  limits: {
+    fileSize: DOCTOR_LIMITS.LICENCE_MAX_SIZE_BYTES, // 5MB
+    files: 1,
+  },
+});
+
+const handleDoctorLicenceUploadError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: `Licence document too large. Max size: ${
+          DOCTOR_LIMITS.LICENCE_MAX_SIZE_BYTES / (1024 * 1024)
+        }MB`,
+      });
+    }
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({
+        success: false,
+        message: "Unexpected file field. Use 'licenceDocument' field name.",
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload error",
+    });
+  }
+
+  if (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload failed",
+    });
+  }
+
+  next();
+};
+
+// ============================================
+// 📸📄 COMBINED UPLOAD: photo + licence document in ONE request
+// Used by the admin create/update-doctor routes, which can optionally take
+// both a photo and a licence document at the same time. Multer only
+// supports one size limit per request, so this uses the larger (licence)
+// limit for both fields — a minor relaxation for photo (2MB → 5MB), not
+// worth a second multer pass just to keep that limit exact.
+// ============================================
+const doctorFormStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const randomName = crypto.randomBytes(16).toString("hex");
+    const ext = path.extname(file.originalname).toLowerCase();
+    const prefix = file.fieldname === "licenceDocument" ? "licence" : "doctor";
+    cb(null, `${prefix}_${Date.now()}_${randomName}${ext}`);
+  },
+});
+
+const doctorFormFileFilter = (req, file, cb) => {
+  if (file.fieldname === "licenceDocument") {
+    return doctorLicenceFileFilter(req, file, cb);
+  }
+  return doctorPhotoFileFilter(req, file, cb);
+};
+
+const doctorFormUpload = multer({
+  storage: doctorFormStorage,
+  fileFilter: doctorFormFileFilter,
+  limits: {
+    fileSize: DOCTOR_LIMITS.LICENCE_MAX_SIZE_BYTES, // 5MB (see note above)
+    files: 2,
+  },
+}).fields([
+  { name: "photo", maxCount: 1 },
+  { name: "licenceDocument", maxCount: 1 },
+]);
+
+const handleDoctorFormUploadError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: `File too large. Max size: ${
+          DOCTOR_LIMITS.LICENCE_MAX_SIZE_BYTES / (1024 * 1024)
+        }MB`,
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload error",
+    });
+  }
+
+  if (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload failed",
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   doctorPhotoUpload,
   handleDoctorPhotoUploadError,
+  doctorLicenceUpload,
+  handleDoctorLicenceUploadError,
+  doctorFormUpload,
+  handleDoctorFormUploadError,
 };
