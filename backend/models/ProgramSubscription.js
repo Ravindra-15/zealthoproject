@@ -148,6 +148,13 @@ const programSubscriptionSchema = new mongoose.Schema(
       default: null,
     },
 
+    // 📤 Set once the full-progress CSV export has been emailed after this
+    // plan ended — prevents sending it more than once per subscription.
+    progressCsvSentAt: {
+      type: Date,
+      default: null,
+    },
+
     // ============================================
     // 🧠 FUTURE FEATURES
     // ============================================

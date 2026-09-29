@@ -341,14 +341,49 @@ const sendAccountReactivatedEmail = async ({ to, recipientName }) => {
 // Unlike the helpers above this THROWS on failure, so the caller can
 // report whether the email was really delivered.
 // ============================================
-const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho" }) => {
+const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho", attachments }) => {
   await transporter.sendMail({
     from: `"${fromName}" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
     text,
+    ...(attachments ? { attachments } : {}),
   });
+};
+
+// ============================================
+// 📊 PROGRESS REPORT EXPORT (sent once, when a plan ends)
+// `monthlyCsv`/`weeklyCsv` — CSV strings, attached as files.
+// ============================================
+const sendProgressReportExportEmail = async ({
+  to,
+  recipientName,
+  programName,
+  monthlyCsv,
+  weeklyCsv,
+}) => {
+  const name = recipientName || "there";
+  try {
+    await sendRawEmail({
+      to,
+      subject: `Your ${programName} progress report`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f97316;">Your Progress Report</h2>
+          <p>Hi ${name},</p>
+          <p>Your <strong>${programName}</strong> plan has ended, so in-app access to your progress report has closed. Attached is your full history, broken down by month and by week, for your records.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+      attachments: [
+        { filename: "progress-by-month.csv", content: monthlyCsv },
+        { filename: "progress-by-week.csv", content: weeklyCsv },
+      ],
+    });
+  } catch (error) {
+    console.error("Progress Report Export Email Error:", error.message);
+  }
 };
 
 module.exports = sendEmail;
@@ -361,3 +396,4 @@ module.exports.sendPlanExpiryReminder = sendPlanExpiryReminder;
 module.exports.sendBirthdayWish = sendBirthdayWish;
 module.exports.sendAccountDeactivatedEmail = sendAccountDeactivatedEmail;
 module.exports.sendAccountReactivatedEmail = sendAccountReactivatedEmail;
+module.exports.sendProgressReportExportEmail = sendProgressReportExportEmail;

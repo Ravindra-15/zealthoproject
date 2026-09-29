@@ -18,6 +18,7 @@
 const HabitConfig = require("../models/HabitConfig");
 const UserHabitProgress = require("../models/UserHabitProgress");
 const ProgramSubscription = require("../models/ProgramSubscription");
+const { buildProgressReport } = require("../services/progressReport.service");
 
 const ALLOWED_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
 
@@ -236,13 +237,23 @@ const getProgressReport = async (req, res) => {
             });
         }
 
-        // 📥 Get the subscription (for startDate → month math)
-        const sub = await ProgramSubscription.findOne({
+        // 📥 Get the subscription (for startDate/endDate → period math).
+        // Prefer the one actually running right now (startDate <= now <
+        // endDate) over just "most recently created" — a renewal or an old
+        // cancelled purchase could otherwise be picked and throw the whole
+        // period count off.
+        const now = new Date();
+        const subs = await ProgramSubscription.find({
             programId,
             $or: [{ customer: userId }, { doctor: userId }],
         })
             .sort({ createdAt: -1 })
             .lean();
+
+        const sub =
+            subs.find(
+                (s) => new Date(s.startDate) <= now && now < new Date(s.endDate)
+            ) || subs[0];
 
         if (!sub) {
             return res.status(404).json({
@@ -251,163 +262,14 @@ const getProgressReport = async (req, res) => {
             });
         }
 
-        // 📥 Only currently-active habits (toggled-off ones excluded entirely)
-        const habits = await HabitConfig.find({
-            programId,
-            isActive: true,
-        })
-            .sort({ displayOrder: 1, createdAt: 1 })
-            .lean();
-
-        const activeHabitIds = habits.map((h) => h._id.toString());
-
-        // 📥 All of this user's logs for this program
-        const logs = await UserHabitProgress.find({
-            user: userId,
-            programId,
-        }).lean();
-
-        // Keep only logs whose habit is still active
-        const activeLogs = logs.filter((l) =>
-            activeHabitIds.includes(l.habit.toString())
-        );
-
-        // 🧮 Round helper — 1 decimal place
-        const round1 = (n) => Math.round(n * 10) / 10;
-
-        // ============================================
-        // 1️⃣  OVERALL AVERAGE PER HABIT (top cards)
-        // ============================================
-        // For each active habit: average of all its logged values + days logged.
-        const habitStats = habits.map((h) => {
-            const hLogs = activeLogs.filter(
-                (l) => l.habit.toString() === h._id.toString()
-            );
-            const sum = hLogs.reduce((acc, l) => acc + l.value, 0);
-            const avg = hLogs.length ? round1(sum / hLogs.length) : 0;
-            return {
-                habitId: h._id,
-                trackerName: h.trackerName,
-                unit: h.unit,
-                iconUrl: h.iconUrl,
-                colorHex: h.colorHex,
-                averageGoal: h.averageGoal,
-                avgValue: avg,
-                totalValue: round1(sum),
-                daysLogged: hLogs.length,
-            };
-        });
-
-        // ============================================
-        // 2️⃣  GROUP LOGS BY DAY → compute a color verdict
-        // ============================================
-        // dayMap: "YYYY-MM-DD" → { logs: [...] }
-        const dayMap = new Map();
-        activeLogs.forEach((l) => {
-            const key = new Date(l.logDate).toISOString().split("T")[0];
-            if (!dayMap.has(key)) dayMap.set(key, []);
-            dayMap.get(key).push(l);
-        });
-
-        // 🗺️ Quick lookup: habitId → averageGoal
-        const goalMap = new Map();
-        habits.forEach((h) => {
-            goalMap.set(h._id.toString(), h.averageGoal);
-        });
-
-        // 🎨 Decide a day's color: green if most logged habits met their goal
-        const verdictForDay = (dayLogs) => {
-            let met = 0;
-            let counted = 0;
-            dayLogs.forEach((l) => {
-                const goal = goalMap.get(l.habit.toString());
-                if (goal == null) return; // habit has no goal set — skip
-                counted += 1;
-                if (l.value >= goal) met += 1;
-            });
-            if (counted === 0) return "green"; // logged but no goals set — treat as done
-            return met / counted >= 0.5 ? "green" : "red";
-        };
-
-        // ============================================
-        // 3️⃣  BUILD MONTH BUCKETS FROM subscription startDate
-        // ============================================
-       const startDate = new Date(sub.startDate);
-    startDate.setUTCHours(0, 0, 0, 0); // normalize to UTC midnight so day math is exact
-    const today = new Date();
-        const msPerDay = 1000 * 60 * 60 * 24;
-
-        // How many days since the plan started (0-based)
-        const daysSinceStart = Math.floor((today - startDate) / msPerDay);
-        // How many 30-day months to show (at least 1)
-        const monthCount = Math.max(1, Math.ceil((daysSinceStart + 1) / 30));
-
-        const months = [];
-        for (let m = 0; m < monthCount; m++) {
-            const monthStart = new Date(startDate);
-            monthStart.setDate(monthStart.getDate() + m * 30);
-
-            // Build up to 30 day-blocks for this month
-            const days = [];
-            for (let d = 0; d < 30; d++) {
-                const dayDate = new Date(monthStart);
-                dayDate.setDate(dayDate.getDate() + d);
-
-                const key = dayDate.toISOString().split("T")[0];
-                const dayLogs = dayMap.get(key) || [];
-
-                // Color: gray if future or no logs, else green/red verdict
-                let color = "gray";
-                if (dayDate <= today && dayLogs.length > 0) {
-                    color = verdictForDay(dayLogs);
-                }
-
-                days.push({
-                    dayNumber: d + 1,
-                    date: key,
-                    isFuture: dayDate > today,
-                    color,
-                });
-            }
-
-            // 🧮 This month's per-habit averages (for the expandable section)
-            const monthStartTime = monthStart.getTime();
-            const monthEndTime = monthStart.getTime() + 30 * msPerDay;
-            const monthLogs = activeLogs.filter((l) => {
-                const t = new Date(l.logDate).getTime();
-                return t >= monthStartTime && t < monthEndTime;
-            });
-
-            const monthHabitStats = habits.map((h) => {
-                const hLogs = monthLogs.filter(
-                    (l) => l.habit.toString() === h._id.toString()
-                );
-                const sum = hLogs.reduce((acc, l) => acc + l.value, 0);
-                return {
-                    habitId: h._id,
-                    trackerName: h.trackerName,
-                    unit: h.unit,
-                    colorHex: h.colorHex,
-                    avgValue: hLogs.length ? round1(sum / hLogs.length) : 0,
-                    totalValue: round1(sum),
-                    daysLogged: hLogs.length,
-                };
-            });
-
-            months.push({
-                monthNumber: m + 1,
-                startDate: monthStart.toISOString().split("T")[0],
-                days,
-                habitStats: monthHabitStats,
-            });
-        }
+        // 🧮 The actual bucketing math lives in progressReport.service.js —
+        // shared with the plan-expiry CSV export job, so both places always
+        // agree on what a "month"/"week" period means.
+        const report = await buildProgressReport({ userId, programId, sub });
 
         return res.status(200).json({
             success: true,
-            data: {
-                habits: habitStats, // top cards — overall averages
-                months, // monthly accordion
-            },
+            data: report,
         });
     } catch (err) {
         console.error("[CUSTOMER GET PROGRESS REPORT ERROR]:", err);

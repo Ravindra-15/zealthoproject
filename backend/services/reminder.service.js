@@ -18,7 +18,9 @@ const {
     sendAppointmentReminder1h,
     sendPlanExpiryReminder,
     sendBirthdayWish,
+    sendProgressReportExportEmail,
 } = require("./email.service");
+const { buildProgressExportCsvs } = require("./progressCsvExport.service");
 
 const programDisplayNames = {
     yogat20: "Yoga T20",
@@ -210,6 +212,63 @@ const sendPlanExpiryReminders = async () => {
 };
 
 // ============================================
+// 📤 SEND PROGRESS REPORT CSV EXPORT (once per subscription, at expiry)
+// Per the client spec: once a plan ends, the user loses access to their
+// in-app progress report, so they're emailed a full CSV export instead —
+// by month and by week. Fires once endDate has passed, gated by
+// `progressCsvSentAt` so a subscription is never exported twice.
+// ============================================
+const sendProgressReportExports = async () => {
+    const now = new Date();
+
+    const subs = await ProgramSubscription.find({
+        purchasedByRole: "customer",
+        endDate: { $lte: now },
+        progressCsvSentAt: null,
+    }).lean();
+
+    for (const sub of subs) {
+        try {
+            const user = await User.findById(sub.customer)
+                .select("email fullName nickName")
+                .lean();
+
+            // No email to send to — still mark it done so we don't retry forever.
+            if (!user?.email) {
+                await ProgramSubscription.findByIdAndUpdate(sub._id, {
+                    progressCsvSentAt: new Date(),
+                });
+                continue;
+            }
+
+            const { monthlyCsv, weeklyCsv } = await buildProgressExportCsvs({
+                userId: sub.customer,
+                programId: sub.programId,
+                startDate: sub.startDate,
+                endDate: sub.endDate,
+            });
+
+            const programName = sub.programName || programDisplayNames[sub.programId] || "your program";
+
+            await sendProgressReportExportEmail({
+                to: user.email,
+                recipientName: user.fullName || user.nickName || "there",
+                programName,
+                monthlyCsv,
+                weeklyCsv,
+            });
+
+            await ProgramSubscription.findByIdAndUpdate(sub._id, {
+                progressCsvSentAt: new Date(),
+            });
+            console.log(`[PROGRESS EXPORT] Sent CSV to ${user.email} for ${sub.programId}`);
+        } catch (err) {
+            console.error(`[PROGRESS EXPORT ERROR] ${sub._id}:`, err.message);
+        }
+    }
+};
+
+// ============================================
 // 🎂 FIND + SEND BIRTHDAY WISHES (once per year per user)
 // ============================================
 const sendBirthdayWishes = async () => {
@@ -328,6 +387,7 @@ const startReminderCron = () => {
         await send24hReminders();
         await send1hReminders();
         await sendPlanExpiryReminders();
+        await sendProgressReportExports();
         await sendBirthdayWishes();
         await processFreeConsultCards();
     });
@@ -335,4 +395,4 @@ const startReminderCron = () => {
     console.log("✅ Reminder cron scheduled (every 15 mins)");
 };
 
-module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendBirthdayWishes, processFreeConsultCards };
+module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendProgressReportExports, sendBirthdayWishes, processFreeConsultCards };
