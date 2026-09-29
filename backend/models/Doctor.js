@@ -186,6 +186,35 @@ const doctorSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+
+    // ============================================
+    // 🚩 CANCELLATION FLAG (system-triggered, not admin-initiated)
+    // ============================================
+    // Set automatically by doctorFlag.service.js right after a doctor
+    // cancels an appointment, when either:
+    //   - more than 7 doctor-cancellations in the last 30 days, or
+    //   - the doctor's last 3 concluded appointments were all cancelled
+    // Cleared by an admin action (Doctor Profile → "Clear Flag") once
+    // reviewed — this is NOT the same as deactivation.
+    flagged: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    flagReason: {
+      type: String,
+      enum: ["excessive_cancellations", "consecutive_cancellations", null],
+      default: null,
+    },
+    flagDescription: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    flaggedAt: {
+      type: Date,
+      default: null,
+    },
     // ============================================
     // 🌟 FEATURING (admin-controlled premium placement)
     // ============================================

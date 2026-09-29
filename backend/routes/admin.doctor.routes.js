@@ -16,6 +16,7 @@ const {
   deleteDoctor,
   getOptions,
   resetPassword,
+  clearFlag,
 } = require("../controllers/admin.doctor.controller");
 
 const {
@@ -132,6 +133,20 @@ router.patch(
   requireSuperAdmin,
   validateDoctorId,
   toggleStatus
+);
+
+/**
+ * @route   PATCH /api/admin/doctors/:id/clear-flag
+ * @desc    Clear a system-triggered cancellation flag — super admin only
+ *          (reviewing/dismissing a behavioral flag is a judgment call,
+ *          same gating as toggle-status/delete on this file).
+ */
+router.patch(
+  "/:id/clear-flag",
+  doctorWriteLimiter,
+  requireSuperAdmin,
+  validateDoctorId,
+  clearFlag
 );
 
 /**

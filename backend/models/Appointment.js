@@ -139,6 +139,13 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["user", "doctor", "admin"],
       default: null,
     },
+    // When it was cancelled — NOT the same as updatedAt, which also
+    // changes on unrelated edits (meetingLink, prescription, etc.).
+    // Needed for time-windowed cancellation-rate checks (doctor flagging).
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
 
     // ============================================
     // 🔁 RESCHEDULE (max once before completion)
@@ -246,6 +253,9 @@ const appointmentSchema = new mongoose.Schema(
 appointmentSchema.index({ status: 1, scheduledAt: -1 });
 appointmentSchema.index({ user: 1, scheduledAt: -1 });
 appointmentSchema.index({ doctor: 1, scheduledAt: -1 });
+// Powers the doctor-cancellation-flagging checks (count within a rolling
+// window, and "most recent N" lookups) — see doctorFlag.service.js.
+appointmentSchema.index({ doctor: 1, cancelledBy: 1, cancelledAt: -1 });
 
 module.exports = mongoose.model("Appointment", appointmentSchema);
 module.exports.APPOINTMENT_STATUSES = APPOINTMENT_STATUSES;

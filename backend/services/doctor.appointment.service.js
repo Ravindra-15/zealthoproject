@@ -13,6 +13,7 @@ const Doctor = require("../models/Doctor");
 const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
+const { checkAndFlagDoctor } = require("./doctorFlag.service");
 const TimeOff = require("../models/TimeOff");
 const {
   SLOT_DURATION_MINUTES,
@@ -208,6 +209,7 @@ const cancelByDoctor = async (doctorId, appointmentId, reason) => {
   appointment.status = "cancelled";
   appointment.cancelledBy = "doctor";
   appointment.cancelledReason = reason.trim();
+  appointment.cancelledAt = new Date();
   await appointment.save();
 
   // 🎁 sync linked free-consult card → cancelled
@@ -243,6 +245,10 @@ const cancelByDoctor = async (doctorId, appointmentId, reason) => {
       metadata: { appointmentId: appointment._id, reason: reason.trim() },
     });
   } catch (err) { }
+
+  // 🚩 Check whether this cancellation tips the doctor over the flagging
+  // threshold — never lets a flagging bug block the cancellation itself.
+  await checkAndFlagDoctor(doctorId);
 
   return { appointment };
 };

@@ -15,7 +15,7 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Eye, Pencil } from "lucide-react";
+import { User, Eye, Pencil, Flag } from "lucide-react";
 
 import { buildPhotoUrl } from "../../../../services/doctorService";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
@@ -36,6 +36,23 @@ const StatusPill = ({ isActive }) => (
     `}
   >
     {isActive ? "Active" : "Deactive"}
+  </span>
+);
+
+// ============================================
+// 🚩 CANCELLATION FLAG BADGE
+// ============================================
+const FlagBadge = ({ title }) => (
+  <span
+    title={title}
+    className="
+      inline-flex items-center gap-1 px-2.5 py-1
+      text-[11px] font-semibold rounded-full
+      bg-red-50 text-red-600 border border-red-100
+    "
+  >
+    <Flag size={11} />
+    Flagged
   </span>
 );
 
@@ -189,7 +206,12 @@ const DoctorTable = ({ doctors = [], loading = false }) => {
 
                 {/* 🟢 Status */}
                 <td className="px-6 py-4 text-center">
-                  <StatusPill isActive={doctor.isActive} />
+                  <div className="flex flex-col items-center gap-1.5">
+                    <StatusPill isActive={doctor.isActive} />
+                    {doctor.flagged && (
+                      <FlagBadge title={doctor.flagDescription} />
+                    )}
+                  </div>
                 </td>
 
                 {/* ✏️ Action */}
@@ -246,7 +268,12 @@ const DoctorTable = ({ doctors = [], loading = false }) => {
                   <p className="text-sm font-semibold text-gray-900 truncate">
                     {doctor.fullName}
                   </p>
-                  <StatusPill isActive={doctor.isActive} />
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <StatusPill isActive={doctor.isActive} />
+                    {doctor.flagged && (
+                      <FlagBadge title={doctor.flagDescription} />
+                    )}
+                  </div>
                 </div>
 
                 {/* Email */}

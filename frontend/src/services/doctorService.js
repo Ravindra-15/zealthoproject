@@ -123,6 +123,14 @@ export const updateDoctor = async (doctorId, data, options = {}) => {
 };
 
 // ============================================
+// 🚩 CLEAR CANCELLATION FLAG
+// ============================================
+export const clearDoctorFlag = async (doctorId) => {
+  const response = await adminApi.patch(`/admin/doctors/${doctorId}/clear-flag`);
+  return response.data.data.doctor;
+};
+
+// ============================================
 // 🔄 TOGGLE STATUS
 // ============================================
 export const toggleDoctorStatus = async (doctorId) => {

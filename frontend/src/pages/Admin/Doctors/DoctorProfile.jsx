@@ -28,6 +28,7 @@ import {
   AlertCircle,
   FileText,
   ExternalLink,
+  Flag,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import DOMPurify from "dompurify";
@@ -35,8 +36,10 @@ import DOMPurify from "dompurify";
 import {
   fetchDoctorById,
   buildPhotoUrl,
+  clearDoctorFlag,
 } from "../../../services/doctorService";
 import { formatUtcDateTime12h } from "../../../utils/time";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
 
 // 🛡️ Sanitize HTML before rendering (XSS protection)
 const sanitizeBioHtml = (html) => {
@@ -87,10 +90,26 @@ const DoctorProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSuperAdmin } = useAdminAuth();
 
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [clearingFlag, setClearingFlag] = useState(false);
+
+  const handleClearFlag = async () => {
+    if (clearingFlag) return;
+    try {
+      setClearingFlag(true);
+      const updated = await clearDoctorFlag(id);
+      setDoctor((prev) => ({ ...prev, ...updated }));
+      toast.success("Flag cleared");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to clear flag");
+    } finally {
+      setClearingFlag(false);
+    }
+  };
 
   // ============================================
   // 📥 LOAD DOCTOR
@@ -298,6 +317,49 @@ const DoctorProfile = () => {
           </button>
         </div>
       </div>
+
+      {/* ============================================ */}
+      {/* 🚩 CANCELLATION FLAG BANNER (system-triggered) */}
+      {/* ============================================ */}
+      {doctor.flagged && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+              <Flag size={16} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-700">
+                Flagged for cancellations
+              </p>
+              <p className="text-xs text-red-600 mt-0.5">
+                {doctor.flagDescription || "This doctor has been automatically flagged."}
+              </p>
+              {doctor.flaggedAt && (
+                <p className="text-[11px] text-red-400 mt-1">
+                  Flagged on {formatUtcDateTime12h(doctor.flaggedAt)}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {isSuperAdmin && (
+            <button
+              onClick={handleClearFlag}
+              disabled={clearingFlag}
+              className="
+                flex-shrink-0 inline-flex items-center justify-center gap-2
+                px-4 py-2 rounded-xl text-sm font-semibold
+                bg-white border border-red-200 text-red-600
+                hover:bg-red-100 transition-colors
+                disabled:opacity-50 disabled:cursor-not-allowed
+              "
+            >
+              {clearingFlag && <Loader2 size={14} className="animate-spin" />}
+              Clear Flag
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ============================================ */}
       {/* 📋 DETAILS CARD — Bio + Contact               */}

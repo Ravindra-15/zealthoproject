@@ -43,6 +43,7 @@ import { getAppointmentCounts } from "../../../services/appointmentService";
 import toast from "react-hot-toast";
 import AdminSidebarSection from "./AdminSidebarSection";
 import AdminSidebarItem from "./AdminSidebarItem";
+import AdminNotificationBell from "./AdminNotificationBell";
 
 const AdminSidebar = ({ onNavigate }) => {
   const navigate = useNavigate();
@@ -220,12 +221,13 @@ const AdminSidebar = ({ onNavigate }) => {
         <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
           <Shield size={20} className="text-white" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="font-bold text-gray-900 leading-tight">Zealtho</p>
           <p className="text-[10px] font-semibold text-gray-500 tracking-wider">
             {isSuperAdmin ? "SUPER ADMIN" : "ADMIN"}
           </p>
         </div>
+        <AdminNotificationBell />
       </div>
 
       {/* 🏢 ADMIN: Program Switcher (functional dropdown) */}

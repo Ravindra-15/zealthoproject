@@ -7,6 +7,7 @@
 const fs = require("fs");
 const path = require("path");
 const doctorService = require("../services/doctor.service");
+const { clearDoctorFlag } = require("../services/doctorFlag.service");
 const {
   DOCTOR_DOMAINS,
   DOCTOR_SPECIALIZATIONS,
@@ -426,6 +427,39 @@ const resetPassword = async (req, res) => {
 // 📦 EXPORTS
 // ============================================
 
+// ============================================
+// 🧹 PATCH /api/admin/doctors/:id/clear-flag
+// ============================================
+
+/**
+ * @desc Clears a system-triggered cancellation flag after admin review
+ * @access Private (super admin)
+ */
+const clearFlag = async (req, res) => {
+  try {
+    const updated = await clearDoctorFlag(req.params.id);
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Flag cleared",
+      data: { doctor: updated },
+    });
+  } catch (err) {
+    console.error("[DOCTOR CLEAR FLAG ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to clear flag",
+    });
+  }
+};
+
 module.exports = {
   createDoctor,
   listDoctors,
@@ -435,4 +469,5 @@ module.exports = {
   deleteDoctor,
   getOptions,
   resetPassword,
+  clearFlag,
 };
