@@ -44,6 +44,14 @@ const MessagePreviewCard = ({ title, bodyHtml, imageFile }) => {
               <span className="text-lg font-extrabold text-orange-500">Zealtho</span>
             </div>
 
+            {imagePreviewUrl && (
+              <img
+                src={imagePreviewUrl}
+                alt="Attachment preview"
+                className="w-full h-[180px] sm:h-[220px] object-cover rounded-lg mb-5"
+              />
+            )}
+
             <h2 className="text-lg font-bold text-gray-900 mb-3 break-words">
               {title.trim() || <span className="text-gray-300">Your title here</span>}
             </h2>
@@ -54,14 +62,6 @@ const MessagePreviewCard = ({ title, bodyHtml, imageFile }) => {
                 __html: bodyHtml.trim() || '<p style="color:#d1d5db">Your message body here...</p>',
               }}
             />
-
-            {imagePreviewUrl && (
-              <img
-                src={imagePreviewUrl}
-                alt="Attachment preview"
-                className="w-full rounded-lg mt-5"
-              />
-            )}
 
             <p className="text-xs text-gray-400 mt-6 pt-4 border-t border-gray-100">
               — The Zealtho Team

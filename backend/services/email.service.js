@@ -404,9 +404,9 @@ const sendBroadcastMessageEmail = async ({ to, title, bodyHtml, imagePath }) => 
         <div style="text-align:center; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px;">
           <span style="font-size: 20px; font-weight: 800; color: #f97316;">Zealtho</span>
         </div>
+        ${imagePath ? `<img src="cid:broadcastImage" alt="" style="width: 100%; max-height: 280px; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 20px;" />` : ""}
         <h2 style="color: #1f2937; margin: 0 0 16px;">${escapeHtml(title)}</h2>
         <div style="color: #374151; font-size: 14px; line-height: 1.6;">${bodyHtml}</div>
-        ${imagePath ? `<img src="cid:broadcastImage" alt="" style="max-width: 100%; border-radius: 8px; margin-top: 20px;" />` : ""}
         <p style="color: #6b7280; font-size: 12px; margin-top: 30px; padding-top: 16px; border-top: 1px solid #e5e7eb;">— The Zealtho Team</p>
       </div>
     `,
