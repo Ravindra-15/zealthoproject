@@ -32,6 +32,7 @@ import {
   Video,
   Gift,
   MessageSquare,
+  Mail,
   FileText,
   LogOut,
   Check,
@@ -183,6 +184,7 @@ const AdminSidebar = ({ onNavigate }) => {
           ? [{ icon: Gift, label: "Referral Engine", to: "/admin/referrals" }]
           : []),
         { icon: MessageSquare, label: "Enquiries", to: "/admin/enquiries" },
+        { icon: Mail, label: "Messages", to: "/admin/messages" },
         // 💰 Financial Reports — super admin only
         ...(isSuperAdmin
           ? [

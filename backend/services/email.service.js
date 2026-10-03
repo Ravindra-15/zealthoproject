@@ -386,6 +386,36 @@ const sendProgressReportExportEmail = async ({
   }
 };
 
+// ============================================
+// 📢 BROADCAST MESSAGE (admin → customers/doctors of a program)
+// `bodyHtml` is already sanitized by the caller (same pattern as
+// Doctor.shortBio). `imagePath` (optional) — absolute path on disk to the
+// uploaded image, embedded inline via a cid reference rather than a cold
+// attachment, so it renders like the reference "Happy Diwali" email.
+// THROWS on failure — the caller (bulk sender) decides what "failed" means
+// per recipient and tallies it, rather than this silently swallowing it.
+// ============================================
+const sendBroadcastMessageEmail = async ({ to, title, bodyHtml, imagePath }) => {
+  await sendRawEmail({
+    to,
+    subject: title,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="text-align:center; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px;">
+          <span style="font-size: 20px; font-weight: 800; color: #f97316;">Zealtho</span>
+        </div>
+        <h2 style="color: #1f2937; margin: 0 0 16px;">${escapeHtml(title)}</h2>
+        <div style="color: #374151; font-size: 14px; line-height: 1.6;">${bodyHtml}</div>
+        ${imagePath ? `<img src="cid:broadcastImage" alt="" style="max-width: 100%; border-radius: 8px; margin-top: 20px;" />` : ""}
+        <p style="color: #6b7280; font-size: 12px; margin-top: 30px; padding-top: 16px; border-top: 1px solid #e5e7eb;">— The Zealtho Team</p>
+      </div>
+    `,
+    attachments: imagePath
+      ? [{ filename: "image", path: imagePath, cid: "broadcastImage" }]
+      : undefined,
+  });
+};
+
 module.exports = sendEmail;
 module.exports.sendRawEmail = sendRawEmail;
 module.exports.sendWelcomeEmail = sendWelcomeEmail;
@@ -397,3 +427,4 @@ module.exports.sendBirthdayWish = sendBirthdayWish;
 module.exports.sendAccountDeactivatedEmail = sendAccountDeactivatedEmail;
 module.exports.sendAccountReactivatedEmail = sendAccountReactivatedEmail;
 module.exports.sendProgressReportExportEmail = sendProgressReportExportEmail;
+module.exports.sendBroadcastMessageEmail = sendBroadcastMessageEmail;

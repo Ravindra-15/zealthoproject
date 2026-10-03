@@ -8,6 +8,7 @@ const path = require("path");
 const crypto = require("crypto");
 const fs = require("fs");
 const { DOCTOR_LIMITS } = require("../utils/doctorConstants");
+const { MESSAGE_LIMITS } = require("../utils/messageConstants");
 
 // ============================================
 // 📁 ENSURE UPLOAD DIRECTORY EXISTS
@@ -15,6 +16,11 @@ const { DOCTOR_LIMITS } = require("../utils/doctorConstants");
 const uploadDir = path.join(__dirname, "..", "uploads", "doctors");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const messageUploadDir = path.join(__dirname, "..", "uploads", "messages");
+if (!fs.existsSync(messageUploadDir)) {
+  fs.mkdirSync(messageUploadDir, { recursive: true });
 }
 
 // ============================================
@@ -225,6 +231,63 @@ const handleDoctorFormUploadError = (err, req, res, next) => {
   next();
 };
 
+// ============================================
+// 🖼️ BROADCAST MESSAGE IMAGE UPLOAD
+// ============================================
+const messageImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, messageUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const randomName = crypto.randomBytes(16).toString("hex");
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `message_${Date.now()}_${randomName}${ext}`);
+  },
+});
+
+const messageImageFileFilter = (req, file, cb) => {
+  if (MESSAGE_LIMITS.ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only JPEG, PNG, or WebP images are allowed"), false);
+  }
+};
+
+const messageImageUpload = multer({
+  storage: messageImageStorage,
+  fileFilter: messageImageFileFilter,
+  limits: {
+    fileSize: MESSAGE_LIMITS.IMAGE_MAX_SIZE_BYTES, // 5MB
+    files: 1,
+  },
+});
+
+const handleMessageImageUploadError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: `Image too large. Max size: ${
+          MESSAGE_LIMITS.IMAGE_MAX_SIZE_BYTES / (1024 * 1024)
+        }MB`,
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload error",
+    });
+  }
+
+  if (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload failed",
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   doctorPhotoUpload,
   handleDoctorPhotoUploadError,
@@ -232,4 +295,6 @@ module.exports = {
   handleDoctorLicenceUploadError,
   doctorFormUpload,
   handleDoctorFormUploadError,
+  messageImageUpload,
+  handleMessageImageUploadError,
 };
