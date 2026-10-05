@@ -54,6 +54,13 @@ const POLICY_SECTIONS = [
       "You can opt out of marketing communications while still receiving essential service notifications related to your appointments and subscriptions.",
     ],
   },
+  {
+    title: "5. Rescheduling & Cancellations",
+    paragraphs: [
+      "Appointments may be rescheduled up to a maximum of 5 times per booking, combined across both the customer and the doctor. As a customer, you may reschedule only if it is done at least 48 hours before your scheduled appointment time; rescheduling is not available within that 48-hour window, though your doctor may still reschedule with shorter notice if required.",
+      "Zealtho does not offer cash refunds for appointments cancelled by the customer, regardless of when the cancellation is made. If your doctor cancels an appointment, you will instead receive a free consultation credit to book another available doctor at no additional cost.",
+    ],
+  },
 ];
 
 const TermsOfUse = () => {
