@@ -14,6 +14,7 @@ const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
 const { checkAndFlagDoctor } = require("./doctorFlag.service");
+const { MAX_RESCHEDULE_COUNT } = require("../utils/reschedulePolicy");
 const TimeOff = require("../models/TimeOff");
 const {
   SLOT_DURATION_MINUTES,
@@ -314,13 +315,18 @@ const rescheduleByDoctor = async (doctorId, appointmentId, scheduledAt, reason) 
     return { error: { status: 400, message: `Cannot reschedule a ${appointment.status} appointment` } };
   }
 
-  if ((appointment.rescheduleCount || 0) >= 1) {
-    return { error: { status: 400, message: "This appointment has already been rescheduled once" } };
+  if ((appointment.rescheduleCount || 0) >= MAX_RESCHEDULE_COUNT) {
+    return {
+      error: {
+        status: 400,
+        message: `This appointment has already been rescheduled the maximum of ${MAX_RESCHEDULE_COUNT} times.`,
+      },
+    };
   }
 
   // 🌍 This doctor's own zone governs slot alignment, day-of-week matching,
   // and how times read in notifications.
-  const doctorDoc = await Doctor.findById(doctorId).select("timezone").lean();
+  const doctorDoc = await Doctor.findById(doctorId).select("fullName email timezone").lean();
   const doctorTimezone = doctorDoc?.timezone || DEFAULT_TIMEZONE;
 
   // Validate new slot timing
@@ -390,7 +396,20 @@ const rescheduleByDoctor = async (doctorId, appointmentId, scheduledAt, reason) 
     });
   } catch (err) { }
 
-  // 📧 Email patient
+  // 🔔 In-app notify the doctor too — confirms their own reschedule went
+  // through, rendered in their own zone.
+  try {
+    await Notification.create({
+      userId: doctorId,
+      userType: "doctor",
+      type: "appointment_rescheduled",
+      title: "Appointment Rescheduled",
+      body: `You rescheduled ${appointment.patientName}'s appointment to ${formatInZone(slotStart, doctorTimezone)}.`,
+      metadata: { appointmentId: appointment._id, patientId: appointment.user },
+    });
+  } catch (err) { }
+
+  // 📧 Email patient + doctor
   try {
     const emailService = require("./email.service");
     if (patientDoc?.email) {
@@ -404,6 +423,19 @@ const rescheduleByDoctor = async (doctorId, appointmentId, scheduledAt, reason) 
         rescheduledByLabel: "doctor",
         isDoctor: false,
         timezone: patientTimezone,
+      });
+    }
+    if (doctorDoc?.email) {
+      await emailService.sendRescheduleNotification({
+        to: doctorDoc.email,
+        recipientName: doctorDoc.fullName || "Doctor",
+        otherPartyName: appointment.patientName || "your patient",
+        oldTime,
+        newTime: slotStart,
+        reason: cleanReason,
+        rescheduledByLabel: "you",
+        isDoctor: true,
+        timezone: doctorTimezone,
       });
     }
   } catch (err) {

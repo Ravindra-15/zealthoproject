@@ -37,6 +37,8 @@ import Modal from "../../../../components/common/Modal";
 import RescheduleModal from "./RescheduleModal";
 
 const PROBLEM_MAX = 200; // max characters for problem description
+const MAX_RESCHEDULE_COUNT = 5; // mirrors backend/utils/reschedulePolicy.js
+const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 // 🟢 STATUS PILL
 const StatusPill = ({ status }) => {
@@ -90,7 +92,13 @@ const [cancelling, setCancelling] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
 
   const doctorIdForSlots = doctor?._id || appointment.doctor || null;
-  const alreadyRescheduled = (appointment?.rescheduleCount || 0) >= 1;
+  const alreadyRescheduled = (appointment?.rescheduleCount || 0) >= MAX_RESCHEDULE_COUNT;
+  // ⏱️ Free reschedule only 48+ hours before the slot — matches the
+  // backend's isWithinRescheduleCutoff check, so the button's hidden
+  // state never contradicts what the API would actually do.
+  const withinRescheduleCutoff =
+    new Date(scheduledAt).getTime() - Date.now() < RESCHEDULE_CUTOFF_MS;
+  const canReschedule = !alreadyRescheduled && !withinRescheduleCutoff;
 
   // Reschedules with reason + new slot
   const handleRescheduleConfirm = async ({ scheduledAt, reason }) => {
@@ -382,7 +390,7 @@ const [cancelling, setCancelling] = useState(false);
             </button>
           )}
 
-          {canCancel && !alreadyRescheduled && (
+          {canCancel && canReschedule && (
             <button
               type="button"
               onClick={() => setRescheduleModalOpen(true)}
@@ -396,6 +404,15 @@ const [cancelling, setCancelling] = useState(false);
               )}
               Reschedule
             </button>
+          )}
+
+          {/* Short note for why Reschedule isn't offered, so it's not just silently missing */}
+          {canCancel && !canReschedule && (
+            <span className="inline-flex items-center text-[11px] text-gray-400 px-1 py-2">
+              {alreadyRescheduled
+                ? "Reschedule limit reached"
+                : "Can't reschedule — within 48 hrs"}
+            </span>
           )}
 
           {canCancel && (

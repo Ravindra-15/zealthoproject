@@ -30,6 +30,7 @@ const paymentService = require("./payment.service");
 const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
+const { MAX_RESCHEDULE_COUNT, isWithinRescheduleCutoff } = require("../utils/reschedulePolicy");
 // ============================================
 // 💰 BOOKING FEE (constant for now; future: per-doctor)
 // ============================================
@@ -572,8 +573,26 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
     return { error: { status: 400, message: `Cannot reschedule a ${appointment.status} appointment` } };
   }
 
-  if ((appointment.rescheduleCount || 0) >= 1) {
-    return { error: { status: 400, message: "This appointment has already been rescheduled once" } };
+  if ((appointment.rescheduleCount || 0) >= MAX_RESCHEDULE_COUNT) {
+    return {
+      error: {
+        status: 400,
+        message: `This appointment has already been rescheduled the maximum of ${MAX_RESCHEDULE_COUNT} times.`,
+      },
+    };
+  }
+
+  // ⏱️ Customers can only reschedule for free 48+ hours before the slot —
+  // inside that window the appointment must be attended or cancelled
+  // (existing no-refund cancellation rule), not moved.
+  if (isWithinRescheduleCutoff(appointment.scheduledAt)) {
+    return {
+      error: {
+        status: 400,
+        message: "This appointment is within 48 hours and can no longer be rescheduled. You can still cancel if needed.",
+        code: "RESCHEDULE_CUTOFF",
+      },
+    };
   }
 
   // 🌍 Fetch the doctor's zone once — their wall-clock grid governs slot
@@ -662,7 +681,24 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
     });
   } catch (err) { }
 
-  // 📧 Email doctor
+  // 🔔 In-app notify the user too — confirms their own reschedule went
+  // through, rendered in their own zone (not the doctor's).
+  const userForReschedule = await User.findById(userId)
+    .select("fullName nickName email timezone")
+    .lean();
+  const userTimezone = userForReschedule?.timezone || DEFAULT_TIMEZONE;
+
+  try {
+    await Notification.create({
+      userId,
+      type: "appointment_rescheduled",
+      title: "Appointment Rescheduled",
+      body: `Your consultation with ${doctorForReschedule?.fullName || "your doctor"} has been moved to ${formatInZone(slotStart, userTimezone)}.`,
+      metadata: { appointmentId: appointment._id, doctorId: appointment.doctor },
+    });
+  } catch (err) { }
+
+  // 📧 Email doctor + user
   try {
     const emailService = require("./email.service");
     const doctorDoc = doctorForReschedule;
@@ -677,6 +713,19 @@ const rescheduleByUser = async (userId, appointmentId, scheduledAt, reason) => {
         rescheduledByLabel: "patient",
         isDoctor: true,
         timezone: doctorTimezone,
+      });
+    }
+    if (userForReschedule?.email) {
+      await emailService.sendRescheduleNotification({
+        to: userForReschedule.email,
+        recipientName: userForReschedule.fullName || userForReschedule.nickName || "there",
+        otherPartyName: doctorDoc?.fullName || "your doctor",
+        oldTime,
+        newTime: slotStart,
+        reason: cleanReason,
+        rescheduledByLabel: "you",
+        isDoctor: false,
+        timezone: userTimezone,
       });
     }
   } catch (err) {

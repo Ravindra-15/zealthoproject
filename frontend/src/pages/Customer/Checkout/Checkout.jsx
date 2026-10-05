@@ -15,6 +15,7 @@ import {
   Pencil,
   HeartPulse,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -34,6 +35,7 @@ import { fetchMyProfile } from "../../../services/customerProfileService";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
 
 const BOOKING_FEE = 20;
+const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
 const PROBLEM_MAX = 200; // max characters allowed for problem description
 const PLATFORM = "zealtho"; // current program identifier (change per subprogram)
 
@@ -237,6 +239,17 @@ const Checkout = () => {
                 fee={freeCredits > 0 ? 0 : BOOKING_FEE}
                 showTotals
               />
+
+              {/* ⏱️ Short heads-up — within 48 hrs, no free reschedule later */}
+              {intent?.scheduledAt &&
+                new Date(intent.scheduledAt).getTime() - Date.now() < RESCHEDULE_CUTOFF_MS && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                    <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
+                    <p className="text-xs text-amber-700">
+                      Within 48 hrs — can't be rescheduled later.
+                    </p>
+                  </div>
+                )}
 
               {/* ============================================ */}
               {/* 📝 PROBLEM DESCRIPTION                        */}

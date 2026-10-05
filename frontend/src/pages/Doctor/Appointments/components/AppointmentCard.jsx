@@ -139,7 +139,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const doctorIdForSlots =
     appointment?.doctor?._id || appointment?.doctor || null;
 
-  const alreadyRescheduled = (appointment?.rescheduleCount || 0) >= 1;
+  // mirrors backend/utils/reschedulePolicy.js MAX_RESCHEDULE_COUNT — no
+  // 48-hour cutoff on the doctor side, only the customer side has that.
+  const alreadyRescheduled = (appointment?.rescheduleCount || 0) >= 5;
 
   // Reschedules appointment with reason + new slot
   const handleRescheduleConfirm = async ({ scheduledAt, reason }) => {
