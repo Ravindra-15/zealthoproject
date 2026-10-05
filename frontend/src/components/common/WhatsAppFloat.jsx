@@ -1,8 +1,11 @@
 // src/components/common/WhatsAppFloat.jsx
-// Floating WhatsApp button — icon only, visible on every page.
+// Floating WhatsApp button — customer-facing pages only. Hidden on
+// /admin (admin + superadmin share this one panel) and /doctor, per
+// client request — it has no place in internal/professional panels.
 // Always gently pulses; every 5s it briefly pops a tooltip bubble.
 
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 const WHATSAPP_URL = "https://wa.me/919876543210";
 
@@ -10,10 +13,14 @@ const WHATSAPP_URL = "https://wa.me/919876543210";
 const MESSAGES = ["Chat with us!", "Need help?", "We're online 👋"];
 
 const WhatsAppFloat = () => {
+  const { pathname } = useLocation();
   const [showBubble, setShowBubble] = useState(false);
   const [msgIndex, setMsgIndex] = useState(0);
 
+  const isHiddenPanel = pathname.startsWith("/admin") || pathname.startsWith("/doctor");
+
   useEffect(() => {
+    if (isHiddenPanel) return undefined;
     let hideTimer;
 
     // every 5s: pick the next message, show bubble for ~3s, then hide
@@ -27,7 +34,9 @@ const WhatsAppFloat = () => {
       clearInterval(interval);
       clearTimeout(hideTimer);
     };
-  }, []);
+  }, [isHiddenPanel]);
+
+  if (isHiddenPanel) return null;
 
   return (
     <>

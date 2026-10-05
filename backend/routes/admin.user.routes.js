@@ -11,6 +11,7 @@ const rateLimit = require("express-rate-limit");
 
 const {
   listUsers,
+  exportUsersCsv,
   getUser,
   updateUser,
   toggleStatus,
@@ -65,6 +66,10 @@ router.use(protectAdmin);
 
 // 📋 List users (paginated, searchable, filterable)
 router.get("/", userReadLimiter, validateListQuery, listUsers);
+
+// 📤 Export users to CSV (same filters, no pagination) — defined before
+// "/:id" so Express never mistakes "export" for a user id.
+router.get("/export", userReadLimiter, validateListQuery, exportUsersCsv);
 
 // 👁️ Get user with body profile + consultations
 router.get("/:id", userReadLimiter, validateUserId, getUser);

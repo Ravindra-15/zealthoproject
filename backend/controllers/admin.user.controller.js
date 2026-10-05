@@ -8,6 +8,7 @@
 const userService = require("../services/admin.user.service");
 const { notifyUserStatusChanged } = require("../services/customerNotification.service");
 const { FLAG_REASON_CODES, getFlagReasonLabel } = require("../utils/userFlagReasons");
+const { toCsv } = require("../utils/csv.util");
 const {
   isSuperAdmin,
   omit,
@@ -44,6 +45,70 @@ const listUsers = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch users",
+    });
+  }
+};
+
+// ============================================
+// 📤 EXPORT USERS CSV
+// Same search/status filters as the list view, but every matching row
+// (no pagination) — per client spec: "Export option to extract the
+// Customer data into Csv." Portal admins get the same masked contact
+// details they already see on-screen; super admin gets the real data.
+// ============================================
+const exportUsersCsv = async (req, res) => {
+  try {
+    const { search, status } = req.query;
+    const superAdmin = isSuperAdmin(req.admin);
+
+    let users = await userService.listUsersForExport({
+      search,
+      status,
+      includeContactSearch: superAdmin,
+    });
+
+    if (!superAdmin) {
+      users = users.map(maskUserContact);
+    }
+
+    const headers = [
+      "Full Name",
+      "Nickname",
+      "Email",
+      "Phone",
+      "WhatsApp",
+      "Country",
+      "State",
+      "City",
+      "Status",
+      "Joined On",
+    ];
+
+    const rows = users.map((u) => [
+      u.fullName || "",
+      u.nickName || "",
+      u.email || "",
+      u.phone ? `${u.countryCode || ""} ${u.phone}`.trim() : "",
+      u.whatsapp || "",
+      u.country || "",
+      u.state || "",
+      u.city || "",
+      u.isActive ? "Active" : "Inactive",
+      u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "",
+    ]);
+
+    const csv = toCsv(headers, rows);
+    const filename = `zealtho-users-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    res.status(200);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(csv);
+  } catch (err) {
+    console.error("[ADMIN USER EXPORT ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to export users",
     });
   }
 };
@@ -196,6 +261,7 @@ const toggleStatus = async (req, res) => {
 
 module.exports = {
   listUsers,
+  exportUsersCsv,
   getUser,
   updateUser,
   toggleStatus,

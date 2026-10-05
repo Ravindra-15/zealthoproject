@@ -65,6 +65,39 @@ const listUsers = async ({
 };
 
 // ============================================
+// 📤 LIST USERS FOR CSV EXPORT (same filters as listUsers, no pagination)
+// ============================================
+const EXPORT_FIELDS =
+  "fullName nickName email phone whatsapp countryCode country state city isActive createdAt";
+
+const listUsersForExport = async ({
+  search = "",
+  status = "all",
+  includeContactSearch = true,
+} = {}) => {
+  const safeSearch = typeof search === "string" ? search.trim() : "";
+  const query = {};
+
+  if (status === "active") query.isActive = true;
+  if (status === "inactive") query.isActive = false;
+
+  if (safeSearch) {
+    const escaped = safeSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "i");
+    query.$or = [
+      { fullName: regex },
+      { nickName: regex },
+      ...(includeContactSearch ? [{ email: regex }, { phone: regex }] : []),
+    ];
+  }
+
+  return await User.find(query)
+    .select(EXPORT_FIELDS)
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+// ============================================
 // 👁️ GET USER WITH BODY PROFILE + CONSULTATIONS
 // ============================================
 const getUserDetails = async (userId) => {
@@ -164,6 +197,7 @@ const toggleUserStatus = async (userId, targetIsActive, flagInfo = {}) => {
 
 module.exports = {
   listUsers,
+  listUsersForExport,
   getUserDetails,
   getUserById,
   updateUser,

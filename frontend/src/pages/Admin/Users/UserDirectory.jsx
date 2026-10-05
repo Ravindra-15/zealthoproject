@@ -5,13 +5,15 @@
  * Inline pagination (matches DoctorDirectory pattern).
  */
 
-import React from "react";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState } from "react";
+import { Search, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import UserTable from "./components/UserTable";
 import useUsers from "../../../hooks/useUsers";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { exportUsersCsv } from "../../../services/userService";
 
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
@@ -34,12 +36,50 @@ const UserDirectory = () => {
     prevPage,
   } = useUsers({ initialLimit: 10 });
 
+  // 📤 Export CSV — respects the current search/status filter
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      await exportUsersCsv({ search, status });
+      toast.success("Users exported");
+    } catch {
+      toast.error("Failed to export users. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 🏷️ Page header */}
       <AdminPageHeader
         title="User Directory"
         subtitle="Managing users on the system"
+        action={
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="
+              inline-flex items-center gap-2
+              px-4 py-2.5 rounded-xl
+              text-sm font-semibold text-gray-700
+              bg-white border border-gray-200
+              hover:bg-gray-50
+              disabled:opacity-60 disabled:cursor-not-allowed
+              transition-colors
+            "
+          >
+            {exporting ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Download size={15} />
+            )}
+            {exporting ? "Exporting..." : "Export CSV"}
+          </button>
+        }
       />
 
       {/* ============================================ */}

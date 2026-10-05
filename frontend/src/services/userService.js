@@ -31,6 +31,28 @@ export const listUsers = async ({
 };
 
 // ============================================
+// 📤 EXPORT USERS TO CSV
+// Respects the current search/status filter. Triggers a real file
+// download via a temporary object URL (adminApi carries the Bearer
+// token, so a plain <a href> straight to the API URL won't work).
+// ============================================
+export const exportUsersCsv = async ({ search = "", status = "all" } = {}) => {
+  const response = await adminApi.get("/admin/users/export", {
+    params: { search, status },
+    responseType: "blob",
+  });
+
+  const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = `zealtho-users-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+};
+
+// ============================================
 // 👁️ GET USER DETAILS (with body profile + consultations)
 // ============================================
 export const getUserDetails = async (userId) => {
