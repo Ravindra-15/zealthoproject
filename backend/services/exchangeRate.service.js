@@ -2,15 +2,17 @@
  * ============================================
  * EXCHANGE RATE SERVICE
  * ============================================
- * Fetches live USD-based rates from Frankfurter.app (free, no API key,
- * ECB-backed) on a schedule and caches them in Mongo + an in-memory copy.
- * Nothing else in the app calls the external API directly — everything
- * reads getCachedRates(), which always returns a usable (possibly stale)
- * set of rates and never throws, so a price page can never break because
- * of this service.
+ * Fetches live USD-based rates from open.er-api.com (free, no API key,
+ * ~166 ISO-4217 currencies — covers the Middle East/South Asia/Africa/
+ * Southeast Asia/Latin America currencies the client specifically asked
+ * for, not just the ~30 major ones a provider like Frankfurter covers)
+ * on a schedule, and caches them in Mongo + an in-memory copy. Nothing
+ * else in the app calls the external API directly — everything reads
+ * getCachedRates(), which always returns a usable (possibly stale) set
+ * of rates and never throws, so a price page can never break because of
+ * this service.
  *
- * Note: Frankfurter covers ~30 major currencies (the ECB's reference
- * list), not every ISO-4217 code. For a currency outside that set,
+ * For the rare currency still outside this provider's coverage,
  * convertFromUSD() (currency.util.js) returns null and callers fall back
  * to showing the USD price — by design, never a broken/blank price.
  * ============================================
@@ -20,7 +22,7 @@ const https = require("https");
 const cron = require("node-cron");
 const ExchangeRate = require("../models/ExchangeRate");
 
-const FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest?base=USD";
+const FX_API_URL = "https://open.er-api.com/v6/latest/USD";
 const FETCH_TIMEOUT_MS = 10000;
 
 // 🧠 In-memory cache so a hot request path never waits on a DB round trip
@@ -46,7 +48,9 @@ const fetchJson = (url, redirectsLeft = 2) =>
       res.on("end", () => {
         try {
           const parsed = JSON.parse(raw);
-          if (!parsed?.rates) throw new Error("Malformed FX API response");
+          if (parsed?.result === "error" || !parsed?.rates) {
+            throw new Error(parsed?.["error-type"] || "Malformed FX API response");
+          }
           resolve(parsed.rates);
         } catch (err) {
           reject(err);
@@ -57,14 +61,14 @@ const fetchJson = (url, redirectsLeft = 2) =>
     req.on("error", reject);
   });
 
-const fetchFromFrankfurter = () => fetchJson(FRANKFURTER_URL);
+const fetchLiveRates = () => fetchJson(FX_API_URL);
 
 // 🔄 Fetch fresh rates, persist to DB, refresh the in-memory cache.
 // Never throws — logs and leaves the previous cache (DB or memory) intact
 // on failure, so a flaky external API never takes pricing down.
 const refreshExchangeRates = async () => {
   try {
-    const rates = await fetchFromFrankfurter();
+    const rates = await fetchLiveRates();
     const doc = await ExchangeRate.findOneAndUpdate(
       {},
       { base: "USD", rates, fetchedAt: new Date() },
