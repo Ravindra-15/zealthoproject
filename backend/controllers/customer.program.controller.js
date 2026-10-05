@@ -5,6 +5,7 @@ const Referral = require("../models/Referral");
 const Notification = require("../models/Notification");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { hasReachedReferralLimit } = require("../utils/referralCode");
+const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
 
 // 🎁 Generate staggered free-consult cards for a paid subscription.
 // yogaT20 (monthly): one card per 3 months, each valid for its own 3-month block.
@@ -104,6 +105,10 @@ const grantReferralReward = async (refereeId) => {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + rewardDays);
 
+    const referrerUser = await User.findById(referral.referrer).select("countryIso");
+    const { currency: rewardCurrency, fxRateAtPurchase: rewardFxRate } =
+      await resolveCustomerCurrency(referrerUser);
+
     await ProgramSubscription.create({
       customer: referral.referrer,
       doctor: null,
@@ -114,6 +119,8 @@ const grantReferralReward = async (refereeId) => {
       weeks: null,
       pricingType: "fixed",
       amount: 0,
+      currency: rewardCurrency,
+      fxRateAtPurchase: rewardFxRate,
       referralCode: null,
       paymentStatus: "paid",
       paymentProvider: "manual",
@@ -320,6 +327,12 @@ const subscribeToProgram = async (req, res) => {
     // 💳 TRANSACTION
     const transactionId = "TXN_" + Date.now();
 
+    // 🌍 Resolve buyer's display currency + freeze today's rate for the receipt
+    const buyerId = customerId || doctorId;
+    const buyerUser = buyerId ? await User.findById(buyerId).select("countryIso") : null;
+    const { currency: purchaseCurrency, fxRateAtPurchase } =
+      await resolveCustomerCurrency(buyerUser);
+
     // 📦 CREATE SUBSCRIPTION
     const subscription = await ProgramSubscription.create({
       customer: customerId || null,
@@ -331,6 +344,8 @@ const subscribeToProgram = async (req, res) => {
       weeks: resolvedWeeks,
       pricingType,
       amount,
+      currency: purchaseCurrency,
+      fxRateAtPurchase,
       referralCode: referralCode?.trim() || null,
       paymentStatus: "paid",
       paymentProvider: "manual",

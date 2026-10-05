@@ -75,10 +75,25 @@ const programSubscriptionSchema = new mongoose.Schema(
       default: "fixed",
     },
 
+    // 💵 Always the true USD settlement amount — never converted.
     amount: {
       type: Number,
       required: true,
       min: 0,
+    },
+
+    // 🌍 Customer's display currency, resolved from their profile country
+    // at purchase time.
+    currency: {
+      type: String,
+      default: "USD",
+    },
+
+    // 💱 USD→currency rate frozen at purchase time, so this subscription's
+    // receipt always shows the exact amount the customer actually paid.
+    fxRateAtPurchase: {
+      type: Number,
+      default: 1,
     },
 
     referralCode: {

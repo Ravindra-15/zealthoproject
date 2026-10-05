@@ -1,5 +1,6 @@
 require("dotenv").config();
 const { startReminderCron } = require("./services/reminder.service");
+const { startExchangeRateCron } = require("./services/exchangeRate.service");
 const app = require("./app");
 const connectDB = require("./config/db");
 
@@ -12,6 +13,7 @@ const startServer = async () => {
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       startReminderCron();
+      startExchangeRateCron();
 
       // setTimeout(() => {
       //   const reminderService = require("./services/reminder.service");

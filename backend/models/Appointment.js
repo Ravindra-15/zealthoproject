@@ -96,10 +96,19 @@ const appointmentSchema = new mongoose.Schema(
       default: false,
     },
 
+    // 🌍 Customer's display currency, resolved from their profile country
+    // at booking time (see currency.util.js / exchangeRate.service.js).
     currency: {
       type: String,
       default: "USD",
-      enum: ["USD", "INR", "EUR", "GBP"],
+    },
+
+    // 💱 USD→currency rate frozen at the moment this booking was paid for,
+    // so receipts always show the exact amount the customer actually paid
+    // — never re-converted at today's rate on a later view/download.
+    fxRateAtPurchase: {
+      type: Number,
+      default: 1,
     },
 
     paymentStatus: {

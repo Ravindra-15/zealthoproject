@@ -5,6 +5,7 @@
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, XCircle, Clock, Download } from "lucide-react";
 import { formatUtcDate } from "../../../../utils/time";
+import { formatCurrency } from "../../../../utils/currency";
 
 const statusMeta = {
   successful: { label: "Successful", icon: CheckCircle2, bg: "bg-green-50", color: "text-green-600", border: "border-green-200" },
@@ -15,11 +16,6 @@ const statusMeta = {
 
 // 🌍 Viewer's own detected zone — auto-detected, no forced UTC
 const formatDate = (date) => formatUtcDate(date);
-
-const formatAmount = (amount, currency = "USD") => {
-  const symbol = currency === "USD" ? "$" : currency === "INR" ? "₹" : "";
-  return `${symbol}${Number(amount || 0).toFixed(2)}`;
-};
 
 export default function TransactionRow({ tx, variant = "desktop" }) {
   const navigate = useNavigate();
@@ -42,7 +38,7 @@ export default function TransactionRow({ tx, variant = "desktop" }) {
             </p>
           </div>
           <p className="text-sm font-bold text-gray-800 shrink-0">
-            {formatAmount(tx.amount, tx.currency)}
+            {formatCurrency(tx.amount, tx.currency)}
           </p>
         </div>
 
@@ -74,7 +70,7 @@ export default function TransactionRow({ tx, variant = "desktop" }) {
       <td className="py-4 pr-4 text-xs text-gray-700">{formatDate(tx.date)}</td>
       <td className="py-4 pr-4 text-xs text-gray-700">{tx.description}</td>
       <td className="py-4 pr-4 text-xs font-semibold text-gray-800">
-        {formatAmount(tx.amount, tx.currency)}
+        {formatCurrency(tx.amount, tx.currency)}
       </td>
       <td className="py-4 pr-4">
         <span

@@ -4,6 +4,16 @@ const User = require("../models/User");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const ProgramSubscription = require("../models/ProgramSubscription");
 const Appointment = require("../models/Appointment"); // for paid appointment transactions
+const { roundUpToCurrency } = require("../utils/currency.util");
+
+// 💱 Apply a frozen per-transaction rate to a USD amount for receipt display.
+// Falls back to the raw USD amount if currency/rate is missing — never
+// shows a broken or zero price.
+const applyFrozenRate = (amountUSD, currency, fxRateAtPurchase) => {
+  if (!currency || currency === "USD") return roundUpToCurrency(amountUSD, "USD");
+  const rate = Number.isFinite(fxRateAtPurchase) && fxRateAtPurchase > 0 ? fxRateAtPurchase : 1;
+  return roundUpToCurrency(amountUSD * rate, currency);
+};
 const getSummary = async (req, res) => {
   try {
     const totalCompleted = await Consultation.countDocuments({
@@ -39,13 +49,15 @@ const listTransactions = async (req, res) => {
         : a.paidWithCredit
         ? " — Free (Credit)"
         : "";
+      const amountUSD = a.paidWithPlanCredit || a.paidWithCredit ? 0 : a.fee || 0;
+      const currency = a.currency || "USD";
       return {
         id: a._id,
         type: "appointment",
         date: a.createdAt,
         description: `Doctor Consultation Fee (${a.doctorName || "Consultation"})${freeLabel}`,
-        amount: a.paidWithPlanCredit || a.paidWithCredit ? 0 : a.fee || 0,
-        currency: a.currency || "USD",
+        amount: applyFrozenRate(amountUSD, currency, a.fxRateAtPurchase),
+        currency,
         status: a.paymentStatus || "pending",
       };
     });
@@ -58,15 +70,18 @@ const listTransactions = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const subscriptionTx = subscriptions.map((s) => ({
-      id: s._id,
-      type: "subscription",
-      date: s.createdAt,
-      description: `${s.programName || "Program"} Plan (${s.tenure || ""})`.trim(),
-      amount: s.amount || 0,
-      currency: "USD",
-      status: s.paymentStatus || "pending",
-    }));
+    const subscriptionTx = subscriptions.map((s) => {
+      const currency = s.currency || "USD";
+      return {
+        id: s._id,
+        type: "subscription",
+        date: s.createdAt,
+        description: `${s.programName || "Program"} Plan (${s.tenure || ""})`.trim(),
+        amount: applyFrozenRate(s.amount || 0, currency, s.fxRateAtPurchase),
+        currency,
+        status: s.paymentStatus || "pending",
+      };
+    });
 
     // 🔀 Merge + sort newest first
     const formatted = [...appointmentTx, ...subscriptionTx].sort(
@@ -131,7 +146,9 @@ const getReceipt = async (req, res) => {
     if (appointment) {
       // Free for the user if booked via plan consult or cancel credit
       const wasFree = appointment.paidWithPlanCredit || appointment.paidWithCredit;
-      const displayFee = wasFree ? 0 : appointment.fee || 0;
+      const displayFeeUSD = wasFree ? 0 : appointment.fee || 0;
+      const receiptCurrency = appointment.currency || "USD";
+      const convertedFee = applyFrozenRate(displayFeeUSD, receiptCurrency, appointment.fxRateAtPurchase);
       const receipt = {
         receiptNumber: `TXN-${appointment._id.toString().slice(-8).toUpperCase()}`,
         date: appointment.createdAt,
@@ -143,10 +160,11 @@ const getReceipt = async (req, res) => {
           registrationNumber: "",
         },
         summary: {
-          consultationFee: displayFee,
+          consultationFee: convertedFee,
           processingFee: 0,
-          total: displayFee,
-          currency: appointment.currency || "USD",
+          total: convertedFee,
+          currency: receiptCurrency,
+          amountUSD: displayFeeUSD,
         },
         appointment: {
           scheduledAt: appointment.scheduledAt || appointment.createdAt,
@@ -162,6 +180,8 @@ const getReceipt = async (req, res) => {
     }).lean();
 
     if (sub) {
+      const subCurrency = sub.currency || "USD";
+      const convertedAmount = applyFrozenRate(sub.amount || 0, subCurrency, sub.fxRateAtPurchase);
       const receipt = {
         receiptNumber: `TXN-${sub._id.toString().slice(-8).toUpperCase()}`,
         date: sub.createdAt,
@@ -174,10 +194,11 @@ const getReceipt = async (req, res) => {
           registrationNumber: "",
         },
         summary: {
-          consultationFee: sub.amount || 0,
+          consultationFee: convertedAmount,
           processingFee: 0,
-          total: sub.amount || 0,
-          currency: "USD",
+          total: convertedAmount,
+          currency: subCurrency,
+          amountUSD: sub.amount || 0,
         },
         appointment: {
           scheduledAt: sub.startDate || sub.createdAt,

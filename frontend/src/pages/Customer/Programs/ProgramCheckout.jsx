@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { X, Shield, CreditCard, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 import { subscribeToProgram } from "../../../services/programService";
+import { useCurrency } from "../../../hooks/useCurrency";
 
 export default function ProgramCheckout() {
   const { id } = useParams();
@@ -22,6 +23,7 @@ export default function ProgramCheckout() {
 
   const tenure = state?.tenure || "12 Months";
   const price = state?.price || 45;
+  const { convert } = useCurrency();
   const programName = state?.programName || id;
 
   const [form, setForm] = useState({
@@ -133,7 +135,7 @@ export default function ProgramCheckout() {
                 </div>
                 <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
                   <span className="font-bold text-gray-800">Total</span>
-                  <span className="text-3xl font-bold text-orange-500">${price}</span>
+                  <span className="text-3xl font-bold text-orange-500">{convert(price)}</span>
                 </div>
               </div>
             </div>
@@ -236,7 +238,7 @@ export default function ProgramCheckout() {
                 disabled={loading}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-full transition-all shadow-[0_8px_24px_rgba(249,115,22,0.35)] disabled:opacity-60 mt-2"
               >
-                {loading ? "Processing..." : `Pay $${price}`}
+                {loading ? "Processing..." : `Pay ${convert(price)}`}
               </button>
 
               {/* trust badges */}

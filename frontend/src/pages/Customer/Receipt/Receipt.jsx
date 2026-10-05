@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { ArrowLeft, Printer } from "lucide-react";
 import { fetchReceipt } from "../../../services/customerBillingService";
 import { formatUtcDate, formatUtcDateTime12h } from "../../../utils/time";
+import { formatCurrency } from "../../../utils/currency";
 
 export default function Receipt() {
   const navigate = useNavigate();
@@ -35,7 +36,10 @@ export default function Receipt() {
   const formatDate = (d) => formatUtcDate(d);
   const formatDateTime = (d) => formatUtcDateTime12h(d);
 
-  const symbol = receipt?.summary?.currency === "INR" ? "₹" : "$";
+  // 💱 Amounts arrive already converted + frozen by the backend (the exact
+  // currency/rate the customer saw at payment time) — this just formats
+  // them with the right symbol/decimals for that currency.
+  const receiptCurrency = receipt?.summary?.currency || "USD";
 
   if (loading) {
     return (
@@ -153,15 +157,14 @@ export default function Receipt() {
                   <tr className="border-b border-gray-50">
                     <td className="py-3 text-gray-700">Doctor Consultation Fee</td>
                     <td className="py-3 text-gray-700 text-right">
-                      {symbol}
-                      {Number(receipt.summary?.consultationFee || 0).toFixed(2)}
+                      {formatCurrency(receipt.summary?.consultationFee || 0, receiptCurrency)}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-3 text-gray-700">International Transaction Processing Fee</td>
                     <td className="py-3 text-gray-700 text-right">
                       {receipt.summary?.processingFee
-                        ? `${symbol}${Number(receipt.summary.processingFee).toFixed(2)}`
+                        ? formatCurrency(receipt.summary.processingFee, receiptCurrency)
                         : "Included"}
                     </td>
                   </tr>
@@ -174,8 +177,7 @@ export default function Receipt() {
           <div className="flex items-center justify-between py-5 border-b border-gray-100">
             <span className="text-base font-bold text-gray-800">Total Paid</span>
             <span className="text-base font-bold text-gray-800">
-              {symbol}
-              {Number(receipt.summary?.total || 0).toFixed(2)}
+              {formatCurrency(receipt.summary?.total || 0, receiptCurrency)}
             </span>
           </div>
 

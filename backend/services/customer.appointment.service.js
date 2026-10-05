@@ -29,6 +29,7 @@ const {
 const paymentService = require("./payment.service");
 const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
+const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
 // ============================================
 // 💰 BOOKING FEE (constant for now; future: per-doctor)
 // ============================================
@@ -333,6 +334,11 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     };
   }
 
+  // 🌍 Resolve the customer's display currency + freeze today's rate, so
+  // their receipt always shows what they actually saw/paid — the real
+  // settlement stays BOOKING_CURRENCY (USD) regardless of this.
+  const { currency: displayCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(user);
+
   const appointment = await Appointment.create({
     user: userId,
     doctor: doctorId,
@@ -344,7 +350,8 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     fee: BOOKING_FEE,  // Doctor still receives the original $20 (covered by credit/plan revenue)
     paidWithCredit: usedFreeCredit || usedPlanConsult,
     paidWithPlanCredit: usedPlanConsult, // tags plan-funded free consults
-    currency: BOOKING_CURRENCY,
+    currency: displayCurrency,
+    fxRateAtPurchase,
     paymentStatus: "paid",
     status: "confirmed",
     notes,
