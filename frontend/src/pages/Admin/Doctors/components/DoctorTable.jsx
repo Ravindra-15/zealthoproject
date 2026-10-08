@@ -15,7 +15,7 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Eye, Pencil, Flag } from "lucide-react";
+import { User, Eye, Pencil, Flag, Star } from "lucide-react";
 
 import { buildPhotoUrl } from "../../../../services/doctorService";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
@@ -57,6 +57,23 @@ const FlagBadge = ({ title }) => (
 );
 
 // ============================================
+// 🌟 UNSEEN FEEDBACK BADGE
+// ============================================
+const FeedbackBadge = ({ count }) => (
+  <span
+    title={`${count} feedback not checked yet`}
+    className="
+      inline-flex items-center gap-1 px-2.5 py-1
+      text-[11px] font-semibold rounded-full
+      bg-indigo-50 text-indigo-600 border border-indigo-100
+    "
+  >
+    <Star size={11} />
+    {count} new
+  </span>
+);
+
+// ============================================
 // 👤 DOCTOR AVATAR
 // ============================================
 const DoctorAvatar = ({ doctor }) => {
@@ -94,7 +111,7 @@ const DoctorAvatar = ({ doctor }) => {
 // ============================================
 // 📋 MAIN TABLE COMPONENT
 // ============================================
-const DoctorTable = ({ doctors = [], loading = false }) => {
+const DoctorTable = ({ doctors = [], loading = false, feedbackCounts = {} }) => {
   const navigate = useNavigate();
 
   // ⏳ Loading skeleton
@@ -211,6 +228,9 @@ const DoctorTable = ({ doctors = [], loading = false }) => {
                     {doctor.flagged && (
                       <FlagBadge title={doctor.flagDescription} />
                     )}
+                    {feedbackCounts[doctor._id] > 0 && (
+                      <FeedbackBadge count={feedbackCounts[doctor._id]} />
+                    )}
                   </div>
                 </td>
 
@@ -272,6 +292,9 @@ const DoctorTable = ({ doctors = [], loading = false }) => {
                     <StatusPill isActive={doctor.isActive} />
                     {doctor.flagged && (
                       <FlagBadge title={doctor.flagDescription} />
+                    )}
+                    {feedbackCounts[doctor._id] > 0 && (
+                      <FeedbackBadge count={feedbackCounts[doctor._id]} />
                     )}
                   </div>
                 </div>

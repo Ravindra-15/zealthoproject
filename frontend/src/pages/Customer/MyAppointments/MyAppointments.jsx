@@ -4,13 +4,15 @@
  * Auth-gated; guides users to body profile wizard.
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import toast from "react-hot-toast";
 
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import AppointmentCard from "./components/AppointmentCard";
+import FeedbackModal from "./components/FeedbackModal";
 
 import useMyAppointments from "../../../hooks/useMyAppointments";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
@@ -18,6 +20,13 @@ import {
   isCustomerLoggedIn,
   buildLoginRedirect,
 } from "../../../utils/customerAuthHelper";
+import {
+  fetchPendingFeedback,
+  submitFeedback,
+  skipFeedback,
+} from "../../../services/customerFeedbackService";
+
+const FEEDBACK_THEME_COLOR = "#F97316";
 
 // ============================================
 // 🚫 EMPTY STATE
@@ -59,6 +68,59 @@ const MyAppointments = () => {
 
   // 🎯 Show banner only if profile is loaded AND not yet complete
   const showBodyProfileBanner = !profileLoading && !isComplete;
+
+  // ============================================
+  // 🌟 POST-CALL FEEDBACK — auto-popup once per completed appointment.
+  // Checked once on page load; a "skip" is remembered server-side
+  // (feedbackStatus) so it never auto-reopens after being dismissed.
+  // ============================================
+  const [pendingFeedbackApt, setPendingFeedbackApt] = useState(null);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
+  const loadPendingFeedback = async () => {
+    try {
+      const apt = await fetchPendingFeedback();
+      setPendingFeedbackApt(apt || null);
+    } catch {
+      // soft fail — feedback prompt is a nice-to-have, never blocks the page
+    }
+  };
+
+  useEffect(() => {
+    if (isCustomerLoggedIn()) loadPendingFeedback();
+  }, []);
+
+  const handleFeedbackSkip = async () => {
+    const apt = pendingFeedbackApt;
+    setPendingFeedbackApt(null); // close immediately, don't make them wait
+    if (apt) {
+      try {
+        await skipFeedback(apt._id);
+      } catch {
+        // soft fail — worst case it prompts again later, not harmful
+      }
+    }
+  };
+
+  const handleFeedbackSubmit = async ({ rating, questions, description }) => {
+    if (!pendingFeedbackApt) return;
+    try {
+      setFeedbackSubmitting(true);
+      await submitFeedback({ appointmentId: pendingFeedbackApt._id, rating, questions, description });
+      toast.success("Thanks for your feedback!");
+      setPendingFeedbackApt(null);
+      upcoming.refetch?.();
+      past.refetch?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to submit feedback");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
+  // Lets AppointmentCard trigger the same modal manually (the "Rate this
+  // consultation" link shown after a skip, or any time before submitting).
+  const openFeedbackFor = (appointment) => setPendingFeedbackApt(appointment);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -183,6 +245,7 @@ const MyAppointments = () => {
                     appointment={apt}
                     isUpcoming={false}
                     onUpdated={() => { upcoming.refetch?.(); past.refetch?.(); }}
+                    onRateConsultation={() => openFeedbackFor(apt)}
                   />
                 ))}
               </div>
@@ -190,6 +253,15 @@ const MyAppointments = () => {
           </section>
         </div>
       </main>
+
+      <FeedbackModal
+        open={!!pendingFeedbackApt}
+        onClose={handleFeedbackSkip}
+        onSubmit={handleFeedbackSubmit}
+        loading={feedbackSubmitting}
+        doctorName={pendingFeedbackApt?.doctor?.fullName || pendingFeedbackApt?.doctorName || "your doctor"}
+        themeColor={FEEDBACK_THEME_COLOR}
+      />
 
       <CustomerFooter />
     </div>

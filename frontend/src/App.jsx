@@ -57,6 +57,7 @@ import ProtectedAdminRoute from "./components/admin/auth/ProtectedAdminRoute";
 import DoctorDirectory from "./pages/Admin/Doctors/DoctorDirectory";
 import AddDoctor from "./pages/Admin/Doctors/AddDoctor";
 import DoctorProfile from "./pages/Admin/Doctors/DoctorProfile";
+import DoctorFeedback from "./pages/Admin/Doctors/DoctorFeedback";
 import EditDoctor from "./pages/Admin/Doctors/EditDoctor";
 import UserDirectory from "./pages/Admin/Users/UserDirectory";
 import UserProfile from "./pages/Admin/Users/UserProfile";
@@ -246,6 +247,7 @@ function App() {
           <Route path="doctors" element={<DoctorDirectory />} />
           <Route path="doctors/new" element={<AddDoctor />} />
           <Route path="doctors/:id/edit" element={<EditDoctor />} />
+          <Route path="doctors/:id/feedback" element={<DoctorFeedback />} />
           <Route path="doctors/:id" element={<DoctorProfile />} />
           <Route
             path="financial-reports"

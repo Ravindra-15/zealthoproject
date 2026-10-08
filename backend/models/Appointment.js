@@ -199,6 +199,15 @@ const appointmentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // 🌟 Post-call feedback — null means "not yet decided" (still eligible
+    // to prompt once the appointment is completed). Set once the customer
+    // either submits feedback or explicitly dismisses the prompt.
+    feedbackStatus: {
+      type: String,
+      enum: ["submitted", "skipped"],
+      default: null,
+    },
+
     // 🔗 Google Meet / Zoom link added by doctor before consultation
     meetingLink: {
       type: String,

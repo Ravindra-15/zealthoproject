@@ -6,13 +6,14 @@
  * Access: Super Admin only (wrapped in ProtectedAdminRoute)
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import DoctorTable from "./components/DoctorTable";
 import useDoctors from "../../../hooks/useDoctors";
+import { fetchFeedbackCounts } from "../../../services/adminDoctorFeedbackService";
 
 const DoctorDirectory = () => {
   const navigate = useNavigate();
@@ -26,6 +27,17 @@ const DoctorDirectory = () => {
     nextPage,
     prevPage,
   } = useDoctors({ initialLimit: 10 });
+
+  // 🌟 Unseen feedback counts, { doctorId: count } — one call for the
+  // whole page, re-fetched whenever the visible doctor list changes.
+  const [feedbackCounts, setFeedbackCounts] = useState({});
+  useEffect(() => {
+    fetchFeedbackCounts()
+      .then(setFeedbackCounts)
+      .catch(() => {
+        // soft fail — badges just stay hidden, not worth erroring the page over
+      });
+  }, [doctors]);
 
   const handleAddDoctor = () => {
     navigate("/admin/doctors/new");
@@ -79,7 +91,7 @@ const DoctorDirectory = () => {
       </div>
 
       {/* 📋 Doctor table */}
-      <DoctorTable doctors={doctors} loading={loading} />
+      <DoctorTable doctors={doctors} loading={loading} feedbackCounts={feedbackCounts} />
 
       {/* 📄 Pagination — only show if there are more than one page */}
       {pagination.totalPages > 1 && (

@@ -29,6 +29,8 @@ import {
   FileText,
   ExternalLink,
   Flag,
+  Star,
+  ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import DOMPurify from "dompurify";
@@ -38,6 +40,7 @@ import {
   buildPhotoUrl,
   clearDoctorFlag,
 } from "../../../services/doctorService";
+import { fetchFeedbackCountForDoctor } from "../../../services/adminDoctorFeedbackService";
 import { formatUtcDateTime12h } from "../../../utils/time";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 
@@ -96,6 +99,7 @@ const DoctorProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [clearingFlag, setClearingFlag] = useState(false);
+  const [feedbackSummary, setFeedbackSummary] = useState({ total: 0, unseen: 0 });
 
   const handleClearFlag = async () => {
     if (clearingFlag) return;
@@ -147,6 +151,22 @@ const DoctorProfile = () => {
       isMounted = false;
     };
   }, [id, location.key, navigate]); // 🔄 location.key forces refetch on navigation
+
+  // 🌟 Feedback count — non-mutating, doesn't clear the unseen badge
+  // (only actually opening the full Feedback list does that).
+  useEffect(() => {
+    let isMounted = true;
+    fetchFeedbackCountForDoctor(id)
+      .then((summary) => {
+        if (isMounted) setFeedbackSummary(summary);
+      })
+      .catch(() => {
+        // soft fail — the badge just stays at 0, not worth erroring the page over
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [id, location.key]);
 
   // ============================================
   // ⏳ LOADING STATE
@@ -564,14 +584,16 @@ const DoctorProfile = () => {
           )}
         </section>
 
-        {/* Optional: Account activity */}
-        {doctor.lastLogin && (
-          <>
-            <div className="my-6 border-t border-gray-100" />
-            <section>
-              <h2 className="text-base font-bold text-gray-900 mb-3">
-                Account Activity
-              </h2>
+        {/* Divider */}
+        <div className="my-6 border-t border-gray-100" />
+
+        {/* Account Activity (optional) + Feedback — side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <section>
+            <h2 className="text-base font-bold text-gray-900 mb-3">
+              Account Activity
+            </h2>
+            {doctor.lastLogin ? (
               <div className="text-xs text-gray-500 space-y-1">
                 <p>
                   <span className="font-semibold text-gray-700">Username:</span>{" "}
@@ -590,9 +612,49 @@ const DoctorProfile = () => {
                   {doctor.isProfileComplete ? "Yes" : "No"}
                 </p>
               </div>
-            </section>
-          </>
-        )}
+            ) : (
+              <p className="text-xs text-gray-400 italic">
+                This doctor hasn't logged in yet.
+              </p>
+            )}
+          </section>
+
+          {/* 🌟 FEEDBACK */}
+          <section>
+            <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+              Feedback
+              {feedbackSummary.unseen > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                  {feedbackSummary.unseen > 9 ? "9+" : feedbackSummary.unseen}
+                </span>
+              )}
+            </h2>
+            <button
+              type="button"
+              onClick={() => navigate(`/admin/doctors/${id}/feedback`)}
+              className="w-full flex items-center justify-between gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/40 transition-colors"
+            >
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="w-10 h-10 rounded-lg flex-shrink-0 bg-indigo-50 flex items-center justify-center">
+                  <Star size={18} className="text-indigo-500" />
+                </span>
+                <span className="min-w-0 text-left">
+                  <span className="block text-sm font-semibold text-gray-800">
+                    {feedbackSummary.total > 0
+                      ? `${feedbackSummary.total} review${feedbackSummary.total === 1 ? "" : "s"}`
+                      : "No feedback yet"}
+                  </span>
+                  {feedbackSummary.unseen > 0 && (
+                    <span className="block text-[11px] text-red-500 font-medium">
+                      {feedbackSummary.unseen} not checked yet
+                    </span>
+                  )}
+                </span>
+              </span>
+              <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+            </button>
+          </section>
+        </div>
       </div>
     </div>
   );
