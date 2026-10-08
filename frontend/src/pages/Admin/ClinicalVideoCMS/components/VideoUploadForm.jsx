@@ -116,6 +116,7 @@ function Wheel({ values, value, onChange, ariaLabel }) {
 
 const VideoUploadForm = ({
   yogaTypeLabel,
+  uploadButtonText = "Upload Video",
   onUpload,
   editingVideo = null,
   onUpdate,
@@ -360,7 +361,7 @@ const VideoUploadForm = ({
               : "Uploading..."
             : isEditing
               ? "Save Changes"
-              : "Upload Video"}
+              : uploadButtonText}
         </button>
 
         {isEditing && (

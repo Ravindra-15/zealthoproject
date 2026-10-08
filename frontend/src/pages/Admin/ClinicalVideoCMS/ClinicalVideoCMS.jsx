@@ -31,9 +31,9 @@ const WEEKLY_PROGRAMS = ["diabmukt", "mommyfit", "slimfitter"];
 
 // 🧘 Yoga type options (yogat20 only)
 export const YOGA_TYPES = [
-  { id: "normal_yoga", label: "Normal Yoga", color: "bg-indigo-500" },
-  { id: "chair_yoga", label: "Chair Yoga", color: "bg-orange-500" },
-  { id: "high_intensity", label: "High Intensity Yoga", color: "bg-red-500" },
+  { id: "normal_yoga", label: "Normal Yoga", shortLabel: "Normal", color: "bg-indigo-500" },
+  { id: "chair_yoga", label: "Chair Yoga", shortLabel: "Chair", color: "bg-orange-500" },
+  { id: "high_intensity", label: "High Intensity Yoga", shortLabel: "High Intensity", color: "bg-red-500" },
 ];
 
 const ClinicalVideoCMS = () => {
@@ -223,6 +223,7 @@ const ClinicalVideoCMS = () => {
       <div ref={formRef}>
         <VideoUploadForm
           yogaTypeLabel={isWeekly ? selectedProgram.label : currentYogaType.label}
+          uploadButtonText={isWeekly ? "Upload Video" : `Upload ${currentYogaType.shortLabel} Video`}
           onUpload={handleUpload}
           editingVideo={editingVideo}
           onUpdate={handleUpdate}
