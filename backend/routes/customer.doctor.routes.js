@@ -15,6 +15,11 @@ const {
 } = require("../controllers/customer.doctor.controller");
 
 const {
+  getSummary: getFeedbackSummary,
+  listFeedback,
+} = require("../controllers/customer.doctorFeedback.controller");
+
+const {
   validateListQuery,
   validateDoctorId,
 } = require("../validators/customer.doctor.validator");
@@ -44,5 +49,9 @@ router.get("/", publicReadLimiter, validateListQuery, listDoctors);
 
 // 👁️ Get single doctor public profile
 router.get("/:id", publicReadLimiter, validateDoctorId, getDoctor);
+
+// ⭐ Public rating summary + 💬 testimonials — shown on the booking page
+router.get("/:id/feedback-summary", publicReadLimiter, validateDoctorId, getFeedbackSummary);
+router.get("/:id/feedback", publicReadLimiter, validateDoctorId, listFeedback);
 
 module.exports = router;

@@ -5,10 +5,10 @@
  */
 
 import React from "react";
-import { CheckCircle2, User } from "lucide-react";
+import { CheckCircle2, User, Star } from "lucide-react";
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 
-const DoctorDetailHeader = ({ doctor }) => {
+const DoctorDetailHeader = ({ doctor, ratingSummary, onFeedbackClick, themeColor = "#F97316" }) => {
   const photoUrl = buildDoctorPhotoUrl(doctor.photo, doctor.updatedAt);
   const tags = (doctor.specializations || []).slice(0, 6);
 
@@ -107,6 +107,25 @@ const DoctorDetailHeader = ({ doctor }) => {
           </p>
         )}
       </div>
+
+      {/* ⭐ Rating + Feedback link — only once there's at least one review */}
+      {ratingSummary?.count > 0 && (
+        <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-start gap-2 lg:gap-1.5 flex-shrink-0 lg:w-36 lg:text-right">
+          <div className="flex items-center gap-1.5">
+            <Star size={18} fill={themeColor} color={themeColor} strokeWidth={0} />
+            <span className="text-base font-bold text-gray-900">{ratingSummary.average}</span>
+            <span className="text-xs text-gray-400">({ratingSummary.count})</span>
+          </div>
+          <button
+            type="button"
+            onClick={onFeedbackClick}
+            className="text-xs font-semibold hover:underline"
+            style={{ color: themeColor }}
+          >
+            Feedback
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -49,6 +49,24 @@ export const getPublicDoctor = async (doctorId) => {
 };
 
 // ============================================
+// ⭐ RATING SUMMARY (average + count)
+// ============================================
+export const getDoctorFeedbackSummary = async (doctorId) => {
+  const response = await publicApi.get(`/customer/doctors/${doctorId}/feedback-summary`);
+  return response.data.data; // { average, count }
+};
+
+// ============================================
+// 💬 PUBLIC TESTIMONIALS (paginated)
+// ============================================
+export const listDoctorTestimonials = async (doctorId, { page = 1, limit = 10 } = {}) => {
+  const response = await publicApi.get(`/customer/doctors/${doctorId}/feedback`, {
+    params: { page, limit },
+  });
+  return response.data.data; // { testimonials, pagination }
+};
+
+// ============================================
 // 🖼️ BUILD PHOTO URL (with cache-busting)
 // ============================================
 // export const buildDoctorPhotoUrl = (photo, updatedAt) => {
