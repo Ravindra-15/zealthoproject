@@ -246,6 +246,16 @@ const subscribeToProgram = async (req, res) => {
       existingQuery
     );
 
+    // 🆓 A free trial can't be "stacked onto" like a real renewal — per the
+    // client spec, purchasing while on an active trial is blocked outright.
+    // The user has to let the trial run its course (or it expires) before
+    // buying — the trial itself doesn't carry any paid entitlement to stack.
+    if (existingSubscription?.isTrial) {
+      return res.status(400).json({
+        message: "You're currently on a free trial. You can purchase a plan once your trial ends.",
+      });
+    }
+
     let amount;
     let resolvedTenure;
     let resolvedWeeks = null;
