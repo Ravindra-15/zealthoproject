@@ -25,17 +25,18 @@ const TRIAL_DURATION_DAYS = 14;
 // 🔍 CURRENT TRIAL STATE FOR THIS USER
 // ============================================
 const getTrialStatus = async (userId) => {
-  // 🚫 Already has a real (non-trial) active plan — trial isn't offered
-  const activePlan = await ProgramSubscription.findOne({
+  // 🚫 Has EVER purchased a real (non-trial) plan for this program — not
+  // just currently active. A trial is for first-time prospects; without
+  // this check, someone whose paid plan lapsed could "become new again"
+  // and claim a trial, which isn't the intent.
+  const purchasedPlan = await ProgramSubscription.findOne({
     customer: userId,
     programId: TRIAL_PROGRAM_ID,
     isTrial: { $ne: true },
-    status: "active",
-    endDate: { $gt: new Date() },
   }).lean();
 
-  if (activePlan) {
-    return { state: "has_active_plan" };
+  if (purchasedPlan) {
+    return { state: "has_purchased_plan" };
   }
 
   const request = await FreeTrialRequest.findOne({
@@ -87,8 +88,8 @@ const getTrialStatus = async (userId) => {
 const requestTrial = async (userId, user) => {
   const status = await getTrialStatus(userId);
 
-  if (status.state === "has_active_plan") {
-    return { error: { status: 400, message: "You already have an active YogaT20 plan." } };
+  if (status.state === "has_purchased_plan") {
+    return { error: { status: 400, message: "Free trials are only for new users — you've already purchased a YogaT20 plan." } };
   }
   if (status.state === "pending") {
     return { error: { status: 400, message: "Your free trial request is already pending approval." } };
