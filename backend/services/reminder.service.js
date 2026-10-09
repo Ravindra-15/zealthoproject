@@ -19,6 +19,7 @@ const {
     sendPlanExpiryReminder,
     sendBirthdayWish,
     sendProgressReportExportEmail,
+    sendTrialExpiryReminder,
 } = require("./email.service");
 const { buildProgressExportCsvs } = require("./progressCsvExport.service");
 
@@ -160,6 +161,7 @@ const sendPlanExpiryReminders = async () => {
     const subs = await ProgramSubscription.find({
         purchasedByRole: "customer",
         status: "active",
+        isTrial: { $ne: true }, // trials get their own reminder copy — see sendTrialExpiryReminders
         endDate: { $gt: now, $lte: windowEnd },
     }).lean();
 
@@ -212,6 +214,63 @@ const sendPlanExpiryReminders = async () => {
 };
 
 // ============================================
+// 🔔 FIND + SEND FREE-TRIAL-EXPIRY REMINDERS (YogaT20, last 3 days)
+// Separate from sendPlanExpiryReminders — a 14-day trial needs its own
+// "upgrade now" copy, not the regular "renew now" billing-page copy.
+// ============================================
+const sendTrialExpiryReminders = async () => {
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const todayKey = now.toISOString().slice(0, 10);
+
+    const subs = await ProgramSubscription.find({
+        purchasedByRole: "customer",
+        status: "active",
+        isTrial: true,
+        endDate: { $gt: now, $lte: windowEnd },
+    }).lean();
+
+    for (const sub of subs) {
+        try {
+            if (sub.lastExpiryNotifiedOn === todayKey) continue;
+
+            const user = await User.findById(sub.customer)
+                .select("email fullName nickName")
+                .lean();
+            if (!user) continue;
+
+            const msLeft = new Date(sub.endDate).getTime() - now.getTime();
+            const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+
+            if (user.email) {
+                await sendTrialExpiryReminder({
+                    to: user.email,
+                    recipientName: user.fullName || user.nickName || "there",
+                    daysLeft,
+                });
+            }
+
+            const dayLabel = daysLeft <= 1 ? (daysLeft === 1 ? "in 1 day" : "today") : `in ${daysLeft} days`;
+            await Notification.create({
+                userId: sub.customer,
+                userType: "customer",
+                type: "plan_expiring",
+                title: "Free Trial Ending Soon",
+                body: `Your free YogaT20 trial ends ${dayLabel}. Upgrade now to keep your access.`,
+                metadata: { programId: sub.programId, link: "/programs/yogat20/tenure" },
+            });
+
+            await ProgramSubscription.findByIdAndUpdate(sub._id, {
+                lastExpiryNotifiedOn: todayKey,
+            });
+            console.log(`[TRIAL EXPIRY] Notified user ${sub.customer} (${daysLeft}d left)`);
+        } catch (err) {
+            console.error(`[TRIAL EXPIRY ERROR] ${sub._id}:`, err.message);
+        }
+    }
+};
+
+// ============================================
 // 📤 SEND PROGRESS REPORT CSV EXPORT (once per subscription, at expiry)
 // Per the client spec: once a plan ends, the user loses access to their
 // in-app progress report, so they're emailed a full CSV export instead —
@@ -223,6 +282,7 @@ const sendProgressReportExports = async () => {
 
     const subs = await ProgramSubscription.find({
         purchasedByRole: "customer",
+        isTrial: { $ne: true }, // a 14-day trial doesn't warrant a full progress-report export
         endDate: { $lte: now },
         progressCsvSentAt: null,
     }).lean();
@@ -387,6 +447,7 @@ const startReminderCron = () => {
         await send24hReminders();
         await send1hReminders();
         await sendPlanExpiryReminders();
+        await sendTrialExpiryReminders();
         await sendProgressReportExports();
         await sendBirthdayWishes();
         await processFreeConsultCards();
@@ -395,4 +456,4 @@ const startReminderCron = () => {
     console.log("✅ Reminder cron scheduled (every 15 mins)");
 };
 
-module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendProgressReportExports, sendBirthdayWishes, processFreeConsultCards };
+module.exports = { startReminderCron, send24hReminders, send1hReminders, sendPlanExpiryReminders, sendTrialExpiryReminders, sendProgressReportExports, sendBirthdayWishes, processFreeConsultCards };

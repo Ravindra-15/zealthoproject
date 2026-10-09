@@ -80,7 +80,7 @@ const deleteThumbnailFile = (thumbnailUrl) => {
 // ============================================
 const listVideos = async (req, res) => {
   try {
-    const { programId, yogaType } = req.query;
+    const { programId, yogaType, isFreeTrial } = req.query;
 
     if (!programId || !ALLOWED_PROGRAMS.includes(programId)) {
       return res.status(400).json({
@@ -89,7 +89,13 @@ const listVideos = async (req, res) => {
       });
     }
 
-    const query = { programId };
+    // 🆓 Default (param omitted) → regular videos only, so the existing
+    // Clinical Video CMS tab never shows trial-only uploads mixed in.
+    // Explicit isFreeTrial=true → the new "Free Trial Plan Videos" tab.
+    const query = {
+      programId,
+      isFreeTrial: isFreeTrial === "true" ? true : { $ne: true },
+    };
 
     if (yogaType) {
       if (!ALLOWED_YOGA_TYPES.includes(yogaType)) {
@@ -132,6 +138,7 @@ const createVideo = async (req, res) => {
       publishAt,
       displayOrder,
       duration,
+      isFreeTrial,
     } = req.body;
 
     // 🛡️ Validate program
@@ -199,6 +206,7 @@ const createVideo = async (req, res) => {
       publishAt: parsedPublishAt,
       displayOrder: displayOrder ? Number(displayOrder) : 99,
       duration: (duration || "").trim(),
+      isFreeTrial: isFreeTrial === true || isFreeTrial === "true",
     });
 
     return res.status(201).json({

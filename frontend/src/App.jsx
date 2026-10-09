@@ -71,6 +71,8 @@ import AdminReceipt from "./pages/Admin/FinancialReports/AdminReceipt";
 import SubscriptionConfigurator from "./pages/Admin/SubscriptionConfigurator/SubscriptionConfigurator";
 import AddEditPlan from "./pages/Admin/SubscriptionConfigurator/AddEditPlan";
 import ClinicalVideoCMS from "./pages/Admin/ClinicalVideoCMS/ClinicalVideoCMS";
+import FreeTrialVideos from "./pages/Admin/ClinicalVideoCMS/FreeTrialVideos";
+import TrialApprovals from "./pages/Admin/TrialApprovals/TrialApprovals";
 import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
 import ReferralEngine from "./pages/Admin/Referrals/ReferralEngine";
 import PortalUsers from "./pages/Admin/PortalUsers/PortalUsers";
@@ -268,6 +270,8 @@ function App() {
             }
           />
           <Route path="videos" element={<ClinicalVideoCMS />} />
+          <Route path="trial-videos" element={<FreeTrialVideos />} />
+          <Route path="trial-approvals" element={<TrialApprovals />} />
           <Route
             path="habits"
             element={

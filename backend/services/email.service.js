@@ -337,6 +337,82 @@ const sendAccountReactivatedEmail = async ({ to, recipientName }) => {
 };
 
 // ============================================
+// ⏰ FREE TRIAL EXPIRING SOON (YogaT20)
+// ============================================
+const sendTrialExpiryReminder = async ({ to, recipientName, daysLeft }) => {
+  const name = recipientName || "there";
+  const dayLabel = daysLeft <= 0 ? "today" : daysLeft === 1 ? "in 1 day" : `in ${daysLeft} days`;
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: `Your free YogaT20 trial ends ${dayLabel}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f97316;">Your Free Trial Is Ending Soon</h2>
+          <p>Hi ${name},</p>
+          <p>Your free YogaT20 trial ends <strong>${dayLabel}</strong>.</p>
+          <p>Upgrade now to keep uninterrupted access to your videos, progress tracking, and free doctor consultations.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Trial Expiry Email Error:", error.message);
+  }
+};
+
+// ============================================
+// 🎉 FREE TRIAL APPROVED (YogaT20)
+// ============================================
+const sendTrialApprovedEmail = async ({ to, recipientName, daysCount = 14 }) => {
+  const name = recipientName || "there";
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Your free YogaT20 trial is approved! 🎉",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #16a34a;">Free Trial Approved</h2>
+          <p>Hi ${name},</p>
+          <p>Great news — your ${daysCount}-day free YogaT20 trial has been approved and is now active. You have full access to your dashboard.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Trial Approved Email Error:", error.message);
+  }
+};
+
+// ============================================
+// ❌ FREE TRIAL REJECTED (YogaT20) — user can submit again
+// ============================================
+const sendTrialRejectedEmail = async ({ to, recipientName, reason }) => {
+  const name = recipientName || "there";
+  try {
+    await transporter.sendMail({
+      from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "Update on your YogaT20 free trial request",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">Free Trial Request Declined</h2>
+          <p>Hi ${name},</p>
+          <p>Your free YogaT20 trial request wasn't approved this time.</p>
+          ${reason ? `<div style="background: #f9fafb; border-left: 4px solid #9ca3af; padding: 12px 16px; margin: 16px 0;"><p style="margin: 0; font-size: 14px; color: #374151;">${escapeHtml(reason)}</p></div>` : ""}
+          <p>You're welcome to submit a new request anytime.</p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Trial Rejected Email Error:", error.message);
+  }
+};
+
+// ============================================
 // 📨 GENERIC SEND — used by the admin-portal notifications
 // Unlike the helpers above this THROWS on failure, so the caller can
 // report whether the email was really delivered.
@@ -428,3 +504,6 @@ module.exports.sendAccountDeactivatedEmail = sendAccountDeactivatedEmail;
 module.exports.sendAccountReactivatedEmail = sendAccountReactivatedEmail;
 module.exports.sendProgressReportExportEmail = sendProgressReportExportEmail;
 module.exports.sendBroadcastMessageEmail = sendBroadcastMessageEmail;
+module.exports.sendTrialApprovedEmail = sendTrialApprovedEmail;
+module.exports.sendTrialRejectedEmail = sendTrialRejectedEmail;
+module.exports.sendTrialExpiryReminder = sendTrialExpiryReminder;

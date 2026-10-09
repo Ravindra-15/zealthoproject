@@ -36,7 +36,7 @@ export const YOGA_TYPES = [
   { id: "high_intensity", label: "High Intensity Yoga", shortLabel: "High Intensity", color: "bg-red-500" },
 ];
 
-const ClinicalVideoCMS = () => {
+const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
   const { selectedProgramId, selectedProgram } = useSelectedProgram();
   // 🛡️ Only the super admin can delete videos
   const { isSuperAdmin } = useAdminAuth();
@@ -65,6 +65,7 @@ const ClinicalVideoCMS = () => {
       const data = await listVideos({
         programId: selectedProgramId,
         yogaType: effectiveYogaType,
+        isFreeTrial: isFreeTrialMode,
       });
       setVideos(data);
     } catch (err) {
@@ -73,7 +74,7 @@ const ClinicalVideoCMS = () => {
     } finally {
       setLoadingList(false);
     }
-  }, [selectedProgramId, effectiveYogaType, isZealtho]);
+  }, [selectedProgramId, effectiveYogaType, isZealtho, isFreeTrialMode]);
 
   useEffect(() => {
     loadVideos();
@@ -85,6 +86,7 @@ const ClinicalVideoCMS = () => {
       await createVideo({
         programId: selectedProgramId,
         yogaType: effectiveYogaType,
+        isFreeTrial: isFreeTrialMode,
         ...formPayload,
       });
       toast.success("Video uploaded successfully");
@@ -155,6 +157,27 @@ const ClinicalVideoCMS = () => {
     );
   }
 
+  // 🚫 Free-trial mode is YogaT20-only — guard against viewing this with a
+  // different program selected (e.g. switched away while this tab was open)
+  if (isFreeTrialMode && selectedProgramId !== "yogat20") {
+    return (
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Free Trial Videos"
+          subtitle="YogaT20-only — isolated video pool for free trial users"
+        />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-10 text-center">
+          <p className="text-base font-semibold text-gray-800 mb-2">
+            Free trial videos are only available for YogaT20
+          </p>
+          <p className="text-sm text-gray-500 max-w-md mx-auto">
+            Switch to YogaT20 using the sidebar dropdown to manage trial videos.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const currentYogaType =
     YOGA_TYPES.find((t) => t.id === selectedYogaType) || YOGA_TYPES[0];
 
@@ -163,8 +186,12 @@ const ClinicalVideoCMS = () => {
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Clinical Video CMS"
-        subtitle={`Upload, manage, and track engagement for ${selectedProgram.label}`}
+        title={isFreeTrialMode ? "Free Trial Videos" : "Clinical Video CMS"}
+        subtitle={
+          isFreeTrialMode
+            ? "Isolated video pool shown only to free trial users — never mixed with regular videos"
+            : `Upload, manage, and track engagement for ${selectedProgram.label}`
+        }
       />
 
       {/* ============================================ */}

@@ -37,10 +37,12 @@ import {
   LogOut,
   Check,
   UserCog,
+  Clock,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 import { getAppointmentCounts } from "../../../services/appointmentService";
+import { fetchTrialPendingCount } from "../../../services/adminFreeTrialService";
 import toast from "react-hot-toast";
 import AdminSidebarSection from "./AdminSidebarSection";
 import AdminSidebarItem from "./AdminSidebarItem";
@@ -58,6 +60,8 @@ const AdminSidebar = ({ onNavigate }) => {
 
   // 🔢 ADMIN: Pending appointments badge — live count
   const [pendingCount, setPendingCount] = useState(0);
+  // 🔢 ADMIN: Pending free-trial-request badge (YogaT20 only) — live count
+  const [trialPendingCount, setTrialPendingCount] = useState(0);
   const isMountedRef = useRef(false);
 
   // 📥 Fetch appointment counts on mount + every route change
@@ -79,6 +83,25 @@ const AdminSidebar = ({ onNavigate }) => {
       isMountedRef.current = false;
     };
   }, [location.pathname]);
+
+  // 📥 Fetch pending free-trial-request count — only relevant on YogaT20
+  useEffect(() => {
+    if (selectedProgram.id !== "yogat20") {
+      setTrialPendingCount(0);
+      return;
+    }
+    let mounted = true;
+    fetchTrialPendingCount()
+      .then((count) => {
+        if (mounted) setTrialPendingCount(count);
+      })
+      .catch(() => {
+        // Silent fail — badge defaults to 0, sidebar still works
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [location.pathname, selectedProgram.id]);
 
   // 🖱️ Close dropdown when clicking outside
   useEffect(() => {
@@ -115,6 +138,8 @@ const AdminSidebar = ({ onNavigate }) => {
 
   // 🏢 Is current program a child program (i.e. has subscriptions)?
   const isChildProgram = selectedProgram.id !== "zealtho";
+  // 🆓 Free-trial tabs are YogaT20-only — the only program this feature covers
+  const isYogaT20 = selectedProgram.id === "yogat20";
 
   // 🧭 ADMIN: Navigation structure — grouped by feature area
   // Built dynamically so Configuration section only renders for child programs
@@ -178,6 +203,21 @@ const AdminSidebar = ({ onNavigate }) => {
         // 🏢 Clinical Video CMS — only for child programs (Zealtho is parent, no videos)
         ...(isChildProgram
           ? [{ icon: Video, label: "Clinical Video CMS", to: "/admin/videos" }]
+          : []),
+        // 🆓 Free Trial Videos — YogaT20 only, isolated video pool for trial users
+        ...(isYogaT20
+          ? [{ icon: Video, label: "Free Trial Videos", to: "/admin/trial-videos" }]
+          : []),
+        // 🆓 Trial Approvals — YogaT20 only
+        ...(isYogaT20
+          ? [
+              {
+                icon: Clock,
+                label: "Trial Approvals",
+                to: "/admin/trial-approvals",
+                badge: trialPendingCount > 0 ? String(trialPendingCount) : null,
+              },
+            ]
           : []),
         // 🏢 Referral Engine — only for child programs
         ...(isChildProgram

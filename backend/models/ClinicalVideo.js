@@ -88,6 +88,16 @@ const clinicalVideoSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+
+    // 🆓 Free-trial-only video (YogaT20) — trial users are shown ONLY
+    // isFreeTrial:true videos, regular/purchased users only ever see
+    // isFreeTrial:false (or unset, for all pre-existing videos) ones.
+    // Same CMS, same scheduling logic, isolated by this one flag.
+    isFreeTrial: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   { timestamps: true }
 );

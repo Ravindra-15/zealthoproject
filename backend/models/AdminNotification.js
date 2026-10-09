@@ -13,7 +13,7 @@ const adminNotificationSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["doctor_flagged", "doctor_feedback"],
+      enum: ["doctor_flagged", "doctor_feedback", "free_trial_request"],
       required: true,
     },
 

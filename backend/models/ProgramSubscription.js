@@ -82,6 +82,18 @@ const programSubscriptionSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // 🆓 Free trial subscription (YogaT20 only, currently) — a ₹0, 14-day
+    // grant created when admin approves a FreeTrialRequest. Deliberately a
+    // separate flag rather than a new `status`/`pricingType` value: every
+    // access-gate in the app only checks status/endDate, so a trial doc
+    // rides them for free; this flag exists purely for UI/admin-tab
+    // purposes (which video set to show, which dashboard tab to display).
+    isTrial: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     // 🌍 Customer's display currency, resolved from their profile country
     // at purchase time.
     currency: {

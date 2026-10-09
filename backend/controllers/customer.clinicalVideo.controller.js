@@ -16,14 +16,15 @@ const getTodayBounds = () => {
   return { start, end };
 };
 
-const hasActiveSubscription = async (userId, programId) => {
-  const sub = await ProgramSubscription.findOne({
+// Returns the active subscription doc (or null) — callers read `.isTrial`
+// off it to decide which video pool (trial-only vs regular) to serve.
+const getActiveSubscription = async (userId, programId) => {
+  return ProgramSubscription.findOne({
     programId,
     status: "active",
     endDate: { $gt: new Date() },
     $or: [{ customer: userId }, { doctor: userId }],
   }).lean();
-  return !!sub;
 };
 
 // ============================================
@@ -50,13 +51,18 @@ const getCurrentVideo = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid yogaType" });
     }
 
-    const allowed = await hasActiveSubscription(userId, programId);
-    if (!allowed) {
+    const activeSub = await getActiveSubscription(userId, programId);
+    if (!activeSub) {
       return res.status(403).json({
         success: false,
         message: "You do not have an active subscription for this program.",
       });
     }
+
+    // 🆓 Trial users only ever see isFreeTrial:true videos; everyone else
+    // only sees regular (isFreeTrial not true) videos — fully isolated
+    // pools even though they share the same model/CMS/scheduling logic.
+    const trialFilter = activeSub.isTrial ? { isFreeTrial: true } : { isFreeTrial: { $ne: true } };
 
     const now = new Date();
     const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000); // now − 24h
@@ -69,6 +75,7 @@ const getCurrentVideo = async (req, res) => {
       programId,
       yogaType,
       isActive: true,
+      ...trialFilter,
       publishAt: { $ne: null, $lte: now, $gt: windowStart },
     })
       .sort({ publishAt: -1 })
@@ -97,6 +104,7 @@ const getCurrentVideo = async (req, res) => {
       programId,
       yogaType,
       isActive: true,
+      ...trialFilter,
       scheduledDate: { $gte: todayStart, $lte: todayEnd },
     })
       .sort({ createdAt: -1 })
@@ -155,6 +163,7 @@ const getCurrentVideo = async (req, res) => {
       programId,
       yogaType,
       isActive: true,
+      ...trialFilter,
       scheduledDate: null,
       publishAt: null,
       _id: { $nin: completedIds },
@@ -201,11 +210,22 @@ const markComplete = async (req, res) => {
       return res.status(404).json({ success: false, message: "Video not found" });
     }
 
-    const allowed = await hasActiveSubscription(userId, video.programId);
-    if (!allowed) {
+    const activeSub = await getActiveSubscription(userId, video.programId);
+    if (!activeSub) {
       return res.status(403).json({
         success: false,
         message: "You do not have an active subscription for this program.",
+      });
+    }
+
+    // 🆓 Guard against a trial user completing a regular video (or vice
+    // versa) via a direct API call — the isolation must hold even if
+    // someone bypasses the normal getCurrentVideo flow.
+    const isTrialVideo = !!video.isFreeTrial;
+    if (isTrialVideo !== !!activeSub.isTrial) {
+      return res.status(403).json({
+        success: false,
+        message: "This video isn't available on your current plan.",
       });
     }
 

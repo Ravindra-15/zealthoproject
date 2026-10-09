@@ -319,6 +319,7 @@ const getMySubscription = async (req, res) => {
           amount: sub.amount,
           status: sub.status,
           isActive,
+          isTrial: !!sub.isTrial,
           startDate: sub.startDate,
           endDate: sub.endDate,
           currentWeek,

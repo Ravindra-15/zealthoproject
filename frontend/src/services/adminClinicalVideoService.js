@@ -23,9 +23,10 @@ import adminApi from "./adminService";
  * @param {string} [params.yogaType] - normal_yoga | chair_yoga | high_intensity
  * @returns Promise<Array<Video>>
  */
-export const listVideos = async ({ programId, yogaType } = {}) => {
+export const listVideos = async ({ programId, yogaType, isFreeTrial } = {}) => {
   const params = { programId };
   if (yogaType) params.yogaType = yogaType;
+  if (isFreeTrial) params.isFreeTrial = "true";
 
   const response = await adminApi.get("/admin/clinical-videos", { params });
   return response.data.data.videos || [];
@@ -58,6 +59,9 @@ export const createVideo = async (payload) => {
   }
   if (payload.duration) {
     body.duration = payload.duration;
+  }
+  if (payload.isFreeTrial) {
+    body.isFreeTrial = true;
   }
 
   const response = await adminApi.post("/admin/clinical-videos", body);
