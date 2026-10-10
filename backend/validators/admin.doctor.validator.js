@@ -384,10 +384,10 @@ const validateListQuery = (req, res, next) => {
 
   if (limit !== undefined) {
     const parsed = parseInt(limit, 10);
-    if (isNaN(parsed) || parsed < 1 || parsed > 100) {
+    if (isNaN(parsed) || parsed < 1 || parsed > 50) {
       return res.status(400).json({
         success: false,
-        message: "Limit must be between 1 and 100",
+        message: "Limit must be between 1 and 50",
       });
     }
   }

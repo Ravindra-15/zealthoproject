@@ -23,8 +23,8 @@ const validateListQuery = (req, res, next) => {
 
   if (limit !== undefined) {
     const l = parseInt(limit, 10);
-    if (!Number.isFinite(l) || l < 1 || l > 100) {
-      return res.status(400).json({ success: false, message: "Invalid limit (1–100)" });
+    if (!Number.isFinite(l) || l < 1 || l > 50) {
+      return res.status(400).json({ success: false, message: "Invalid limit (1–50)" });
     }
     req.query.limit = l;
   }

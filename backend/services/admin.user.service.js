@@ -24,7 +24,7 @@ const listUsers = async ({
   includeContactSearch = true,
 } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
   const safeSearch = typeof search === "string" ? search.trim() : "";
 
   const query = {};

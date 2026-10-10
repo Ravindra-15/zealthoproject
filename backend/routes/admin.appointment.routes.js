@@ -9,6 +9,7 @@ const rateLimit = require("express-rate-limit");
 
 const {
   listAppointments,
+  exportAppointmentsCsv,
   getStatusCounts,
 } = require("../controllers/admin.appointment.controller");
 
@@ -45,6 +46,9 @@ router.use(protectAdmin);
 
 // 🔢 Status counts (for sidebar badge + dashboard)
 router.get("/counts", readLimiter, getStatusCounts);
+
+// 📤 Export appointments to CSV (same filters, no pagination)
+router.get("/export", readLimiter, validateListQuery, exportAppointmentsCsv);
 
 // 📋 List appointments (paginated, searchable, filterable)
 router.get("/", readLimiter, validateListQuery, listAppointments);

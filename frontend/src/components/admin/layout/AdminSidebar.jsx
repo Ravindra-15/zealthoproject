@@ -164,7 +164,7 @@ const AdminSidebar = ({ onNavigate }) => {
       collapsible: true,
       items: [
         { icon: Stethoscope, label: "Doctor Directory", to: "/admin/doctors" },
-        { icon: Users, label: "User Directory", to: "/admin/users" },
+        { icon: Users, label: "Patient Directory", to: "/admin/users" },
         {
           icon: ClipboardList,
           label: "Appointment Log",

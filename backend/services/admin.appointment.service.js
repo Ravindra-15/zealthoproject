@@ -17,7 +17,7 @@ const listAppointments = async ({
   status = "all",
 } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
   const safeSearch = typeof search === "string" ? search.trim() : "";
 
   const query = {};
@@ -54,6 +54,24 @@ const listAppointments = async ({
 };
 
 // ============================================
+// 📤 LIST APPOINTMENTS FOR CSV EXPORT (same filters, no pagination)
+// ============================================
+const listAppointmentsForExport = async ({ search = "", status = "all" } = {}) => {
+  const safeSearch = typeof search === "string" ? search.trim() : "";
+  const query = {};
+
+  if (status && status !== "all") query.status = status;
+
+  if (safeSearch) {
+    const escaped = safeSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "i");
+    query.$or = [{ patientName: regex }, { doctorName: regex }];
+  }
+
+  return Appointment.find(query).sort({ createdAt: -1 }).lean();
+};
+
+// ============================================
 // 🔢 STATUS COUNTS (for sidebar badge + future dashboard widgets)
 // ============================================
 /**
@@ -84,5 +102,6 @@ const getStatusCounts = async () => {
 
 module.exports = {
   listAppointments,
+  listAppointmentsForExport,
   getStatusCounts,
 };

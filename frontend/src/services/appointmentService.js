@@ -36,3 +36,25 @@ export const getAppointmentCounts = async () => {
   const response = await adminApi.get("/admin/appointments/counts");
   return response.data.data.counts;
 };
+
+// ============================================
+// 📤 EXPORT APPOINTMENTS TO CSV
+// Respects the current search/status filter. Triggers a real file
+// download via a temporary object URL (adminApi carries the Bearer
+// token, so a plain <a href> straight to the API URL won't work).
+// ============================================
+export const exportAppointmentsCsv = async ({ search = "", status = "all" } = {}) => {
+  const response = await adminApi.get("/admin/appointments/export", {
+    params: { search, status },
+    responseType: "blob",
+  });
+
+  const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = `zealtho-appointments-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+};

@@ -90,7 +90,7 @@ const UserProfile = () => {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
         >
           <ArrowLeft size={16} />
-          Back to User Directory
+          Back to Patient Directory
         </button>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-6 animate-pulse">
@@ -118,7 +118,7 @@ const UserProfile = () => {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
         >
           <ArrowLeft size={16} />
-          Back to User Directory
+          Back to Patient Directory
         </button>
 
         <div className="bg-white rounded-2xl border border-gray-100 px-6 py-16 text-center">
@@ -143,7 +143,7 @@ const UserProfile = () => {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
       >
         <ArrowLeft size={16} />
-        Back to User Directory
+        Back to Patient Directory
       </button>
 
       {/* 🏷️ Header card */}

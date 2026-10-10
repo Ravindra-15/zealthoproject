@@ -20,7 +20,7 @@ const notifyAllAdmins = async ({ type, title, body, metadata = {} }) => {
 // ============================================
 const listForAdmin = async (adminId, { page = 1, limit = 20 } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
   const [total, docs] = await Promise.all([
     AdminNotification.countDocuments({}),

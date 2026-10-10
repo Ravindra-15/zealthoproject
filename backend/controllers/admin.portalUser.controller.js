@@ -97,7 +97,7 @@ const notFound = (res) =>
 const listPortalUsers = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 50);
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const status = req.query.status;
 

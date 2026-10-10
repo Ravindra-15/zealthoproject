@@ -128,7 +128,7 @@ const countRecipients = async ({ audienceType, programId }) => {
 // ============================================
 const listMessages = async ({ page = 1, limit = 20 } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
   const [total, messages] = await Promise.all([
     BroadcastMessage.countDocuments({}),

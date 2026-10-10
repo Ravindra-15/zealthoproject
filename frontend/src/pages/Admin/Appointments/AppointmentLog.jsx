@@ -4,13 +4,15 @@
  * Mirrors User Directory structure — pure read-only for now.
  */
 
-import React from "react";
-import { Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import React, { useState } from "react";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Download, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import AppointmentTable from "./components/AppointmentTable";
 import useAppointments from "../../../hooks/useAppointments";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { exportAppointmentsCsv } from "../../../services/appointmentService";
 
 // 🎨 Status options — match backend enum
 const STATUS_OPTIONS = [
@@ -36,6 +38,21 @@ const AppointmentLog = () => {
     prevPage,
   } = useAppointments({ initialLimit: 10 });
 
+  // 📤 Export CSV — respects the current search/status filter
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      await exportAppointmentsCsv({ search, status });
+      toast.success("Appointments exported");
+    } catch {
+      toast.error("Failed to export appointments. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 🏷️ Page header */}
@@ -45,6 +62,29 @@ const AppointmentLog = () => {
           isSuperAdmin
             ? "Tracking all consultation requests, statuses, and payments"
             : "Tracking all consultation requests and statuses"
+        }
+        action={
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="
+              inline-flex items-center gap-2
+              px-4 py-2.5 rounded-xl
+              text-sm font-semibold text-gray-700
+              bg-white border border-gray-200
+              hover:bg-gray-50
+              disabled:opacity-60 disabled:cursor-not-allowed
+              transition-colors
+            "
+          >
+            {exporting ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Download size={15} />
+            )}
+            {exporting ? "Exporting..." : "Export CSV"}
+          </button>
         }
       />
 

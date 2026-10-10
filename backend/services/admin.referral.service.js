@@ -34,7 +34,7 @@ const setRewardDays = async (days) => {
 // ============================================
 const listReferrals = async ({ page = 1, limit = 10, status = "all", programId = "all" } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
 
   const query = {};
   if (status === "pending") query.status = "pending";

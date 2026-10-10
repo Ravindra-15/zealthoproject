@@ -55,7 +55,7 @@ const UserDirectory = () => {
     <div className="space-y-6">
       {/* 🏷️ Page header */}
       <AdminPageHeader
-        title="User Directory"
+        title="Patient Directory"
         subtitle="Managing users on the system"
         action={
           <button
