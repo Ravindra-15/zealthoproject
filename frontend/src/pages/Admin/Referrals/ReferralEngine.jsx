@@ -67,7 +67,7 @@ const ReferralEngine = () => {
   const loadLedger = useCallback(async () => {
     setLoadingLedger(true);
     try {
-      const data = await listReferrals({ page, limit: 8, status: statusFilter, programId: programFilter });
+      const data = await listReferrals({ page, limit: 50, status: statusFilter, programId: programFilter });
       setReferrals(data?.referrals || []);
       setPagination(data?.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch {

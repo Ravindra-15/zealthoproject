@@ -65,7 +65,7 @@ const TrialApprovals = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchTrialRequests({ status, page, limit: 15 });
+      const data = await fetchTrialRequests({ status, page, limit: 50 });
       setRequests(data.requests || []);
       setPagination(data.pagination || { totalPages: 1, total: 0, hasMore: false });
     } catch (err) {

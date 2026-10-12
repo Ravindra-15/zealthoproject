@@ -26,7 +26,7 @@ const DoctorDirectory = () => {
     page,
     nextPage,
     prevPage,
-  } = useDoctors({ initialLimit: 10 });
+  } = useDoctors({ initialLimit: 50 });
 
   // 🌟 Unseen feedback counts, { doctorId: count } — one call for the
   // whole page, re-fetched whenever the visible doctor list changes.

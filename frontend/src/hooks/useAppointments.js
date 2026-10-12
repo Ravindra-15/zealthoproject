@@ -11,7 +11,7 @@ import { listAppointments } from "../services/appointmentService";
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-const useAppointments = ({ initialLimit = 10 } = {}) => {
+const useAppointments = ({ initialLimit = 50 } = {}) => {
   // ============================================
   // 📊 STATE
   // ============================================

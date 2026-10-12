@@ -60,7 +60,7 @@ const Enquiries = () => {
           startDate,
           endDate,
           page: pagination.page,
-          limit: 10,
+          limit: 50,
         });
         if (!mounted) return;
         setEnquiries(data.enquiries || []);

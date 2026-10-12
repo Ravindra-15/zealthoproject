@@ -6,7 +6,7 @@
  * Status pills, view + edit actions, skeleton + empty states.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Eye, Pencil } from "lucide-react";
 
@@ -34,46 +34,39 @@ const StatusPill = ({ isActive }) => (
 );
 
 // ============================================
-// 👤 USER AVATAR (no photo field on User → always fallback)
+// 👤 USER AVATAR — falls back to a grey icon if there's no photo,
+// or if the uploaded photo fails to load (e.g. missing file on disk).
 // ============================================
-// const UserAvatar = ({ user }) => (
-//   <div
-//     className="
-//       w-10 h-10 rounded-full flex-shrink-0
-//       bg-gradient-to-br from-indigo-100 to-purple-100
-//       flex items-center justify-center
-//       border border-gray-200
-//     "
-//     aria-hidden="true"
-//   >
-//     <User size={18} className="text-indigo-400" />
-//   </div>
-// );
-const UserAvatar = ({ user }) => (
-  <div
-    className="
-      w-10 h-10 rounded-full flex-shrink-0
-      bg-gradient-to-br from-indigo-100 to-purple-100
-      flex items-center justify-center
-      border border-gray-200
-      overflow-hidden
-    "
-    aria-hidden="true"
-  >
-    {user?.profilePhoto ? (
-      <img
-        src={buildUserPhotoUrl(
-          user.profilePhoto,
-          user.updatedAt
-        )}
-        alt={user.fullName || "User"}
-        className="w-full h-full object-cover"
-      />
-    ) : (
-      <User size={18} className="text-indigo-400" />
-    )}
-  </div>
-);
+const UserAvatar = ({ user }) => {
+  const [failed, setFailed] = useState(false);
+  const photoUrl = user?.profilePhoto
+    ? buildUserPhotoUrl(user.profilePhoto, user.updatedAt)
+    : null;
+
+  return (
+    <div
+      className="
+        w-10 h-10 rounded-full flex-shrink-0
+        bg-gradient-to-br from-indigo-100 to-purple-100
+        flex items-center justify-center
+        border border-gray-200
+        overflow-hidden
+      "
+      aria-hidden="true"
+    >
+      {photoUrl && !failed ? (
+        <img
+          src={photoUrl}
+          alt={user.fullName || "User"}
+          className="w-full h-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <User size={18} className="text-indigo-400" />
+      )}
+    </div>
+  );
+};
 // ============================================
 // 📋 MAIN TABLE COMPONENT
 // ============================================

@@ -13,7 +13,7 @@
  * Used by: DoctorDirectory page
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Eye, Pencil, Flag, Star } from "lucide-react";
 
@@ -78,17 +78,15 @@ const FeedbackBadge = ({ count }) => (
 // ============================================
 const DoctorAvatar = ({ doctor }) => {
   const photoUrl = buildPhotoUrl(doctor.photo, doctor.updatedAt);
+  const [failed, setFailed] = useState(false);
 
-  if (photoUrl) {
+  if (photoUrl && !failed) {
     return (
       <img
         src={photoUrl}
         alt={`${doctor.fullName} photo`}
         className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-gray-200"
-        onError={(e) => {
-          // 🛡️ If image fails to load, hide it (fallback handled by parent)
-          e.target.style.display = "none";
-        }}
+        onError={() => setFailed(true)}
       />
     );
   }

@@ -103,7 +103,7 @@ const Messages = () => {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const data = await fetchMessages({ page: 1, limit: 20 });
+      const data = await fetchMessages({ page: 1, limit: 50 });
       setHistory(data.messages || []);
     } catch {
       // soft fail — history is secondary to composing

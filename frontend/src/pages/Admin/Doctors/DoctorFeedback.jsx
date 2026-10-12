@@ -67,7 +67,7 @@ const DoctorFeedback = () => {
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    fetchFeedbackForDoctor(id, { page, limit: 10 })
+    fetchFeedbackForDoctor(id, { page, limit: 50 })
       .then((data) => {
         if (!isMounted) return;
         setFeedback(data.feedback || []);

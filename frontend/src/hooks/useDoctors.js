@@ -17,7 +17,7 @@ import { fetchDoctors } from "../services/doctorService";
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-const useDoctors = ({ initialLimit = 10 } = {}) => {
+const useDoctors = ({ initialLimit = 50 } = {}) => {
   // ============================================
   // 📊 STATE
   // ============================================

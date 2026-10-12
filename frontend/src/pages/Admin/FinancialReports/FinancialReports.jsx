@@ -105,7 +105,7 @@ const FinancialReports = () => {
   const fetchTransactions = useCallback(
     (page = 1) => {
       setTxnLoading(true);
-      listRecentTransactions({ programId: selectedProgramId, page, limit: 10 })
+      listRecentTransactions({ programId: selectedProgramId, page, limit: 50 })
         .then(({ transactions: txns, pagination: pg }) => {
           setTransactions(txns);
           setPagination(pg);

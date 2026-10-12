@@ -13,7 +13,7 @@ import { listUsers } from "../services/userService";
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-const useUsers = ({ initialLimit = 10 } = {}) => {
+const useUsers = ({ initialLimit = 50 } = {}) => {
   // ============================================
   // 📊 STATE
   // ============================================

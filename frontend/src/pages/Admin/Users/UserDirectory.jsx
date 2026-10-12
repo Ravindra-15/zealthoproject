@@ -34,7 +34,7 @@ const UserDirectory = () => {
     setStatus,
     nextPage,
     prevPage,
-  } = useUsers({ initialLimit: 10 });
+  } = useUsers({ initialLimit: 50 });
 
   // 📤 Export CSV — respects the current search/status filter
   const [exporting, setExporting] = useState(false);

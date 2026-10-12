@@ -36,7 +36,7 @@ const AppointmentLog = () => {
     setStatus,
     nextPage,
     prevPage,
-  } = useAppointments({ initialLimit: 10 });
+  } = useAppointments({ initialLimit: 50 });
 
   // 📤 Export CSV — respects the current search/status filter
   const [exporting, setExporting] = useState(false);
