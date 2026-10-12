@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { User, Save, CheckCircle2, Loader2 } from "lucide-react";
+import { User, Save, CheckCircle2, Loader2, FileText, ExternalLink, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -500,6 +500,59 @@ const IdentityCard = () => {
             placeholder="e.g., 12"
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
+        </div>
+
+        {/* Licence — read-only, set during profile completion / by admin */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Licence
+            </label>
+            {doctor?.licenceApproved ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[11px] font-semibold rounded-full">
+                <Lock size={10} />
+                Approved &amp; Locked
+              </span>
+            ) : doctor?.licenceNumber || doctor?.licenceDocument ? (
+              <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 text-[11px] font-semibold rounded-full">
+                Pending Review
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 text-[11px] font-semibold rounded-full">
+                Not Submitted
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-start gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="w-9 h-9 rounded-lg flex-shrink-0 bg-amber-50 flex items-center justify-center">
+              <FileText size={16} className="text-amber-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-gray-800 font-medium truncate">
+                {doctor?.licenceNumber || "No licence number on file"}
+              </p>
+              {doctor?.licenceDocument ? (
+                <a
+                  href={getPhotoUrl(doctor.licenceDocument)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                >
+                  View document
+                  <ExternalLink size={11} />
+                </a>
+              ) : (
+                <p className="mt-0.5 text-xs text-gray-400 italic">No document uploaded</p>
+              )}
+            </div>
+          </div>
+
+          <p className="mt-1.5 text-xs text-gray-400">
+            {doctor?.licenceApproved
+              ? "Your licence has been approved and can no longer be edited here. Contact your administrator for changes."
+              : "Submitted during profile completion. It will lock once your administrator approves it."}
+          </p>
         </div>
 
         {/* Timezone */}
