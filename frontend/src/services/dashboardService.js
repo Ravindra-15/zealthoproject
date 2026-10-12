@@ -12,7 +12,7 @@ import adminApi from "./adminService";
 /**
  * Fetch the 6 stat card numbers, scoped to a program.
  * @param {string} programId - zealtho | yogat20 | diabmukt | mommyfit | slimfitter
- * @returns Promise<{ totalCustomers, activeSubscriptions, expiredSubscriptions, totalDoctors, totalInstructors, revenueThisMonth }>
+ * @returns Promise<{ totalCustomers, activeSubscriptions, expiredSubscriptions, totalDoctors, activeUsers, revenueThisMonth }>
  */
 export const fetchDashboardStats = async (programId = "zealtho") => {
   const response = await adminApi.get("/admin/dashboard/stats", {

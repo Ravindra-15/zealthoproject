@@ -3,9 +3,8 @@
  * Pure data-fetching functions for admin dashboard.
  * All aggregations use UTC for consistency.
  *
- * Forward-compatible: Subscription, Doctor, Instructor counts
- * return 0 until those models are built. Plug them in later
- * by uncommenting the relevant code blocks.
+ * Forward-compatible: Subscription counts return 0 for programs that
+ * don't use them (e.g. Zealtho). Plug in new ones the same way.
  */
 
 const User = require("../models/User");
@@ -46,14 +45,14 @@ const getDashboardStats = async (programId = "zealtho") => {
     expiredSubsCount,
     revenueThisMonth,
     totalDoctors,
+    activeUsers,
   ] = await Promise.all([
     User.countDocuments({ isVerified: true }),
     getActiveSubscriptionsCount(safeProgramId),
     getExpiredSubscriptionsCount(safeProgramId),
     getRevenueThisMonth(safeProgramId),
     Doctor.countDocuments({ isActive: true }),
-    // TODO: When Instructor model exists:
-    //   Instructor.countDocuments({ isActive: true }),
+    User.countDocuments({ isVerified: true, isActive: true }),
   ]);
 
   const stats = {
@@ -62,7 +61,7 @@ const getDashboardStats = async (programId = "zealtho") => {
     activeSubscriptions: activeSubsCount || 0,
     expiredSubscriptions: expiredSubsCount || 0,
     totalDoctors: totalDoctors || 0,
-    totalInstructors: 0, // TODO: Replace when Instructor model exists
+    activeUsers: activeUsers || 0,
     revenueThisMonth: revenueThisMonth || 0,
   };
 

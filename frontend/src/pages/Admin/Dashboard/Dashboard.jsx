@@ -77,9 +77,9 @@ const Dashboard = () => {
         iconColor: "text-blue-500",
       },
       {
-        id: "total-instructors",
-        label: "Total Instructors",
-        value: formatNumber(stats.totalInstructors),
+        id: "active-users",
+        label: "Active Users",
+        value: formatNumber(stats.activeUsers),
         icon: UserCog,
         iconBg: "bg-orange-50",
         iconColor: "text-orange-500",
