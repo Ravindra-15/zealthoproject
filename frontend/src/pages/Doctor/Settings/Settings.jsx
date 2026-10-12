@@ -5,7 +5,7 @@ import PasswordCard from "./components/PasswordCard";
 
 const Settings = () => {
   return (
-    <div className="px-6 lg:px-8 py-8 max-w-3xl mx-auto w-full">
+    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-6xl mx-auto w-full">
       <SettingsHeader />
 
       <div className="space-y-6">

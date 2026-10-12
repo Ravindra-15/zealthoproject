@@ -347,7 +347,7 @@ const IdentityCard = () => {
         />
       </div>
 
-      <div className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
         {/* Full Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -382,22 +382,24 @@ const IdentityCard = () => {
           </p>
         </div>
 
-        {/* Specializations */}
-        <ChipsInput
-          label="Specialization Tags"
-          required
-          values={form.specializations}
-          onChange={(vals) => handleField("specializations", vals)}
-          options={options.specializations}
-          placeholder={
-            optionsLoading ? "Loading…" : "Add specialization (e.g., Cardiologist)"
-          }
-          maxItems={LIMITS.SPECS_MAX}
-          helperText="Add multiple specializations or type your own"
-        />
+        {/* Specializations — full width */}
+        <div className="sm:col-span-2">
+          <ChipsInput
+            label="Specialization Tags"
+            required
+            values={form.specializations}
+            onChange={(vals) => handleField("specializations", vals)}
+            options={options.specializations}
+            placeholder={
+              optionsLoading ? "Loading…" : "Add specialization (e.g., Cardiologist)"
+            }
+            maxItems={LIMITS.SPECS_MAX}
+            helperText="Add multiple specializations or type your own"
+          />
+        </div>
 
-        {/* Bio */}
-        <div>
+        {/* Bio — full width */}
+        <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Professional Summary <span className="text-red-500">*</span>
           </label>
@@ -502,6 +504,23 @@ const IdentityCard = () => {
           />
         </div>
 
+        {/* Timezone */}
+        <div>
+          <label htmlFor="doctor-timezone" className="block text-sm font-medium text-gray-700 mb-2">
+            Timezone <span className="text-red-500">*</span>
+          </label>
+          <TimezoneSelect
+            id="doctor-timezone"
+            value={form.timezone}
+            onChange={(tz) => handleField("timezone", tz)}
+            disabled={submitting}
+          />
+          <p className="mt-1.5 text-xs text-gray-400">
+            Where you practice — governs your availability hours and appointment
+            reminders. Start typing to search (e.g. "Kolkata", "New York").
+          </p>
+        </div>
+
         {/* Licence — read-only, set during profile completion / by admin */}
         <div>
           <div className="flex items-center justify-between gap-2 mb-2">
@@ -550,25 +569,8 @@ const IdentityCard = () => {
 
           <p className="mt-1.5 text-xs text-gray-400">
             {doctor?.licenceApproved
-              ? "Your licence has been approved and can no longer be edited here. Contact your administrator for changes."
-              : "Submitted during profile completion. It will lock once your administrator approves it."}
-          </p>
-        </div>
-
-        {/* Timezone */}
-        <div>
-          <label htmlFor="doctor-timezone" className="block text-sm font-medium text-gray-700 mb-2">
-            Timezone <span className="text-red-500">*</span>
-          </label>
-          <TimezoneSelect
-            id="doctor-timezone"
-            value={form.timezone}
-            onChange={(tz) => handleField("timezone", tz)}
-            disabled={submitting}
-          />
-          <p className="mt-1.5 text-xs text-gray-400">
-            Where you practice — governs your availability hours and appointment
-            reminders. Start typing to search (e.g. "Kolkata", "New York").
+              ? "Approved — contact your administrator for changes."
+              : "Locks once your administrator approves it."}
           </p>
         </div>
       </div>
