@@ -13,10 +13,12 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
-import { listEnquiries } from "../../../services/adminEnquiryService";
+import { listEnquiries, exportEnquiriesCsv } from "../../../services/adminEnquiryService";
 import EnquiryDetailDrawer from "./components/EnquiryDetailDrawer";
 import { formatUtcDate, formatUtcTime12h } from "../../../utils/time";
 
@@ -33,6 +35,20 @@ const Enquiries = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      await exportEnquiriesCsv({ search, startDate, endDate });
+      toast.success("Enquiries exported");
+    } catch {
+      toast.error("Failed to export enquiries. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -98,6 +114,29 @@ const Enquiries = () => {
       <AdminPageHeader
         title="Enquiries"
         subtitle="Lead recovery dashboard for incomplete registrations"
+        action={
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="
+              inline-flex items-center gap-2
+              px-4 py-2.5 rounded-xl
+              text-sm font-semibold text-gray-700
+              bg-white border border-gray-200
+              hover:bg-gray-50
+              disabled:opacity-60 disabled:cursor-not-allowed
+              transition-colors
+            "
+          >
+            {exporting ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Download size={15} />
+            )}
+            {exporting ? "Exporting..." : "Export CSV"}
+          </button>
+        }
       />
 
       {/* FILTERS */}

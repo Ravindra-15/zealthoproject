@@ -31,6 +31,8 @@ import {
   Flag,
   Star,
   ChevronRight,
+  ShieldCheck,
+  Lock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import DOMPurify from "dompurify";
@@ -39,6 +41,7 @@ import {
   fetchDoctorById,
   buildPhotoUrl,
   clearDoctorFlag,
+  setDoctorLicenceApproval,
 } from "../../../services/doctorService";
 import { fetchFeedbackCountForDoctor } from "../../../services/adminDoctorFeedbackService";
 import { formatUtcDateTime12h } from "../../../utils/time";
@@ -100,6 +103,21 @@ const DoctorProfile = () => {
   const [error, setError] = useState(null);
   const [clearingFlag, setClearingFlag] = useState(false);
   const [feedbackSummary, setFeedbackSummary] = useState({ total: 0, unseen: 0 });
+  const [updatingLicenceApproval, setUpdatingLicenceApproval] = useState(false);
+
+  const handleLicenceApprovalToggle = async (approved) => {
+    if (updatingLicenceApproval) return;
+    try {
+      setUpdatingLicenceApproval(true);
+      const updated = await setDoctorLicenceApproval(id, approved);
+      setDoctor((prev) => ({ ...prev, ...updated }));
+      toast.success(approved ? "Licence approved and locked" : "Licence approval revoked");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update licence approval");
+    } finally {
+      setUpdatingLicenceApproval(false);
+    }
+  };
 
   const handleClearFlag = async () => {
     if (clearingFlag) return;
@@ -521,9 +539,21 @@ const DoctorProfile = () => {
 
         {/* 📄 Licence Information */}
         <section>
-          <h2 className="text-base font-bold text-gray-900 mb-4">
-            Licence Information
-          </h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-base font-bold text-gray-900">
+              Licence Information
+            </h2>
+            {doctor.licenceApproved ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 text-xs font-semibold rounded-full">
+                <Lock size={12} />
+                Approved &amp; Locked
+              </span>
+            ) : hasLicenceNumber || licenceDocumentUrl ? (
+              <span className="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-semibold rounded-full">
+                Pending Review
+              </span>
+            ) : null}
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
             {/* 🆔 Licence number */}
@@ -581,6 +611,43 @@ const DoctorProfile = () => {
               This is required from the doctor during profile completion, unless
               already provided here by an admin.
             </p>
+          )}
+
+          {/* ✅ Super admin review action */}
+          {isSuperAdmin && (hasLicenceNumber || licenceDocumentUrl) && (
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+              {doctor.licenceApproved ? (
+                <p className="text-xs text-gray-500">
+                  Approved{doctor.licenceApprovedAt ? ` on ${formatUtcDateTime12h(doctor.licenceApprovedAt)}` : ""} —
+                  the doctor can no longer edit this themselves.
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Review the licence above, then approve to lock it on the doctor's side.
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleLicenceApprovalToggle(!doctor.licenceApproved)}
+                disabled={updatingLicenceApproval}
+                className={`
+                  flex-shrink-0 inline-flex items-center justify-center gap-2
+                  px-4 py-2 rounded-xl text-sm font-semibold
+                  border transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                  ${doctor.licenceApproved
+                    ? "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    : "bg-emerald-600 border-transparent text-white hover:bg-emerald-700"}
+                `}
+              >
+                {updatingLicenceApproval ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ShieldCheck size={14} />
+                )}
+                {doctor.licenceApproved ? "Revoke Approval" : "Approve Licence"}
+              </button>
+            </div>
           )}
         </section>
 

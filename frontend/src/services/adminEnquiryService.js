@@ -49,3 +49,31 @@ export const listEnquiries = async ({
   });
   return response.data.data;
 };
+
+// ============================================
+// 📤 EXPORT ENQUIRIES TO CSV
+// Respects the current search/date/source/status filters. Triggers a
+// real file download via a temporary object URL (adminApi carries the
+// Bearer token, so a plain <a href> straight to the API URL won't work).
+// ============================================
+export const exportEnquiriesCsv = async ({
+  search = "",
+  startDate = "",
+  endDate = "",
+  source = "",
+  status = "",
+} = {}) => {
+  const response = await adminApi.get("/admin/enquiries/export", {
+    params: { search, startDate, endDate, source, status },
+    responseType: "blob",
+  });
+
+  const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = `zealtho-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+};

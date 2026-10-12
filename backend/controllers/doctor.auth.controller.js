@@ -251,6 +251,17 @@ const completeProfile = async (req, res) => {
       });
     }
 
+    // 🔒 Licence already approved by a super admin — reject any attempt to
+    // replace the document/number before it's even written to disk.
+    if (req.doctor.licenceApproved && req.file) {
+      const fs = require("fs");
+      try { fs.unlinkSync(req.file.path); } catch { }
+      return res.status(403).json({
+        success: false,
+        message: "Your licence has already been approved and can no longer be changed. Contact your administrator.",
+      });
+    }
+
     // 📄 A new licence document was uploaded — attach its path before saving.
     // (If none was uploaded, the validator already confirmed one already
     // exists on file, so licenceDocument stays untouched here.)

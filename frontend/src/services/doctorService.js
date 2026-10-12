@@ -131,6 +131,18 @@ export const clearDoctorFlag = async (doctorId) => {
 };
 
 // ============================================
+// ✅ APPROVE / REVOKE LICENCE
+// Approving locks licence fields on the doctor's own completeProfile.
+// ============================================
+export const setDoctorLicenceApproval = async (doctorId, approved) => {
+  const response = await adminApi.patch(
+    `/admin/doctors/${doctorId}/licence-approval`,
+    { approved }
+  );
+  return response.data.data.doctor;
+};
+
+// ============================================
 // 🔄 TOGGLE STATUS
 // ============================================
 export const toggleDoctorStatus = async (doctorId) => {

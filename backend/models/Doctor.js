@@ -151,6 +151,27 @@ const doctorSchema = new mongoose.Schema(
       default: null,
     },
 
+    // ============================================
+    // ✅ LICENCE APPROVAL (super admin review)
+    // ============================================
+    // Once approved, the licence number/document are locked on the
+    // doctor's own side (completeDoctorProfile guard) — only an admin
+    // editing the doctor directly (updateDoctor) can still change them.
+    licenceApproved: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    licenceApprovedAt: {
+      type: Date,
+      default: null,
+    },
+    licenceApprovedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+
     yearsOfExperience: {
       type: Number,
       default: null,

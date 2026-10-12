@@ -410,6 +410,23 @@ const validateListQuery = (req, res, next) => {
 };
 
 // ============================================
+// ✅ VALIDATE LICENCE APPROVAL
+// ============================================
+
+const validateLicenceApproval = (req, res, next) => {
+  const { approved } = req.body;
+
+  if (typeof approved !== "boolean") {
+    return res.status(400).json({
+      success: false,
+      message: "'approved' must be true or false",
+    });
+  }
+
+  next();
+};
+
+// ============================================
 // 📦 EXPORTS
 // ============================================
 
@@ -418,4 +435,5 @@ module.exports = {
   validateUpdateDoctor,
   validateDoctorId,
   validateListQuery,
+  validateLicenceApproval,
 };

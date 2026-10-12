@@ -403,8 +403,17 @@ const completeDoctorProfile = async (doctorId, profileData) => {
     "licenceDocumentMimeType",
   ];
 
+  // 🔒 Once a super admin has approved the licence, the doctor can no
+  // longer change licence fields through this endpoint (locked).
+  const existing = await Doctor.findById(doctorId).select("licenceApproved").lean();
+  if (!existing) return null;
+
+  const fieldsToApply = existing.licenceApproved
+    ? ALLOWED_FIELDS.filter((key) => !key.startsWith("licence"))
+    : ALLOWED_FIELDS;
+
   const safeUpdates = {};
-  for (const key of ALLOWED_FIELDS) {
+  for (const key of fieldsToApply) {
     if (profileData[key] !== undefined && profileData[key] !== null) {
       safeUpdates[key] =
         typeof profileData[key] === "string"
@@ -422,6 +431,36 @@ const completeDoctorProfile = async (doctorId, profileData) => {
   }).lean();
 
   return updated;
+};
+
+// ============================================
+// ✅ SET LICENCE APPROVAL (super admin review)
+// ============================================
+
+/**
+ * Approves or revokes approval of a doctor's uploaded licence.
+ * Approving locks the licence fields on the doctor's own completeProfile
+ * endpoint; revoking unlocks them again so the doctor can resubmit.
+ *
+ * @param {string} doctorId
+ * @param {boolean} approved
+ * @param {string} adminId - admin performing the action
+ * @returns {Promise<Object|null|{error:string}>}
+ */
+const setDoctorLicenceApproval = async (doctorId, approved, adminId) => {
+  const doctor = await Doctor.findById(doctorId);
+  if (!doctor) return null;
+
+  if (approved && !doctor.licenceDocument) {
+    return { error: "Doctor has not uploaded a licence document yet" };
+  }
+
+  doctor.licenceApproved = approved;
+  doctor.licenceApprovedAt = approved ? new Date() : null;
+  doctor.licenceApprovedBy = approved ? adminId : null;
+  await doctor.save();
+
+  return await Doctor.findById(doctorId).lean();
 };
 
 // ============================================
@@ -545,4 +584,5 @@ module.exports = {
   changeDoctorPassword,
   completeDoctorProfile,
   updateDoctorOwnProfile,
+  setDoctorLicenceApproval,
 };

@@ -460,6 +460,51 @@ const clearFlag = async (req, res) => {
   }
 };
 
+// ============================================
+// ✅ PATCH /api/admin/doctors/:id/licence-approval
+// ============================================
+
+/**
+ * @desc Approve or revoke approval of a doctor's uploaded licence.
+ *       Approving locks it on the doctor's own side (completeProfile).
+ * @access Private (super admin)
+ */
+const setLicenceApproval = async (req, res) => {
+  try {
+    const { approved } = req.body;
+    const result = await doctorService.setDoctorLicenceApproval(
+      req.params.id,
+      !!approved,
+      req.admin._id
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+    if (result.error) {
+      return res.status(400).json({
+        success: false,
+        message: result.error,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: approved ? "Licence approved and locked" : "Licence approval revoked",
+      data: { doctor: result },
+    });
+  } catch (err) {
+    console.error("[DOCTOR LICENCE APPROVAL ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update licence approval",
+    });
+  }
+};
+
 module.exports = {
   createDoctor,
   listDoctors,
@@ -470,4 +515,5 @@ module.exports = {
   getOptions,
   resetPassword,
   clearFlag,
+  setLicenceApproval,
 };

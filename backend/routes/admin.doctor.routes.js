@@ -17,6 +17,7 @@ const {
   getOptions,
   resetPassword,
   clearFlag,
+  setLicenceApproval,
 } = require("../controllers/admin.doctor.controller");
 
 const {
@@ -24,6 +25,7 @@ const {
   validateUpdateDoctor,
   validateDoctorId,
   validateListQuery,
+  validateLicenceApproval,
 } = require("../validators/admin.doctor.validator");
 
 const {
@@ -147,6 +149,22 @@ router.patch(
   requireSuperAdmin,
   validateDoctorId,
   clearFlag
+);
+
+/**
+ * @route   PATCH /api/admin/doctors/:id/licence-approval
+ * @desc    Approve or revoke approval of a doctor's uploaded licence —
+ *          super admin only (same judgment-call gating as clear-flag).
+ *          Approving locks the licence fields on the doctor's own side.
+ * @body    { approved: true | false }
+ */
+router.patch(
+  "/:id/licence-approval",
+  doctorWriteLimiter,
+  requireSuperAdmin,
+  validateDoctorId,
+  validateLicenceApproval,
+  setLicenceApproval
 );
 
 /**
