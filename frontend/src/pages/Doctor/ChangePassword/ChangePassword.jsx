@@ -25,16 +25,17 @@ import { changeDoctorPassword } from "../../../services/doctorAuthService";
 // ============================================
 const getPasswordChecks = (pw) => ({
   hasLength: pw.length >= 8,
-  hasLetter: /[A-Za-z]/.test(pw),
+  hasLower: /[a-z]/.test(pw),
+  hasUpper: /[A-Z]/.test(pw),
   hasNumber: /[0-9]/.test(pw),
   hasSymbol: /[^A-Za-z0-9]/.test(pw),
 });
 
 const getStrengthLevel = (checks) => {
   const score = Object.values(checks).filter(Boolean).length;
-  if (score <= 1) return { level: 1, label: "Weak", color: "bg-red-400" };
-  if (score === 2) return { level: 2, label: "Fair", color: "bg-orange-400" };
-  if (score === 3) return { level: 3, label: "Good", color: "bg-yellow-400" };
+  if (score <= 2) return { level: 1, label: "Weak", color: "bg-red-400" };
+  if (score === 3) return { level: 2, label: "Fair", color: "bg-orange-400" };
+  if (score === 4) return { level: 3, label: "Good", color: "bg-yellow-400" };
   return { level: 4, label: "Strong", color: "bg-green-500" };
 };
 
@@ -84,8 +85,8 @@ const ChangePassword = () => {
       next.newPassword = "New password is required";
     } else if (formData.newPassword.length < 8) {
       next.newPassword = "Must be at least 8 characters";
-    } else if (!checks.hasLetter || !checks.hasNumber) {
-      next.newPassword = "Must include letters and numbers";
+    } else if (!checks.hasLower || !checks.hasUpper || !checks.hasNumber || !checks.hasSymbol) {
+      next.newPassword = "Must include uppercase, lowercase, a number & a symbol";
     } else if (formData.newPassword === formData.currentPassword) {
       next.newPassword = "New password must be different from current password";
     }
@@ -299,12 +300,11 @@ const ChangePassword = () => {
                 {formData.newPassword.length > 0 && (
                   <ul className="mt-3 space-y-1 text-[11px]">
                     <Rule met={checks.hasLength}>At least 8 characters</Rule>
-                    <Rule met={checks.hasLetter && checks.hasNumber}>
-                      Contains letters and numbers
+                    <Rule met={checks.hasLower && checks.hasUpper}>
+                      Uppercase and lowercase letters
                     </Rule>
-                    <Rule met={checks.hasSymbol}>
-                      Contains a symbol (recommended)
-                    </Rule>
+                    <Rule met={checks.hasNumber}>Contains a number</Rule>
+                    <Rule met={checks.hasSymbol}>Contains a symbol</Rule>
                   </ul>
                 )}
               </div>

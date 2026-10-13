@@ -52,6 +52,12 @@ export const validateSignup = ({ email, password, phone, country }) => {
   if (password.length < 8)
     return "Password must be at least 8 characters";
 
+  if (!/[a-z]/.test(password))
+    return "Password must contain at least 1 lowercase letter";
+
+  if (!/[A-Z]/.test(password))
+    return "Password must contain at least 1 uppercase letter";
+
   if (!/\d/.test(password))
     return "Password must contain at least 1 number";
 

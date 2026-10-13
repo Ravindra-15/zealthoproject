@@ -45,6 +45,14 @@ exports.validateSignup = (req, res, next) => {
     return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
   }
 
+  if (!/[a-z]/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 lowercase letter" });
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 uppercase letter" });
+  }
+
   if (!/\d/.test(password)) {
     return res.status(400).json({ success: false, message: "Password must contain at least 1 number" });
   }
@@ -327,6 +335,14 @@ exports.validateResetPassword = (req, res, next) => {
 
   if (password.length < 8) {
     return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 lowercase letter" });
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return res.status(400).json({ success: false, message: "Password must contain at least 1 uppercase letter" });
   }
 
   if (!/\d/.test(password)) {

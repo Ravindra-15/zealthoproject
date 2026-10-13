@@ -50,14 +50,26 @@ const validateChangePassword = (req, res, next) => {
   if (!newPassword || typeof newPassword !== "string") {
     errors.push("New password is required");
   } else {
+    if (/\s/.test(newPassword)) {
+      errors.push("Password cannot contain spaces");
+    }
     if (newPassword.length < 8) {
       errors.push("New password must be at least 8 characters");
     }
     if (newPassword.length > 128) {
       errors.push("New password too long");
     }
-    if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      errors.push("Password must contain letters and numbers");
+    if (!/[a-z]/.test(newPassword)) {
+      errors.push("Password must contain a lowercase letter");
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      errors.push("Password must contain an uppercase letter");
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      errors.push("Password must contain a number");
+    }
+    if (!/[^A-Za-z0-9\s]/.test(newPassword)) {
+      errors.push("Password must contain a special character");
     }
   }
 

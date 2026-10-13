@@ -5,6 +5,15 @@
 const Enquiry = require("../models/Enquiry");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const { toCsv } = require("../utils/csv.util");
+const { isSuperAdmin, maskEmail, maskPhone } = require("../utils/adminAccess");
+
+// 🫥 Portal admins (non-super-admin) see masked email/phone — same rule as
+// User Directory / Referral Engine. Super admin is never affected.
+const maskEnquiryContact = (enquiry) => ({
+  ...enquiry,
+  email: maskEmail(enquiry.email),
+  phone: maskPhone(enquiry.phone),
+});
 
 // 🔧 Shared filter-building logic — used by both the paginated list and
 // the unpaginated export so they always search/filter identically.
@@ -58,10 +67,14 @@ const listEnquiries = async (req, res) => {
 
     const query = buildEnquiryQuery({ search, startDate, endDate, source, status });
 
-    const [enquiries, total] = await Promise.all([
+    const [rawEnquiries, total] = await Promise.all([
       Enquiry.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
       Enquiry.countDocuments(query),
     ]);
+
+    const enquiries = isSuperAdmin(req.admin)
+      ? rawEnquiries
+      : rawEnquiries.map(maskEnquiryContact);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
 
@@ -93,7 +106,10 @@ const exportEnquiriesCsv = async (req, res) => {
     const { search, startDate, endDate, source, status } = req.query;
     const query = buildEnquiryQuery({ search, startDate, endDate, source, status });
 
-    const enquiries = await Enquiry.find(query).sort({ createdAt: -1 }).lean();
+    const rawEnquiries = await Enquiry.find(query).sort({ createdAt: -1 }).lean();
+    const enquiries = isSuperAdmin(req.admin)
+      ? rawEnquiries
+      : rawEnquiries.map(maskEnquiryContact);
 
     const headers = [
       "Name",

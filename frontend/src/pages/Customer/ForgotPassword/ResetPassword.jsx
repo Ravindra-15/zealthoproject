@@ -41,13 +41,17 @@ const checkStrength = (pw) => {
 
   const noSpaces = !/\s/.test(pw);
   const longEnough = pw.length >= 8;
+  const hasLower = /[a-z]/.test(pw);
+  const hasUpper = /[A-Z]/.test(pw);
   const hasNumber = /\d/.test(pw);
   const hasSpecial = /[^a-zA-Z0-9]/.test(pw);
 
-  const valid = noSpaces && longEnough && hasNumber && hasSpecial;
+  const valid =
+    noSpaces && longEnough && hasLower && hasUpper && hasNumber && hasSpecial;
 
   let score = 0;
   if (longEnough) score++;
+  if (hasLower && hasUpper) score++;
   if (hasNumber) score++;
   if (hasSpecial) score++;
   if (pw.length >= 12) score++;
@@ -114,7 +118,7 @@ const ResetPassword = () => {
       newErrors.password = true;
       setErrors(newErrors);
       return toast.error(
-        "Password must be 8+ chars with a number & a special character"
+        "Password must be 8+ chars with uppercase, lowercase, a number & a special character"
       );
     }
 

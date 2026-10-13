@@ -3,12 +3,22 @@
  */
 
 const freeTrialService = require("../services/admin.freeTrial.service");
+const { isSuperAdmin, maskEmail } = require("../utils/adminAccess");
 
 // GET /api/admin/trial-requests
 const list = async (req, res) => {
   try {
     const { status, page, limit } = req.query;
     const result = await freeTrialService.listRequests({ status, page, limit });
+
+    // 🫥 Portal admins see the requester's email masked — super admin sees it in full.
+    if (!isSuperAdmin(req.admin)) {
+      result.requests = result.requests.map((r) => ({
+        ...r,
+        user: r.user ? { ...r.user, email: maskEmail(r.user.email) } : r.user,
+      }));
+    }
+
     return res.status(200).json({ success: true, data: result });
   } catch (err) {
     console.error("[ADMIN TRIAL LIST ERROR]:", err);
