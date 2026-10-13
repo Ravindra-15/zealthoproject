@@ -97,13 +97,22 @@ export default function CallbackSection() {
               type="tel"
               className={inputClass}
             />
-            <input
-              name="message"
-              value={form.message}
-              onChange={handle}
-              placeholder="Message *"
-              className={inputClass}
-            />
+            <div>
+              <textarea
+                name="message"
+                value={form.message}
+                onChange={handle}
+                placeholder="Message *"
+                rows={3}
+                maxLength={500}
+                className={`${inputClass} resize-none`}
+              />
+              <div className="flex justify-end mt-1">
+                <span className="text-xs text-gray-400">
+                  {form.message.length} / 500
+                </span>
+              </div>
+            </div>
             <button
               onClick={submit}
               disabled={loading}
