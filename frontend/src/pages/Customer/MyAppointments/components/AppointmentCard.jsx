@@ -39,6 +39,15 @@ import RescheduleModal from "./RescheduleModal";
 
 const PROBLEM_MAX = 200; // max characters for problem description
 const MAX_RESCHEDULE_COUNT = 5; // mirrors backend/utils/reschedulePolicy.js
+
+// 🏷️ Proper display names for the "booked under" program label
+const PROGRAM_NAMES = {
+  zealtho: "Zealtho",
+  yogat20: "Yoga T20",
+  diabmukt: "Diabmukt",
+  mommyfit: "MommyFit",
+  slimfitter: "Slimfitter",
+};
 const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 // 🟢 STATUS PILL
@@ -222,9 +231,7 @@ const [cancelling, setCancelling] = useState(false);
     appointment?.patientName ||
     "Patient";
   const doctorDisplayName = doctor?.fullName || doctorName || "Doctor";
-  const programLabel = appointment?.platform
-    ? appointment.platform.charAt(0).toUpperCase() + appointment.platform.slice(1)
-    : "Zealtho";
+  const programLabel = PROGRAM_NAMES[appointment?.platform] || "Zealtho";
 
   const handleDownloadPrescription = async () => {
     if (downloadingPdf || !prescription) return;
@@ -327,9 +334,10 @@ const [cancelling, setCancelling] = useState(false);
               />
             </div>
 
-            {doctor?.domain && (
-              <p className="text-xs text-gray-500 truncate">{doctor.domain}</p>
-            )}
+            <p className="text-xs text-gray-500 truncate">
+              {doctor?.domain ? `${doctor.domain} · ` : ""}
+              <span className="text-orange-500 font-medium">{programLabel}</span>
+            </p>
 
             {/* 📅 Date + Time */}
             <div className="flex items-center gap-3 mt-2">
