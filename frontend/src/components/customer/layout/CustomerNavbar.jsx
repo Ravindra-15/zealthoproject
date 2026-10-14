@@ -258,20 +258,29 @@ const CustomerNavbar = () => {
                   </button>
                 </>
               ) : !hideAuthUI ? (
-                <button
-                  type="button"
-                  onClick={() => navigate("/signup")}
-                  className="
-                    hidden sm:inline-flex items-center
-                    px-5 py-2 rounded-full
-                    text-sm font-semibold text-white
-                    bg-orange-500 hover:bg-orange-600
-                    transition-colors
-                    shadow-[0_4px_14px_rgba(249,115,22,0.35)]
-                  "
-                >
-                  Join now
-                </button>
+                <div className="hidden sm:flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className="text-sm font-semibold text-gray-700 hover:text-orange-600 transition-colors"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/signup")}
+                    className="
+                      inline-flex items-center
+                      px-5 py-2 rounded-full
+                      text-sm font-semibold text-white
+                      bg-orange-500 hover:bg-orange-600
+                      transition-colors
+                      shadow-[0_4px_14px_rgba(249,115,22,0.35)]
+                    "
+                  >
+                    Sign up
+                  </button>
+                </div>
               ) : null}
 
               {/* 📱 MOBILE MENU */}
@@ -346,21 +355,33 @@ const CustomerNavbar = () => {
                   </button>
                 </>
               ) : !hideAuthUI ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMobile();
-                    navigate("/signup");
-                  }}
-                  className="
-                    mt-1 px-4 py-2 rounded-full self-start
-                    text-xs font-semibold text-white
-                    bg-orange-500 hover:bg-orange-600
-                    transition-colors
-                  "
-                >
-                  Join now
-                </button>
+                <div className="mt-1 flex items-center gap-3 self-start">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMobile();
+                      navigate("/login");
+                    }}
+                    className="text-xs font-semibold text-gray-700 hover:text-orange-600 transition-colors"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMobile();
+                      navigate("/signup");
+                    }}
+                    className="
+                      px-4 py-2 rounded-full
+                      text-xs font-semibold text-white
+                      bg-orange-500 hover:bg-orange-600
+                      transition-colors
+                    "
+                  >
+                    Sign up
+                  </button>
+                </div>
               ) : null}
             </div>
           </div>

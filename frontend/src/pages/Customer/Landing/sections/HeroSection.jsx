@@ -130,7 +130,7 @@ export default function HeroSection() {
 
               <p className="text-xs text-gray-400 flex items-center gap-2 mb-10">
                 <span className="text-orange-400 text-base">&#x1F525;</span>
-                10,000+ people started their wellness journey
+                15+ Years of Experience
               </p>
 
               {/* Placeholder blocks */}

@@ -422,7 +422,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
               className="flex items-center justify-center gap-2 border border-red-200 hover:bg-red-50 text-red-600 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors"
             >
               <LogOut size={16} />
-              Logout
+              Sign Out
             </button>
           </div>
         </form>

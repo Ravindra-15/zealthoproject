@@ -35,13 +35,7 @@ const COLOR_PRESETS = [
 ];
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-const ACCEPTED_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/svg+xml",
-];
+const ACCEPTED_TYPES = ["image/png", "image/svg+xml"];
 
 const initialForm = {
   trackerName: "",
@@ -112,7 +106,7 @@ const AddHabitModal = ({ editingHabit, programId, onClose, onSuccess }) => {
   const acceptFile = (file) => {
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error("Only PNG, JPG, WebP, or SVG allowed");
+      toast.error("Only PNG or SVG allowed");
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -277,7 +271,7 @@ const AddHabitModal = ({ editingHabit, programId, onClose, onSuccess }) => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml"
+                  accept="image/png,image/svg+xml"
                   onChange={handleFileSelect}
                   className="hidden"
                 />

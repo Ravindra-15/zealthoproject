@@ -47,19 +47,14 @@ const storage = multer.diskStorage({
   },
 });
 
-// 🚫 Accept images + SVG
+// 🚫 Habit icons are kept to PNG/SVG only — keeps the icon set consistent
+// (SVG scales cleanly, PNG supports transparency; photos don't fit here)
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-    "image/svg+xml",
-  ];
+  const allowedMimes = ["image/png", "image/svg+xml"];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Invalid file type. Only PNG, JPG, WebP, SVG allowed."));
+    cb(new Error("Invalid file type. Only PNG or SVG allowed."));
   }
 };
 
