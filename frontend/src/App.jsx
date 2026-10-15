@@ -29,6 +29,7 @@ import BookDoctor from "./pages/Customer/BookDoctor/BookDoctor";
 
 import DoctorDetail from "./pages/Customer/BookDoctor/DoctorDetail";
 import Checkout from "./pages/Customer/Checkout/Checkout";
+import PaypalReturn from "./pages/Customer/Checkout/PaypalReturn";
 import Confirmation from "./pages/Customer/Confirmation/Confirmation";
 import MyAppointments from "./pages/Customer/MyAppointments/MyAppointments";
 import BodyProfileWizard from "./pages/Customer/BodyProfile/BodyProfileWizard";
@@ -147,6 +148,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Checkout />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/paypal/return"
+          element={
+            <ProtectedRoute>
+              <PaypalReturn />
             </ProtectedRoute>
           }
         />

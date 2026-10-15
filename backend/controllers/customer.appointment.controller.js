@@ -88,6 +88,80 @@ const createBooking = async (req, res) => {
 };
 
 // ============================================
+// 🅿️ PAYPAL — CREATE ORDER
+// ============================================
+// POST /api/customer/appointments/paypal/create-order
+// Body: { doctorId, scheduledAt, platform?, timezone?, returnUrl, cancelUrl }
+const createPaypalOrder = async (req, res) => {
+  try {
+    const result = await customerAppointmentService.createAppointmentPaypalOrder({
+      userId: req.user.id,
+      doctorId: req.body.doctorId,
+      scheduledAt: req.body.scheduledAt,
+      platform: req.body.platform || "zealtho",
+      viewerTimezone: req.body.timezone,
+      returnUrl: req.body.returnUrl,
+      cancelUrl: req.body.cancelUrl,
+    });
+
+    if (result.error) {
+      return res.status(result.error.status).json({ success: false, message: result.error.message });
+    }
+
+    if (result.freeBooking) {
+      return res.status(200).json({ success: true, data: { freeBooking: true } });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: { orderId: result.orderId, approveUrl: result.approveUrl },
+    });
+  } catch (err) {
+    console.error("[PAYPAL CREATE ORDER ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to start PayPal checkout" });
+  }
+};
+
+// ============================================
+// 🅿️ PAYPAL — CAPTURE ORDER
+// ============================================
+// POST /api/customer/appointments/paypal/capture-order
+// Body: { orderId, doctorId, scheduledAt, notes?, platform?, timezone? }
+const capturePaypalOrder = async (req, res) => {
+  try {
+    const result = await customerAppointmentService.captureAppointmentPaypalOrder({
+      orderId: req.body.orderId,
+      userId: req.user.id,
+      doctorId: req.body.doctorId,
+      scheduledAt: req.body.scheduledAt,
+      notes: req.body.notes,
+      platform: req.body.platform || "zealtho",
+      viewerTimezone: req.body.timezone,
+    });
+
+    if (result.error) {
+      return res.status(result.error.status).json({ success: false, message: result.error.message });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Appointment booked successfully",
+      data: {
+        appointment: result.appointment,
+        payment: {
+          transactionId: result.paymentResult.transactionId,
+          amount: result.paymentResult.amount,
+          currency: result.paymentResult.currency,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[PAYPAL CAPTURE ORDER ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to complete booking" });
+  }
+};
+
+// ============================================
 // 📋 LIST MY APPOINTMENTS
 // ============================================
 // GET /api/customer/appointments?bucket=upcoming|past|all
@@ -280,6 +354,8 @@ const updateMyNotes = async (req, res) => {
 module.exports = {
   getDayAvailability,
   createBooking,
+  createPaypalOrder,
+  capturePaypalOrder,
   listMyAppointments,
   getMyAppointment,
   cancelMyAppointment,

@@ -6,6 +6,7 @@ const Notification = require("../models/Notification");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { hasReachedReferralLimit } = require("../utils/referralCode");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
+const paypal = require("../utils/paypal.util");
 
 // 🎁 Generate staggered free-consult cards for a paid subscription.
 // yogaT20 (monthly): one card per 3 months, each valid for its own 3-month block.
@@ -403,6 +404,232 @@ const subscribeToProgram = async (req, res) => {
 };
 
 // ============================================
+// 🧮 SHARED — resolve the authoritative (server-trusted) price for a
+// program + tenure/weeks. Never trust a client-sent amount for the charge —
+// this always re-derives it from the live ProgramPlan data, same formula
+// subscribeToProgram uses. Used by both PayPal steps below.
+// ============================================
+const resolveSubscriptionPricing = async ({ programId, tenure, weeks }) => {
+  const weeklyPlan = await ProgramPlan.findOne({
+    programId,
+    pricingType: "weekly",
+    isActive: true,
+  });
+
+  if (weeklyPlan) {
+    const w = Number(weeks);
+    if (isNaN(w) || w < weeklyPlan.minWeeks || w > weeklyPlan.maxWeeks) {
+      return {
+        error: { status: 400, message: `Please select between ${weeklyPlan.minWeeks} and ${weeklyPlan.maxWeeks} weeks.` },
+      };
+    }
+    return {
+      pricingType: "weekly",
+      resolvedWeeks: w,
+      resolvedTenure: `${w} Weeks`,
+      amount: computeWeeklyAmount(weeklyPlan, w),
+      months: null,
+    };
+  }
+
+  if (!tenure) {
+    return { error: { status: 400, message: "Tenure is required." } };
+  }
+  const plan = await ProgramPlan.findOne({ programId, planName: tenure, isActive: true });
+  if (!plan) {
+    return { error: { status: 404, message: "Selected plan is unavailable. Please refresh and try again." } };
+  }
+  return {
+    pricingType: "fixed",
+    resolvedWeeks: null,
+    resolvedTenure: tenure,
+    amount: plan.offerPrice,
+    months: plan.durationMonths || parseMonthsFromName(tenure),
+  };
+};
+
+// ============================================
+// 🅿️ PAYPAL — CREATE ORDER (subscription)
+// POST /api/customer/programs/paypal/create-order
+// ============================================
+const createProgramPaypalOrder = async (req, res) => {
+  try {
+    const { programId, tenure, weeks, returnUrl, cancelUrl } = req.body;
+    const customerId = req.user?._id || null;
+    const doctorId = req.doctor?._id || null;
+
+    if (!customerId && !doctorId) {
+      return res.status(401).json({ success: false, message: "Unauthorized access." });
+    }
+    if (!programId || !programNames[programId]) {
+      return res.status(400).json({ success: false, message: "Invalid program selected." });
+    }
+
+    const isHttpUrl = (val) => {
+      if (typeof val !== "string") return false;
+      try {
+        const u = new URL(val);
+        return u.protocol === "http:" || u.protocol === "https:";
+      } catch {
+        return false;
+      }
+    };
+    if (!isHttpUrl(returnUrl) || !isHttpUrl(cancelUrl)) {
+      return res.status(400).json({ success: false, message: "Valid returnUrl and cancelUrl are required." });
+    }
+
+    const existingSubscription = await ProgramSubscription.findOne({
+      programId,
+      status: "active",
+      endDate: { $gt: new Date() },
+      ...(customerId ? { customer: customerId } : { doctor: doctorId }),
+    });
+    if (existingSubscription?.isTrial) {
+      return res.status(400).json({
+        success: false,
+        message: "You're currently on a free trial. You can purchase a plan once your trial ends.",
+      });
+    }
+
+    const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks });
+    if (pricing.error) {
+      return res.status(pricing.error.status).json({ success: false, message: pricing.error.message });
+    }
+
+    const { orderId, approveUrl } = await paypal.createOrder({
+      amount: pricing.amount,
+      currency: "USD", // ProgramSubscription.amount is always the true USD settlement figure
+      description: `${programNames[programId]} — ${pricing.resolvedTenure}`,
+      referenceId: `sub_${customerId || doctorId}_${Date.now()}`,
+      returnUrl,
+      cancelUrl,
+    });
+
+    return res.status(200).json({ success: true, data: { orderId, approveUrl } });
+  } catch (err) {
+    console.error("[PAYPAL CREATE ORDER (program) ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to start PayPal checkout" });
+  }
+};
+
+// ============================================
+// 🅿️ PAYPAL — CAPTURE ORDER (subscription)
+// POST /api/customer/programs/paypal/capture-order
+// ============================================
+const captureProgramPaypalOrder = async (req, res) => {
+  try {
+    const { orderId, programId, tenure, weeks, referralCode } = req.body;
+    const customerId = req.user?._id || null;
+    const doctorId = req.doctor?._id || null;
+
+    if (!customerId && !doctorId) {
+      return res.status(401).json({ success: false, message: "Unauthorized access." });
+    }
+    if (!orderId || typeof orderId !== "string") {
+      return res.status(400).json({ success: false, message: "Valid orderId is required." });
+    }
+    if (!programId || !programNames[programId]) {
+      return res.status(400).json({ success: false, message: "Invalid program selected." });
+    }
+
+    const captureResult = await paypal.captureOrder(orderId);
+    if (!captureResult.success) {
+      return res.status(402).json({ success: false, message: captureResult.message || "Payment could not be completed" });
+    }
+
+    const purchasedByRole = doctorId ? "doctor" : "customer";
+
+    const existingSubscription = await ProgramSubscription.findOne({
+      programId,
+      status: "active",
+      endDate: { $gt: new Date() },
+      ...(customerId ? { customer: customerId } : { doctor: doctorId }),
+    });
+
+    if (existingSubscription?.isTrial) {
+      // 💸 State changed while buyer was on PayPal's page — refund immediately.
+      const refundResult = await paypal.refundCapture(captureResult.captureId, {
+        reason: "Blocked by active free trial",
+      });
+      if (!refundResult.success) {
+        console.error(`[PAYPAL REFUND FAILED] captureId=${captureResult.captureId} — needs manual refund`);
+      }
+      return res.status(400).json({
+        success: false,
+        message: "You're currently on a free trial. You can purchase a plan once your trial ends." +
+          (refundResult.success ? "" : " Your payment is being refunded — contact support if it doesn't appear within a few days, reference: " + captureResult.captureId),
+      });
+    }
+
+    const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks });
+    if (pricing.error) {
+      const refundResult = await paypal.refundCapture(captureResult.captureId, { reason: "Plan unavailable" });
+      if (!refundResult.success) {
+        console.error(`[PAYPAL REFUND FAILED] captureId=${captureResult.captureId} — needs manual refund`);
+      }
+      return res.status(pricing.error.status).json({ success: false, message: pricing.error.message });
+    }
+    const { amount, resolvedTenure, resolvedWeeks, pricingType, months } = pricing;
+
+    const startDate = existingSubscription ? new Date(existingSubscription.endDate) : new Date();
+    const endDate = new Date(startDate);
+    if (pricingType === "weekly") {
+      endDate.setDate(endDate.getDate() + resolvedWeeks * 7);
+    } else {
+      endDate.setMonth(endDate.getMonth() + months);
+    }
+
+    const buyerId = customerId || doctorId;
+    const buyerUser = buyerId ? await User.findById(buyerId).select("countryIso") : null;
+    const { currency: purchaseCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(buyerUser);
+
+    const subscription = await ProgramSubscription.create({
+      customer: customerId || null,
+      doctor: doctorId || null,
+      purchasedByRole,
+      programId,
+      programName: programNames[programId],
+      tenure: resolvedTenure,
+      weeks: resolvedWeeks,
+      pricingType,
+      amount,
+      currency: purchaseCurrency,
+      fxRateAtPurchase,
+      referralCode: referralCode?.trim() || null,
+      paymentStatus: "paid",
+      paymentProvider: "paypal",
+      transactionId: captureResult.captureId,
+      status: "active",
+      startDate,
+      endDate,
+    });
+
+    if (customerId) {
+      await grantReferralReward(customerId);
+      await generateFreeConsultCards({
+        userId: customerId,
+        programId,
+        subscriptionId: subscription._id,
+        pricingType,
+        months,
+        weeks: resolvedWeeks,
+        startDate,
+        endDate,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Program subscription activated successfully.",
+      subscription,
+    });
+  } catch (err) {
+    console.error("[PAYPAL CAPTURE ORDER (program) ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Something went wrong while activating subscription." });
+  }
+};
+
+// ============================================
 // 📋 GET MY SUBSCRIPTIONS
 // GET /api/customer/programs/my-subscriptions
 // (unchanged)
@@ -562,6 +789,8 @@ const cancelSubscription = async (req, res) => {
 
 module.exports = {
   subscribeToProgram,
+  createProgramPaypalOrder,
+  captureProgramPaypalOrder,
   getMySubscriptions,
   getProgramStatus,
   cancelSubscription,

@@ -63,6 +63,39 @@ export const createBooking = async ({ doctorId, scheduledAt, notes, platform }) 
 };
 
 // ============================================
+// 🅿️ PAYPAL — START CHECKOUT (auth)
+// Returns either { approveUrl } (redirect the browser there) or
+// { freeBooking: true } (no payment needed — caller should use createBooking()).
+// ============================================
+export const createAppointmentPaypalOrder = async ({ doctorId, scheduledAt, platform, returnUrl, cancelUrl }) => {
+  const response = await authApi.post("/customer/appointments/paypal/create-order", {
+    doctorId,
+    scheduledAt,
+    platform,
+    timezone: getViewerTimezone(),
+    returnUrl,
+    cancelUrl,
+  });
+  return response.data.data;
+};
+
+// ============================================
+// 🅿️ PAYPAL — FINISH CHECKOUT (auth)
+// Called once the buyer lands back on our site after approving on PayPal.
+// ============================================
+export const captureAppointmentPaypalOrder = async ({ orderId, doctorId, scheduledAt, notes, platform }) => {
+  const response = await authApi.post("/customer/appointments/paypal/capture-order", {
+    orderId,
+    doctorId,
+    scheduledAt,
+    notes,
+    platform,
+    timezone: getViewerTimezone(),
+  });
+  return response.data.data;
+};
+
+// ============================================
 // 📋 LIST MY APPOINTMENTS (auth)
 // ============================================
 export const listMyAppointments = async ({

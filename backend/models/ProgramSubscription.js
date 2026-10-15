@@ -139,7 +139,7 @@ const programSubscriptionSchema = new mongoose.Schema(
 
     paymentProvider: {
       type: String,
-      enum: ["manual", "razorpay", "stripe"],
+      enum: ["manual", "razorpay", "stripe", "paypal"],
       default: "manual",
     },
 

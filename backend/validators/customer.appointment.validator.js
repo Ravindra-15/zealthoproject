@@ -95,6 +95,104 @@ const validateCreateBooking = (req, res, next) => {
 };
 
 // ============================================
+// 🅿️ PAYPAL — CREATE ORDER
+// ============================================
+// Body: { doctorId, scheduledAt, platform?, timezone?, returnUrl, cancelUrl }
+const validatePaypalCreateOrder = (req, res, next) => {
+  const { doctorId, scheduledAt, platform, timezone, returnUrl, cancelUrl } = req.body;
+  const errors = [];
+
+  if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+    errors.push("Valid doctorId is required");
+  }
+
+  if (!scheduledAt) {
+    errors.push("scheduledAt is required");
+  } else {
+    const date = new Date(scheduledAt);
+    if (isNaN(date.getTime())) {
+      errors.push("scheduledAt must be a valid ISO date");
+    } else if (date < new Date()) {
+      errors.push("Cannot book a slot in the past");
+    }
+  }
+
+  // Must be our own frontend — not attacker-controlled redirect targets.
+  const isHttpUrl = (val) => {
+    if (typeof val !== "string") return false;
+    try {
+      const u = new URL(val);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+  if (!isHttpUrl(returnUrl)) errors.push("Valid returnUrl is required");
+  if (!isHttpUrl(cancelUrl)) errors.push("Valid cancelUrl is required");
+
+  if (errors.length > 0) {
+    return res.status(400).json({ success: false, message: errors[0], errors });
+  }
+
+  req.body = {
+    doctorId,
+    scheduledAt: new Date(scheduledAt),
+    platform: typeof platform === "string" ? platform.trim().toLowerCase() : "zealtho",
+    timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
+    returnUrl,
+    cancelUrl,
+  };
+
+  next();
+};
+
+// ============================================
+// 🅿️ PAYPAL — CAPTURE ORDER
+// ============================================
+// Body: { orderId, doctorId, scheduledAt, notes?, platform?, timezone? }
+const validatePaypalCaptureOrder = (req, res, next) => {
+  const { orderId, doctorId, scheduledAt, notes, platform, timezone } = req.body;
+  const errors = [];
+
+  if (!orderId || typeof orderId !== "string") {
+    errors.push("Valid orderId is required");
+  }
+
+  if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+    errors.push("Valid doctorId is required");
+  }
+
+  if (!scheduledAt) {
+    errors.push("scheduledAt is required");
+  } else if (isNaN(new Date(scheduledAt).getTime())) {
+    errors.push("scheduledAt must be a valid ISO date");
+  }
+
+  if (notes !== undefined) {
+    if (typeof notes !== "string") {
+      errors.push("notes must be a string");
+    } else if (notes.length > 1000) {
+      errors.push("notes too long (max 1000 chars)");
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ success: false, message: errors[0], errors });
+  }
+
+  req.body = {
+    orderId,
+    doctorId,
+    scheduledAt: new Date(scheduledAt),
+    notes: typeof notes === "string" ? notes.trim() : "",
+    platform: typeof platform === "string" ? platform.trim().toLowerCase() : "zealtho",
+    timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
+  };
+
+  next();
+};
+
+// ============================================
 // 📋 LIST MY APPOINTMENTS QUERY
 // ============================================
 // Used by GET /api/customer/appointments?bucket=upcoming|past|all
@@ -222,6 +320,8 @@ const validateUpdateNotes = (req, res, next) => {
 module.exports = {
   validateDayAvailabilityQuery,
   validateCreateBooking,
+  validatePaypalCreateOrder,
+  validatePaypalCaptureOrder,
   validateListQuery,
   validateObjectIdParam,
   validateUpdateNotes,

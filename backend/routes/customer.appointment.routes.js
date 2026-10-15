@@ -15,6 +15,8 @@ const rateLimit = require("express-rate-limit");
 const {
   getDayAvailability,
   createBooking,
+  createPaypalOrder,
+  capturePaypalOrder,
   listMyAppointments,
   getMyAppointment,
   cancelMyAppointment,
@@ -26,6 +28,8 @@ const {
 const {
   validateDayAvailabilityQuery,
   validateCreateBooking,
+  validatePaypalCreateOrder,
+  validatePaypalCaptureOrder,
   validateListQuery,
   validateObjectIdParam,
   validateUpdateNotes,
@@ -89,6 +93,22 @@ appointmentRouter.post(
   authWriteLimiter,
   validateCreateBooking,
   createBooking
+);
+
+// 🅿️ PayPal — start checkout (returns an approval URL to redirect the buyer to)
+appointmentRouter.post(
+  "/paypal/create-order",
+  authWriteLimiter,
+  validatePaypalCreateOrder,
+  createPaypalOrder
+);
+
+// 🅿️ PayPal — finish checkout (buyer landed back on our site after approving)
+appointmentRouter.post(
+  "/paypal/capture-order",
+  authWriteLimiter,
+  validatePaypalCaptureOrder,
+  capturePaypalOrder
 );
 
 // 📋 List my appointments (upcoming/past/all)

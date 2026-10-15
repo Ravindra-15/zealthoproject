@@ -27,6 +27,7 @@ const {
   DEFAULT_TIMEZONE,
 } = require("../utils/timezone");
 const paymentService = require("./payment.service");
+const paypal = require("../utils/paypal.util");
 const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
@@ -120,7 +121,13 @@ const userHasConflictingAppointment = async ({ userId, slotStart, slotEnd, exclu
  *
  * @returns { appointment, paymentResult } | { error }
  */
-const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null }) => {
+/**
+ * STEPS 1–3 of booking — validate user/doctor/slot, shared by both the
+ * original (mock-charge) booking path and the PayPal order-create/capture
+ * paths, so there's exactly one place that decides "is this bookable".
+ * @returns {Promise<{error}|{user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek}>}
+ */
+const validateBookingSlot = async ({ userId, doctorId, scheduledAt, viewerTimezone = null }) => {
   // ============================================
   // STEP 1 — Validate user + doctor
   // ============================================
@@ -222,6 +229,14 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       },
     };
   }
+
+  return { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek };
+};
+
+const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null }) => {
+  const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
+  if (validated.error) return validated;
+  const { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek } = validated;
 
   // ============================================
   // STEP 4 — Use plan free consult → cancel credit → charge payment
@@ -386,6 +401,168 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     await Notification.create({
       userId: doctorId,                    // doctor's ID
       userType: "doctor",                  // 👈 new field
+      type: "appointment_confirmed",
+      title: "New Appointment Booked",
+      body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${formatInZone(slotStart, doctorTimezone)}.`,
+      metadata: { appointmentId: appointment._id, patientId: userId },
+    });
+  } catch (err) {
+    console.log("DOCTOR NOTIFICATION ERROR:", err);
+  }
+
+  return { appointment, paymentResult };
+};
+
+// ============================================
+// 🅿️ PAYPAL — CREATE ORDER (booking)
+// ============================================
+/**
+ * Validates the slot first (so we never send the buyer to PayPal for a slot
+ * that's already dead), checks free-consult-card / cancel-credit eligibility
+ * (read-only — never mutates; actual consumption only ever happens inside
+ * createBooking, so there's exactly one place that can spend a credit), and
+ * only creates a real PayPal order when the user genuinely owes money.
+ */
+const createAppointmentPaypalOrder = async ({
+  userId,
+  doctorId,
+  scheduledAt,
+  platform = "zealtho",
+  viewerTimezone = null,
+  returnUrl,
+  cancelUrl,
+}) => {
+  const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
+  if (validated.error) return validated;
+  const { doctor } = validated;
+
+  // 🎁 Free consult card or cancel credit available? Don't charge — tell the
+  // frontend to use the existing free-booking endpoint instead, which is the
+  // only place that actually consumes a card/credit (avoids double-spend).
+  const nowForCard = new Date();
+  const [hasCard, freshUser] = await Promise.all([
+    FreeConsultCard.exists({
+      user: userId,
+      programId: platform,
+      status: "available",
+      validFrom: { $lte: nowForCard },
+      validUntil: { $gt: nowForCard },
+    }),
+    User.findById(userId).select("freeAppointmentCredits"),
+  ]);
+  if (hasCard || freshUser?.freeAppointmentCredits > 0) {
+    return { freeBooking: true };
+  }
+
+  try {
+    const { orderId, approveUrl } = await paypal.createOrder({
+      amount: BOOKING_FEE,
+      currency: BOOKING_CURRENCY,
+      description: `Consultation with ${doctor.fullName}`,
+      referenceId: `appt_${userId}_${Date.now()}`,
+      returnUrl,
+      cancelUrl,
+    });
+    return { orderId, approveUrl };
+  } catch (err) {
+    console.error("[PAYPAL CREATE ORDER ERROR]:", err.message);
+    return { error: { status: 502, message: "Could not start PayPal checkout. Please try again." } };
+  }
+};
+
+// ============================================
+// 🅿️ PAYPAL — CAPTURE ORDER (booking)
+// ============================================
+/**
+ * Called when the buyer lands back on our site after approving on PayPal.
+ * Captures the payment, re-validates the slot (time has passed since
+ * create-order — the buyer may have taken a while on PayPal's page), and
+ * only then creates the Appointment. If the slot died in the meantime, the
+ * payment is refunded immediately and nothing is created — same invariant
+ * as the existing mock-charge path (no appointment without a kept payment).
+ */
+const captureAppointmentPaypalOrder = async ({
+  orderId,
+  userId,
+  doctorId,
+  scheduledAt,
+  notes = "",
+  platform = "zealtho",
+  viewerTimezone = null,
+}) => {
+  const captureResult = await paypal.captureOrder(orderId);
+  if (!captureResult.success) {
+    return { error: { status: 402, message: captureResult.message || "Payment could not be completed" } };
+  }
+
+  const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
+  if (validated.error) {
+    // 💸 Slot died while the buyer was on PayPal's page — refund immediately.
+    const refundResult = await paypal.refundCapture(captureResult.captureId, {
+      reason: "Slot taken during payment",
+    });
+    if (!refundResult.success) {
+      // Refund genuinely failed (not just "slot taken") — surface a distinct
+      // message so support can find + manually refund this exact capture.
+      console.error(
+        `[PAYPAL REFUND FAILED] captureId=${captureResult.captureId} userId=${userId} — needs manual refund`
+      );
+      return {
+        error: {
+          status: 409,
+          message:
+            "This slot was just taken and your automatic refund failed. Our team has been notified — contact support with this reference: " +
+            captureResult.captureId,
+        },
+      };
+    }
+    return validated;
+  }
+  const { user, doctor, doctorTimezone, slotStart } = validated;
+
+  const paymentResult = {
+    success: true,
+    transactionId: captureResult.captureId,
+    amount: BOOKING_FEE,
+    currency: BOOKING_CURRENCY,
+    method: "paypal",
+  };
+
+  const { currency: displayCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(user);
+
+  const appointment = await Appointment.create({
+    user: userId,
+    doctor: doctorId,
+    patientName: user.fullName || user.nickName || "Patient",
+    doctorName: doctor.fullName,
+    platform,
+    scheduledAt: slotStart,
+    durationMinutes: SLOT_DURATION_MINUTES,
+    fee: BOOKING_FEE,
+    currency: displayCurrency,
+    fxRateAtPurchase,
+    paymentStatus: "paid",
+    paymentProvider: "paypal",
+    transactionId: captureResult.captureId,
+    status: "confirmed",
+    notes,
+  });
+
+  try {
+    await Notification.create({
+      userId,
+      type: "appointment_confirmed",
+      title: "Appointment Confirmed",
+      body: `Your consultation with ${doctor.fullName} has been confirmed for ${formatInZone(slotStart, user.timezone || DEFAULT_TIMEZONE)}. Please join on time.`,
+      metadata: { appointmentId: appointment._id, doctorId },
+    });
+  } catch (err) {
+    console.log("CUSTOMER NOTIFICATION ERROR:", err);
+  }
+  try {
+    await Notification.create({
+      userId: doctorId,
+      userType: "doctor",
       type: "appointment_confirmed",
       title: "New Appointment Booked",
       body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${formatInZone(slotStart, doctorTimezone)}.`,
@@ -842,6 +1019,8 @@ const updateMyNotes = async (userId, appointmentId, notes) => {
 
 module.exports = {
   createBooking,
+  createAppointmentPaypalOrder,
+  captureAppointmentPaypalOrder,
   listMyAppointments,
   getMyAppointmentById,
   cancelByUser,

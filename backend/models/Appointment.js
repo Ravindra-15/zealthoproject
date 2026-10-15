@@ -118,6 +118,18 @@ const appointmentSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Gateway that processed this booking's payment ("mock"/"paypal"/etc) and
+    // the gateway's own transaction/capture id, kept for refunds/reconciliation.
+    // Both optional — older appointments predate this and simply have neither.
+    paymentProvider: {
+      type: String,
+      default: "mock",
+    },
+    transactionId: {
+      type: String,
+      default: null,
+    },
+
     // ============================================
     // 🔄 STATUS
     // ============================================

@@ -2,6 +2,8 @@ const express = require("express");
 
 const {
   subscribeToProgram,
+  createProgramPaypalOrder,
+  captureProgramPaypalOrder,
   getMySubscriptions,
   getProgramStatus,
   cancelSubscription,
@@ -30,6 +32,12 @@ router.post(
   "/subscribe",
   subscribeToProgram
 );
+
+// ============================================
+// 🅿️ PAYPAL — start / finish checkout
+// ============================================
+router.post("/paypal/create-order", createProgramPaypalOrder);
+router.post("/paypal/capture-order", captureProgramPaypalOrder);
 
 // ============================================
 // 📋 GET MY SUBSCRIPTIONS
