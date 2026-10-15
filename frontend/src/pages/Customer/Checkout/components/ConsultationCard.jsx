@@ -14,10 +14,13 @@ import {
 const ConsultationCard = ({
   doctor,            // { fullName, domain, photo, updatedAt }
   scheduledAt,       // ISO string
-  fee,               // number
+  fee,               // number (USD)
+  feeLabel,          // optional: fee already converted to the customer's currency, e.g. "₹1,680.00"
   showTotals = true, // checkout shows "Consultation Fee" + "Total"; confirmation can hide
 }) => {
   const photoUrl = doctor ? buildDoctorPhotoUrl(doctor.photo, doctor.updatedAt) : null;
+  // 💱 customer's currency when the page passes feeLabel, plain USD otherwise
+  const displayFee = feeLabel || (typeof fee === "number" ? `$${fee.toFixed(2)}` : "");
 
   return (
     <div
@@ -91,11 +94,11 @@ const ConsultationCard = ({
     <div className="mt-5 pt-4 border-t border-gray-100 space-y-2">
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-600">Consultation Fee</span>
-        <span className="font-semibold text-gray-900">${fee.toFixed(2)}</span>
+        <span className="font-semibold text-gray-900">{displayFee}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-700 font-semibold">Total</span>
-        <span className="font-bold text-orange-600 text-base">${fee}</span>
+        <span className="font-bold text-orange-600 text-base">{displayFee}</span>
       </div>
     </div>
   )}

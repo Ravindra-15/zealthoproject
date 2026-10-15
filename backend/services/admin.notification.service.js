@@ -1,30 +1,40 @@
 /**
  * ADMIN MODULE — Admin Notification Service
- * Broadcast notifications visible to every admin (super admin + staff
- * admin alike) — e.g. "Dr. X flagged for excessive cancellations".
- * See models/AdminNotification.js for why this is a separate, broadcast-
- * style model rather than reusing the per-user Notification model.
+ * Broadcast notifications visible to admins — e.g. "Dr. X flagged for
+ * excessive cancellations". See models/AdminNotification.js for why this is
+ * a separate, broadcast-style model rather than reusing the per-user
+ * Notification model.
+ *
+ * Each notification has an `audience` ("all" / "super_admin" /
+ * "staff_admin"); an admin only ever sees "all" + their own role's copies.
+ * Notifications created before `audience` existed have no field → "all".
  */
 
 const AdminNotification = require("../models/AdminNotification");
 
+// Mongo `$in: [null]` also matches documents where the field is missing.
+const audienceFilter = (role) => ({
+  audience: { $in: [null, "all", role === "super_admin" ? "super_admin" : "staff_admin"] },
+});
+
 // ============================================
-// 📢 CREATE (broadcast to all admins)
+// 📢 CREATE (broadcast)
 // ============================================
-const notifyAllAdmins = async ({ type, title, body, metadata = {} }) => {
-  return AdminNotification.create({ type, title, body, metadata });
+const notifyAllAdmins = async ({ type, title, body, metadata = {}, audience = "all" }) => {
+  return AdminNotification.create({ type, title, body, metadata, audience });
 };
 
 // ============================================
 // 📋 LIST (for one admin, with computed isRead)
 // ============================================
-const listForAdmin = async (adminId, { page = 1, limit = 20 } = {}) => {
+const listForAdmin = async (adminId, { page = 1, limit = 20, role } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+  const filter = audienceFilter(role);
 
   const [total, docs] = await Promise.all([
-    AdminNotification.countDocuments({}),
-    AdminNotification.find({})
+    AdminNotification.countDocuments(filter),
+    AdminNotification.find(filter)
       .sort({ createdAt: -1 })
       .skip((safePage - 1) * safeLimit)
       .limit(safeLimit)
@@ -56,8 +66,9 @@ const listForAdmin = async (adminId, { page = 1, limit = 20 } = {}) => {
 // ============================================
 // 🔢 UNREAD COUNT (for the bell badge)
 // ============================================
-const getUnreadCount = async (adminId) => {
+const getUnreadCount = async (adminId, role) => {
   return AdminNotification.countDocuments({
+    ...audienceFilter(role),
     "readBy.admin": { $ne: adminId },
   });
 };
@@ -73,11 +84,11 @@ const markRead = async (notificationId, adminId) => {
 };
 
 // ============================================
-// ✅ MARK ALL READ
+// ✅ MARK ALL READ (only the ones this admin can see)
 // ============================================
-const markAllRead = async (adminId) => {
+const markAllRead = async (adminId, role) => {
   return AdminNotification.updateMany(
-    { "readBy.admin": { $ne: adminId } },
+    { ...audienceFilter(role), "readBy.admin": { $ne: adminId } },
     { $push: { readBy: { admin: adminId, readAt: new Date() } } }
   );
 };

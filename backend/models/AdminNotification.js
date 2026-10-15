@@ -13,8 +13,26 @@ const adminNotificationSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["doctor_flagged", "doctor_feedback", "free_trial_request"],
+      enum: [
+        "doctor_flagged",
+        "doctor_feedback",
+        "free_trial_request",
+        "payment_received",
+        "payment_failed",
+        "payment_refunded",
+        "payment_action_required",
+      ],
       required: true,
+    },
+
+    // Who sees it. Missing/"all" = every admin (all older notifications).
+    // Payment events are sent as a "super_admin" copy (with amounts) and a
+    // "staff_admin" copy (without), since staff admins never see financials.
+    audience: {
+      type: String,
+      enum: ["all", "super_admin", "staff_admin"],
+      default: "all",
+      index: true,
     },
 
     title: {

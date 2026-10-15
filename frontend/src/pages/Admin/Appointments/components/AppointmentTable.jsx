@@ -52,14 +52,13 @@ const StatusPill = ({ status }) => {
 };
 
 // ============================================
-// 💰 Format currency
+// 💰 Format fee — always USD. `apt.fee` is stored in USD (what PayPal
+// charges); `apt.currency` is only the customer's DISPLAY currency, so
+// pairing the two would show a $20 booking as "₹20".
 // ============================================
-const formatFee = (fee, currency = "USD") => {
+const formatFee = (fee) => {
   if (fee === null || fee === undefined) return "—";
-  const symbols = { USD: "$", INR: "₹", EUR: "€", GBP: "£" };
-  const sym = symbols[currency] || "$";
-  // Match Figma "20$" style for USD; otherwise "₹20"
-  return currency === "USD" ? `${fee}${sym}` : `${sym}${fee}`;
+  return `${fee}$`; // Figma "20$" style
 };
 
 // ============================================
@@ -174,7 +173,7 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                       </span>
                     ) : (
                       <span className="text-sm font-semibold text-indigo-600">
-                        {formatFee(apt.fee, apt.currency)}
+                        {formatFee(apt.fee)}
                       </span>
                     )}
                   </td>
@@ -214,7 +213,7 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                   </span>
                 ) : (
                   <span className="font-semibold text-indigo-600">
-                    {formatFee(apt.fee, apt.currency)}
+                    {formatFee(apt.fee)}
                   </span>
                 ))}
             </div>

@@ -7,6 +7,9 @@
 
 import React from "react";
 import { Search, Calendar, Sparkles } from "lucide-react";
+import { useCurrency } from "../../../../hooks/useCurrency";
+
+const BOOKING_FEE = 20; // USD — same fee as Checkout.jsx
 
 // ============================================
 // 📋 3 STEPS
@@ -27,12 +30,15 @@ const STEPS = [
   {
     icon: Sparkles,
     title: "Secure Your Booking",
-    description:
-      "Complete your booking with a $20 consultation fee. Get instant confirmation by email.",
+    // fee is filled in at render time, in the customer's own currency
+    description: (fee) =>
+      `Complete your booking with a ${fee} consultation fee. Get instant confirmation by email.`,
   },
 ];
 
 const HowToBook = () => {
+  const { convert } = useCurrency();
+
   return (
     <section className="py-10 sm:py-14">
       {/* 🏷️ Heading */}
@@ -94,7 +100,9 @@ const HowToBook = () => {
 
               {/* Description */}
               <p className="text-xs sm:text-sm text-gray-600 mt-1.5 max-w-[260px] mx-auto leading-relaxed">
-                {description}
+                {typeof description === "function"
+                  ? description(convert(BOOKING_FEE))
+                  : description}
               </p>
             </div>
           ))}

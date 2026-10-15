@@ -9,6 +9,7 @@ import ProgressBar from "../../components/common/ProgressBar";
 import LocationSelect from "../../components/common/LocationSelect";
 import { loadCountries, loadStates, loadCities } from "../../data/location";
 import { profileStepTwo } from "../../services/authService";
+import { clearMyCurrencyCache } from "../../services/currencyService";
 import { validateProfileStep2 } from "../../utils/validators";
 import toast from "react-hot-toast";
 
@@ -140,6 +141,7 @@ const ProfileStepTwo = () => {
     try {
       setLoading(true);
       await profileStepTwo(payload);
+      clearMyCurrencyCache(); // country just set — re-resolve the display currency
 
       const storedUser =
         JSON.parse(localStorage.getItem("user")) ||

@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { X, LogOut } from "lucide-react";
 import { updateMyProfile } from "../../../../services/customerProfileService";
+import { clearMyCurrencyCache } from "../../../../services/currencyService";
 import { useAuth } from "../../../../context/AuthContext";
 import {
   validateProfileStep1,
@@ -248,6 +249,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
     setSaving(true);
     try {
       const updated = await updateMyProfile(payload);
+      clearMyCurrencyCache(); // country may have changed — re-resolve the display currency
       toast.success("Profile updated successfully");
       onUpdated?.(updated);
     } catch (err) {

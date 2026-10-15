@@ -9,7 +9,11 @@ const notificationService = require("../services/admin.notification.service");
 const listNotifications = async (req, res) => {
   try {
     const { page, limit } = req.query;
-    const result = await notificationService.listForAdmin(req.admin._id, { page, limit });
+    const result = await notificationService.listForAdmin(req.admin._id, {
+      page,
+      limit,
+      role: req.admin.role,
+    });
     return res.status(200).json({ success: true, data: result });
   } catch (err) {
     console.error("[ADMIN NOTIFICATION LIST ERROR]:", err);
@@ -19,7 +23,7 @@ const listNotifications = async (req, res) => {
 
 const getUnreadCount = async (req, res) => {
   try {
-    const count = await notificationService.getUnreadCount(req.admin._id);
+    const count = await notificationService.getUnreadCount(req.admin._id, req.admin.role);
     return res.status(200).json({ success: true, data: { count } });
   } catch (err) {
     console.error("[ADMIN NOTIFICATION UNREAD COUNT ERROR]:", err);
@@ -39,7 +43,7 @@ const markRead = async (req, res) => {
 
 const markAllRead = async (req, res) => {
   try {
-    await notificationService.markAllRead(req.admin._id);
+    await notificationService.markAllRead(req.admin._id, req.admin.role);
     return res.status(200).json({ success: true, message: "All marked as read" });
   } catch (err) {
     console.error("[ADMIN NOTIFICATION MARK ALL READ ERROR]:", err);

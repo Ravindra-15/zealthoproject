@@ -123,30 +123,56 @@ const createOrder = async ({ amount, currency, description, referenceId, returnU
 // ============================================
 /**
  * @param {string} orderId
- * @returns {Promise<{success: boolean, captureId?: string, amount?: string, currency?: string, status?: string, message?: string}>}
+ * @returns {Promise<{success: boolean, retryable?: boolean, captureId?: string,
+ *   amount?: string, currency?: string, status?: string, message?: string}>}
+ *
+ * `retryable: true` means we genuinely don't know whether money moved (network
+ * failure, PayPal 5xx) — never treat that as a definitive failure. Retrying is
+ * always safe: an already-captured order is detected and returned as success.
  */
 const captureOrder = async (orderId) => {
-  const token = await getAccessToken();
-
-  const res = await fetch(`${BASE_URL}/v2/checkout/orders/${orderId}/capture`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  const data = await res.json();
+  let res;
+  let data;
+  try {
+    const token = await getAccessToken();
+    res = await fetch(`${BASE_URL}/v2/checkout/orders/${orderId}/capture`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    data = await res.json();
+  } catch (err) {
+    console.error("[PAYPAL CAPTURE NETWORK ERROR]:", err.message);
+    return { success: false, retryable: true, message: "Could not reach PayPal" };
+  }
 
   // 🔁 Already captured (e.g. user refreshed the return page) — treat as success,
   // fetch the existing capture instead of erroring.
   if (res.status === 422 && data?.details?.[0]?.issue === "ORDER_ALREADY_CAPTURED") {
-    return getOrderCapture(orderId);
+    const order = await getOrder(orderId);
+    if (order.status === "COMPLETED" && order.captureId) {
+      return { success: true, captureId: order.captureId, amount: order.amount, currency: order.currency, status: "COMPLETED" };
+    }
+    return { success: false, retryable: true, message: "Could not confirm the existing capture" };
+  }
+
+  if (res.status >= 500) {
+    console.error("[PAYPAL CAPTURE 5XX]:", JSON.stringify(data));
+    return { success: false, retryable: true, message: "PayPal is temporarily unavailable" };
   }
 
   if (!res.ok || data.status !== "COMPLETED") {
     console.error("[PAYPAL CAPTURE ERROR]:", JSON.stringify(data));
-    return { success: false, message: data?.message || "Payment could not be captured" };
+    const issue = data?.details?.[0]?.issue;
+    const friendly =
+      issue === "INSTRUMENT_DECLINED"
+        ? "Your payment method was declined by PayPal."
+        : issue === "ORDER_NOT_APPROVED"
+        ? "The payment wasn't approved on PayPal."
+        : data?.message || "Payment could not be captured";
+    return { success: false, message: friendly, issue };
   }
 
   const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
@@ -160,27 +186,33 @@ const captureOrder = async (orderId) => {
 };
 
 // ============================================
-// 🔍 GET ORDER (used to recover an already-captured order's details)
+// 🔍 GET ORDER — current status at PayPal (used for recovery/reconciliation)
 // ============================================
-const getOrderCapture = async (orderId) => {
-  const token = await getAccessToken();
-  const res = await fetch(`${BASE_URL}/v2/checkout/orders/${orderId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json();
+/**
+ * @returns {Promise<{ok: boolean, status?: string, captureId?: string, amount?: string, currency?: string}>}
+ *   status: CREATED | SAVED | APPROVED | VOIDED | COMPLETED | PAYER_ACTION_REQUIRED
+ */
+const getOrder = async (orderId) => {
+  try {
+    const token = await getAccessToken();
+    const res = await fetch(`${BASE_URL}/v2/checkout/orders/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, notFound: res.status === 404 };
 
-  if (!res.ok || data.status !== "COMPLETED") {
-    return { success: false, message: "Order not completed" };
+    const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
+    return {
+      ok: true,
+      status: data.status,
+      captureId: capture?.id || null,
+      amount: capture?.amount?.value,
+      currency: capture?.amount?.currency_code,
+    };
+  } catch (err) {
+    console.error("[PAYPAL GET ORDER ERROR]:", err.message);
+    return { ok: false };
   }
-
-  const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
-  return {
-    success: true,
-    captureId: capture?.id,
-    amount: capture?.amount?.value,
-    currency: capture?.amount?.currency_code,
-    status: capture?.status,
-  };
 };
 
 // ============================================
@@ -193,30 +225,40 @@ const getOrderCapture = async (orderId) => {
  * @returns {Promise<{success: boolean, refundId?: string, message?: string}>}
  */
 const refundCapture = async (captureId, { reason } = {}) => {
-  const token = await getAccessToken();
+  if (!captureId) return { success: false, message: "No capture to refund" };
 
-  const res = await fetch(`${BASE_URL}/v2/payments/captures/${captureId}/refund`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(reason ? { note_to_payer: reason.slice(0, 255) } : {}),
-  });
+  try {
+    const token = await getAccessToken();
 
-  const data = await res.json();
+    const res = await fetch(`${BASE_URL}/v2/payments/captures/${captureId}/refund`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        // Same id on retry → PayPal won't refund twice
+        "PayPal-Request-Id": `refund-${captureId}`,
+      },
+      body: JSON.stringify(reason ? { note_to_payer: reason.slice(0, 255) } : {}),
+    });
 
-  if (!res.ok || !["COMPLETED", "PENDING"].includes(data.status)) {
-    console.error("[PAYPAL REFUND ERROR]:", JSON.stringify(data));
-    return { success: false, message: data?.message || "Refund failed" };
+    const data = await res.json();
+
+    if (!res.ok || !["COMPLETED", "PENDING"].includes(data.status)) {
+      console.error("[PAYPAL REFUND ERROR]:", JSON.stringify(data));
+      return { success: false, message: data?.message || "Refund failed" };
+    }
+
+    return { success: true, refundId: data.id };
+  } catch (err) {
+    console.error("[PAYPAL REFUND NETWORK ERROR]:", err.message);
+    return { success: false, message: "Could not reach PayPal to refund" };
   }
-
-  return { success: true, refundId: data.id };
 };
 
 module.exports = {
   PAYPAL_MODE,
   createOrder,
   captureOrder,
+  getOrder,
   refundCapture,
 };

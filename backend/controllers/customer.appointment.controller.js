@@ -63,6 +63,7 @@ const createBooking = async (req, res) => {
       return res.status(result.error.status).json({
         success: false,
         message: result.error.message,
+        code: result.error.code,
       });
     }
 
@@ -98,6 +99,7 @@ const createPaypalOrder = async (req, res) => {
       userId: req.user.id,
       doctorId: req.body.doctorId,
       scheduledAt: req.body.scheduledAt,
+      notes: req.body.notes,
       platform: req.body.platform || "zealtho",
       viewerTimezone: req.body.timezone,
       returnUrl: req.body.returnUrl,
@@ -105,7 +107,11 @@ const createPaypalOrder = async (req, res) => {
     });
 
     if (result.error) {
-      return res.status(result.error.status).json({ success: false, message: result.error.message });
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+        code: result.error.code,
+      });
     }
 
     if (result.freeBooking) {
@@ -126,21 +132,20 @@ const createPaypalOrder = async (req, res) => {
 // 🅿️ PAYPAL — CAPTURE ORDER
 // ============================================
 // POST /api/customer/appointments/paypal/capture-order
-// Body: { orderId, doctorId, scheduledAt, notes?, platform?, timezone? }
+// Body: { orderId } — booking details come from the server-side ledger
 const capturePaypalOrder = async (req, res) => {
   try {
     const result = await customerAppointmentService.captureAppointmentPaypalOrder({
       orderId: req.body.orderId,
       userId: req.user.id,
-      doctorId: req.body.doctorId,
-      scheduledAt: req.body.scheduledAt,
-      notes: req.body.notes,
-      platform: req.body.platform || "zealtho",
-      viewerTimezone: req.body.timezone,
     });
 
     if (result.error) {
-      return res.status(result.error.status).json({ success: false, message: result.error.message });
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+        code: result.error.code,
+      });
     }
 
     return res.status(201).json({
@@ -156,8 +161,14 @@ const capturePaypalOrder = async (req, res) => {
       },
     });
   } catch (err) {
+    // Unexpected (e.g. DB hiccup) — payment state is preserved in the ledger,
+    // so retrying is safe; the background job also finishes it if they don't.
     console.error("[PAYPAL CAPTURE ORDER ERROR]:", err);
-    return res.status(500).json({ success: false, message: "Failed to complete booking" });
+    return res.status(500).json({
+      success: false,
+      code: "PAYMENT_RETRYABLE",
+      message: "We couldn't confirm your booking just yet. Please retry in a moment — you won't be charged twice.",
+    });
   }
 };
 

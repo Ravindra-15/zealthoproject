@@ -28,6 +28,13 @@ const {
 } = require("../utils/timezone");
 const paymentService = require("./payment.service");
 const paypal = require("../utils/paypal.util");
+const PaymentTransaction = require("../models/PaymentTransaction");
+const {
+  completeCheckout,
+  refundTransaction,
+  markCompleted,
+  isDuplicateKeyError,
+} = require("./paypalPayment.service");
 const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
@@ -299,16 +306,26 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     });
 
     if (!paymentResult.success) {
-      try {
-        await Notification.create({
-          userId,
-          type: "payment_failed",
-          title: "Payment Failed",
-          body: `Your payment for the $${BOOKING_FEE} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
-          metadata: { doctorId },
-        });
-      } catch (err) { }
-      return { error: { status: 402, message: paymentResult.message || "Payment failed" } };
+      // In PayPal mode this path only means "use PayPal checkout" — no real
+      // charge was attempted, so don't tell the user a payment failed.
+      if (paymentService.PAYMENT_MODE !== "paypal") {
+        try {
+          await Notification.create({
+            userId,
+            type: "payment_failed",
+            title: "Payment Failed",
+            body: `Your payment for the $${BOOKING_FEE} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
+            metadata: { doctorId },
+          });
+        } catch (err) { }
+      }
+      return {
+        error: {
+          status: 402,
+          code: paymentService.PAYMENT_MODE === "paypal" ? "PAYPAL_REQUIRED" : undefined,
+          message: paymentResult.message || "Payment failed",
+        },
+      };
     }
   }
 
@@ -427,6 +444,7 @@ const createAppointmentPaypalOrder = async ({
   userId,
   doctorId,
   scheduledAt,
+  notes = "",
   platform = "zealtho",
   viewerTimezone = null,
   returnUrl,
@@ -434,7 +452,7 @@ const createAppointmentPaypalOrder = async ({
 }) => {
   const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
   if (validated.error) return validated;
-  const { doctor } = validated;
+  const { user, doctor, slotStart } = validated;
 
   // 🎁 Free consult card or cancel credit available? Don't charge — tell the
   // frontend to use the existing free-booking endpoint instead, which is the
@@ -454,98 +472,126 @@ const createAppointmentPaypalOrder = async ({
     return { freeBooking: true };
   }
 
+  const description = `Consultation with ${doctor.fullName}`;
+
+  let order;
   try {
-    const { orderId, approveUrl } = await paypal.createOrder({
+    order = await paypal.createOrder({
       amount: BOOKING_FEE,
       currency: BOOKING_CURRENCY,
-      description: `Consultation with ${doctor.fullName}`,
+      description,
       referenceId: `appt_${userId}_${Date.now()}`,
       returnUrl,
       cancelUrl,
     });
-    return { orderId, approveUrl };
   } catch (err) {
     console.error("[PAYPAL CREATE ORDER ERROR]:", err.message);
-    return { error: { status: 502, message: "Could not start PayPal checkout. Please try again." } };
+    return {
+      error: {
+        status: 502,
+        code: "PAYPAL_UNREACHABLE",
+        message: "We couldn't connect to PayPal. Please check your connection and try again — you haven't been charged.",
+      },
+    };
   }
+
+  // 🧾 Ledger entry — the booking intent lives server-side from here on, so
+  // finishing the payment never depends on the browser still having it.
+  await PaymentTransaction.create({
+    purpose: "appointment",
+    orderId: order.orderId,
+    customer: userId,
+    buyerName: user.fullName || user.nickName || "A customer",
+    platform,
+    amount: BOOKING_FEE,
+    currency: BOOKING_CURRENCY,
+    description,
+    context: {
+      doctorId: String(doctorId),
+      doctorName: doctor.fullName,
+      scheduledAt: slotStart.toISOString(),
+      notes: typeof notes === "string" ? notes.trim() : "",
+      viewerTimezone,
+    },
+  });
+
+  return { orderId: order.orderId, approveUrl: order.approveUrl };
 };
 
 // ============================================
 // 🅿️ PAYPAL — CAPTURE ORDER (booking)
 // ============================================
+// Why a paid booking couldn't be created — phrased for the patient's refund message
+const friendlyBookingReason = (error) => {
+  if (error.code === "USER_TIME_CONFLICT") return "You already have another appointment at this time";
+  if (/past/i.test(error.message || "")) return "The appointment time has already passed";
+  if (error.status === 409) return "This time slot was booked by someone else while you were paying";
+  if (error.status === 404) return "This doctor is no longer available for bookings";
+  if (error.status === 403) return "Your account is currently inactive";
+  return "This appointment could no longer be booked";
+};
+
 /**
- * Called when the buyer lands back on our site after approving on PayPal.
- * Captures the payment, re-validates the slot (time has passed since
- * create-order — the buyer may have taken a while on PayPal's page), and
- * only then creates the Appointment. If the slot died in the meantime, the
- * payment is refunded immediately and nothing is created — same invariant
- * as the existing mock-charge path (no appointment without a kept payment).
+ * Creates the Appointment for a CAPTURED PayPal transaction, using the
+ * booking intent stored on the transaction at create-order time.
+ * Idempotent: if an appointment already exists for this capture (refresh,
+ * double tab, background recovery), it's returned instead of duplicated.
+ * If the slot is no longer bookable (taken while the buyer was on PayPal,
+ * or already in the past), the payment is refunded and nothing is created.
  */
-const captureAppointmentPaypalOrder = async ({
-  orderId,
-  userId,
-  doctorId,
-  scheduledAt,
-  notes = "",
-  platform = "zealtho",
-  viewerTimezone = null,
-}) => {
-  const captureResult = await paypal.captureOrder(orderId);
-  if (!captureResult.success) {
-    return { error: { status: 402, message: captureResult.message || "Payment could not be completed" } };
+const finalizeAppointmentTx = async (tx) => {
+  // ♻️ Already created for this capture? Just settle the ledger.
+  const existing = await Appointment.findOne({ paymentProvider: "paypal", transactionId: tx.captureId });
+  if (existing) {
+    if (tx.status !== "completed") await markCompleted(tx, { appointmentId: existing._id, notify: false });
+    return { tx, record: existing };
   }
+
+  const { doctorId, scheduledAt, notes = "", viewerTimezone = null } = tx.context || {};
+  const userId = tx.customer;
 
   const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
   if (validated.error) {
-    // 💸 Slot died while the buyer was on PayPal's page — refund immediately.
-    const refundResult = await paypal.refundCapture(captureResult.captureId, {
-      reason: "Slot taken during payment",
-    });
-    if (!refundResult.success) {
-      // Refund genuinely failed (not just "slot taken") — surface a distinct
-      // message so support can find + manually refund this exact capture.
-      console.error(
-        `[PAYPAL REFUND FAILED] captureId=${captureResult.captureId} userId=${userId} — needs manual refund`
-      );
-      return {
-        error: {
-          status: 409,
-          message:
-            "This slot was just taken and your automatic refund failed. Our team has been notified — contact support with this reference: " +
-            captureResult.captureId,
-        },
-      };
-    }
-    return validated;
+    return refundTransaction(tx, friendlyBookingReason(validated.error));
   }
   const { user, doctor, doctorTimezone, slotStart } = validated;
 
-  const paymentResult = {
-    success: true,
-    transactionId: captureResult.captureId,
-    amount: BOOKING_FEE,
-    currency: BOOKING_CURRENCY,
-    method: "paypal",
-  };
-
   const { currency: displayCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(user);
 
-  const appointment = await Appointment.create({
-    user: userId,
-    doctor: doctorId,
-    patientName: user.fullName || user.nickName || "Patient",
-    doctorName: doctor.fullName,
-    platform,
-    scheduledAt: slotStart,
-    durationMinutes: SLOT_DURATION_MINUTES,
-    fee: BOOKING_FEE,
-    currency: displayCurrency,
-    fxRateAtPurchase,
-    paymentStatus: "paid",
-    paymentProvider: "paypal",
-    transactionId: captureResult.captureId,
-    status: "confirmed",
-    notes,
+  let appointment;
+  try {
+    appointment = await Appointment.create({
+      user: userId,
+      doctor: doctorId,
+      patientName: user.fullName || user.nickName || "Patient",
+      doctorName: doctor.fullName,
+      platform: tx.platform,
+      scheduledAt: slotStart,
+      durationMinutes: SLOT_DURATION_MINUTES,
+      fee: BOOKING_FEE,
+      currency: displayCurrency,
+      fxRateAtPurchase,
+      paymentStatus: "paid",
+      paymentProvider: "paypal",
+      transactionId: tx.captureId,
+      status: "confirmed",
+      notes,
+    });
+  } catch (err) {
+    if (isDuplicateKeyError(err)) {
+      // Another request created it a split-second earlier — reuse it.
+      const winner = await Appointment.findOne({ paymentProvider: "paypal", transactionId: tx.captureId });
+      if (winner) {
+        if (tx.status !== "completed") await markCompleted(tx, { appointmentId: winner._id, notify: false });
+        return { tx, record: winner };
+      }
+    }
+    throw err; // leaves tx "captured" — safe to retry / recovered by the background job
+  }
+
+  await markCompleted(tx, {
+    appointmentId: appointment._id,
+    detail: `Your consultation with ${doctor.fullName} is confirmed.`,
   });
 
   try {
@@ -572,7 +618,35 @@ const captureAppointmentPaypalOrder = async ({
     console.log("DOCTOR NOTIFICATION ERROR:", err);
   }
 
-  return { appointment, paymentResult };
+  return { tx, record: appointment };
+};
+
+/**
+ * Called when the buyer lands back on our site after approving on PayPal.
+ * Only needs the orderId — everything else comes from the server-side
+ * ledger entry. Safe to call repeatedly for the same order.
+ */
+const captureAppointmentPaypalOrder = async ({ orderId, userId }) => {
+  const result = await completeCheckout({
+    orderId,
+    userId,
+    purpose: "appointment",
+    finalize: finalizeAppointmentTx,
+  });
+  if (result.error) return result;
+
+  const tx = result.tx;
+  const appointment = result.record || (await Appointment.findById(tx.appointment));
+  return {
+    appointment,
+    paymentResult: {
+      success: true,
+      transactionId: tx.captureId,
+      amount: tx.amount,
+      currency: tx.currency,
+      method: "paypal",
+    },
+  };
 };
 
 // ============================================
@@ -1021,6 +1095,7 @@ module.exports = {
   createBooking,
   createAppointmentPaypalOrder,
   captureAppointmentPaypalOrder,
+  finalizeAppointmentTx,
   listMyAppointments,
   getMyAppointmentById,
   cancelByUser,

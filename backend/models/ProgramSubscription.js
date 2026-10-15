@@ -216,6 +216,14 @@ programSubscriptionSchema.index({
   endDate: 1,
 });
 
+// One subscription per PayPal capture — DB-level guard against duplicate
+// plans from a refreshed/double-submitted payment. Scoped to PayPal rows
+// only, so older (manual) subscriptions are never affected.
+programSubscriptionSchema.index(
+  { transactionId: 1 },
+  { unique: true, partialFilterExpression: { paymentProvider: "paypal" } }
+);
+
 module.exports = mongoose.model(
   "ProgramSubscription",
   programSubscriptionSchema

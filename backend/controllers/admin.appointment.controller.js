@@ -65,7 +65,8 @@ const exportAppointmentsCsv = async (req, res) => {
       "Scheduled At",
       "Duration (mins)",
       "Status",
-      ...(superAdmin ? ["Fee", "Currency", "Payment Status"] : []),
+      // fee is always stored in USD; currency is the customer's display currency
+      ...(superAdmin ? ["Fee (USD)", "Customer Currency", "Payment Status"] : []),
     ];
 
     const rows = appointments.map((apt) => [

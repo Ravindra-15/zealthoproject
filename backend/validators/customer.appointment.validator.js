@@ -97,10 +97,18 @@ const validateCreateBooking = (req, res, next) => {
 // ============================================
 // 🅿️ PAYPAL — CREATE ORDER
 // ============================================
-// Body: { doctorId, scheduledAt, platform?, timezone?, returnUrl, cancelUrl }
+// Body: { doctorId, scheduledAt, notes?, platform?, timezone?, returnUrl, cancelUrl }
 const validatePaypalCreateOrder = (req, res, next) => {
-  const { doctorId, scheduledAt, platform, timezone, returnUrl, cancelUrl } = req.body;
+  const { doctorId, scheduledAt, notes, platform, timezone, returnUrl, cancelUrl } = req.body;
   const errors = [];
+
+  if (notes !== undefined && notes !== null) {
+    if (typeof notes !== "string") {
+      errors.push("notes must be a string");
+    } else if (notes.length > 1000) {
+      errors.push("notes too long (max 1000 chars)");
+    }
+  }
 
   if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
     errors.push("Valid doctorId is required");
@@ -137,6 +145,7 @@ const validatePaypalCreateOrder = (req, res, next) => {
   req.body = {
     doctorId,
     scheduledAt: new Date(scheduledAt),
+    notes: typeof notes === "string" ? notes.trim() : "",
     platform: typeof platform === "string" ? platform.trim().toLowerCase() : "zealtho",
     timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
     returnUrl,
@@ -149,46 +158,16 @@ const validatePaypalCreateOrder = (req, res, next) => {
 // ============================================
 // 🅿️ PAYPAL — CAPTURE ORDER
 // ============================================
-// Body: { orderId, doctorId, scheduledAt, notes?, platform?, timezone? }
+// Body: { orderId } — booking details come from the server-side ledger,
+// never from the client at this step.
 const validatePaypalCaptureOrder = (req, res, next) => {
-  const { orderId, doctorId, scheduledAt, notes, platform, timezone } = req.body;
-  const errors = [];
+  const { orderId } = req.body;
 
-  if (!orderId || typeof orderId !== "string") {
-    errors.push("Valid orderId is required");
+  if (!orderId || typeof orderId !== "string" || !/^[A-Za-z0-9-]{5,64}$/.test(orderId)) {
+    return res.status(400).json({ success: false, message: "Valid orderId is required" });
   }
 
-  if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
-    errors.push("Valid doctorId is required");
-  }
-
-  if (!scheduledAt) {
-    errors.push("scheduledAt is required");
-  } else if (isNaN(new Date(scheduledAt).getTime())) {
-    errors.push("scheduledAt must be a valid ISO date");
-  }
-
-  if (notes !== undefined) {
-    if (typeof notes !== "string") {
-      errors.push("notes must be a string");
-    } else if (notes.length > 1000) {
-      errors.push("notes too long (max 1000 chars)");
-    }
-  }
-
-  if (errors.length > 0) {
-    return res.status(400).json({ success: false, message: errors[0], errors });
-  }
-
-  req.body = {
-    orderId,
-    doctorId,
-    scheduledAt: new Date(scheduledAt),
-    notes: typeof notes === "string" ? notes.trim() : "",
-    platform: typeof platform === "string" ? platform.trim().toLowerCase() : "zealtho",
-    timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
-  };
-
+  req.body = { orderId };
   next();
 };
 

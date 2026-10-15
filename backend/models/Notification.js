@@ -28,6 +28,7 @@ const notificationSchema = new mongoose.Schema(
         "appointment_reminder",
         "payment_success",
         "payment_failed",
+        "payment_refunded",
         "program_update",
         "plan_expiring",
         "birthday",

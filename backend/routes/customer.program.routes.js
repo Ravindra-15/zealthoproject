@@ -1,4 +1,14 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
+
+// Checkout attempts — generous enough for retries, blocks hammering
+const paypalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many payment attempts. Please wait a moment and try again." },
+});
 
 const {
   subscribeToProgram,
@@ -36,8 +46,8 @@ router.post(
 // ============================================
 // 🅿️ PAYPAL — start / finish checkout
 // ============================================
-router.post("/paypal/create-order", createProgramPaypalOrder);
-router.post("/paypal/capture-order", captureProgramPaypalOrder);
+router.post("/paypal/create-order", paypalLimiter, createProgramPaypalOrder);
+router.post("/paypal/capture-order", paypalLimiter, captureProgramPaypalOrder);
 
 // ============================================
 // 📋 GET MY SUBSCRIPTIONS

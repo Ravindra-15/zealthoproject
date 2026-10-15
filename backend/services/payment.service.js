@@ -10,7 +10,10 @@ const crypto = require("crypto");
 // 🎭 CURRENT MODE
 // ============================================
 const PAYMENT_MODE = process.env.PAYMENT_MODE || "mock";
-// "mock" | "razorpay" | "stripe"
+// "mock" | "paypal" | "razorpay" | "stripe"
+// "paypal" → real payments only via the PayPal checkout endpoints
+// (utils/paypal.util.js + services/paypalPayment.service.js); direct
+// charges through this file are refused.
 
 // ============================================
 // 💳 CHARGE
@@ -26,6 +29,9 @@ const PAYMENT_MODE = process.env.PAYMENT_MODE || "mock";
  */
 const charge = async ({ userId, amount, currency, description, metadata }) => {
   if (PAYMENT_MODE === "mock") return mockCharge({ userId, amount, currency });
+  if (PAYMENT_MODE === "paypal") {
+    return { success: false, message: "Please complete payment through PayPal checkout." };
+  }
   if (PAYMENT_MODE === "razorpay") return razorpayCharge({ userId, amount, currency, description, metadata });
   if (PAYMENT_MODE === "stripe") return stripeCharge({ userId, amount, currency, description, metadata });
   return { success: false, message: "Unknown payment mode" };

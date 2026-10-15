@@ -287,6 +287,14 @@ appointmentSchema.index({ doctor: 1, scheduledAt: -1 });
 // window, and "most recent N" lookups) — see doctorFlag.service.js.
 appointmentSchema.index({ doctor: 1, cancelledBy: 1, cancelledAt: -1 });
 
+// One appointment per PayPal capture — DB-level guard against duplicate
+// bookings from a refreshed/double-submitted payment. Scoped to PayPal rows
+// only, so older (mock/credit) appointments are never affected.
+appointmentSchema.index(
+  { transactionId: 1 },
+  { unique: true, partialFilterExpression: { paymentProvider: "paypal" } }
+);
+
 module.exports = mongoose.model("Appointment", appointmentSchema);
 module.exports.APPOINTMENT_STATUSES = APPOINTMENT_STATUSES;
 module.exports.PAYMENT_STATUSES = PAYMENT_STATUSES;

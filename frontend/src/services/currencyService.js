@@ -17,20 +17,28 @@ import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 const RATES_CACHE_KEY = "zealtho_fx_rates_v1";
-const MY_CURRENCY_CACHE_KEY = "zealtho_my_currency_v1";
+// v2: the cached currency is tied to the account it was fetched for, so a
+// different login in the same tab never inherits someone else's currency.
+const MY_CURRENCY_CACHE_KEY = "zealtho_my_currency_v2";
+const LEGACY_MY_CURRENCY_CACHE_KEY = "zealtho_my_currency_v1";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — matches the backend's refresh cron
+const MY_CURRENCY_TTL_MS = 30 * 60 * 1000; // 30 min — re-checks the user's country regularly
 
 const api = axios.create({ baseURL: BASE_URL, timeout: 10000 });
 
 let ratesMemoryCache = null;
-let myCurrencyMemoryCache = null;
+let myCurrencyMemoryCache = null; // { fp, currency }
 
-const readSessionCache = (key) => {
+// Tail of the login token's signature — identifies WHICH login a cached
+// currency belongs to. Stays in this browser tab; never sent anywhere.
+const tokenFingerprint = (token) => (token ? token.slice(-24) : "");
+
+const readSessionCache = (key, ttlMs = CACHE_TTL_MS) => {
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed?.cachedAt || Date.now() - parsed.cachedAt > CACHE_TTL_MS) return null;
+    if (!parsed?.cachedAt || Date.now() - parsed.cachedAt > ttlMs) return null;
     return parsed.value;
   } catch {
     return null;
@@ -69,16 +77,19 @@ export const fetchExchangeRates = async () => {
 // 🌍 Resolved display currency for the logged-in customer (from their
 // profile country). Anonymous visitors (no token) get "USD" immediately
 // with no network call — correct safe default for public/landing pages.
+// The cache only counts if it was fetched for the account logged in right
+// now — so login, logout and switching accounts always re-resolve.
 export const fetchMyCurrency = async () => {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   if (!token) return "USD";
+  const fp = tokenFingerprint(token);
 
-  if (myCurrencyMemoryCache) return myCurrencyMemoryCache;
+  if (myCurrencyMemoryCache?.fp === fp) return myCurrencyMemoryCache.currency;
 
-  const cached = readSessionCache(MY_CURRENCY_CACHE_KEY);
-  if (cached) {
+  const cached = readSessionCache(MY_CURRENCY_CACHE_KEY, MY_CURRENCY_TTL_MS);
+  if (cached?.fp === fp && cached.currency) {
     myCurrencyMemoryCache = cached;
-    return cached;
+    return cached.currency;
   }
 
   try {
@@ -86,20 +97,21 @@ export const fetchMyCurrency = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const currency = response.data?.data?.currency || "USD";
-    myCurrencyMemoryCache = currency;
-    writeSessionCache(MY_CURRENCY_CACHE_KEY, currency);
+    myCurrencyMemoryCache = { fp, currency };
+    writeSessionCache(MY_CURRENCY_CACHE_KEY, myCurrencyMemoryCache);
     return currency;
   } catch {
-    return "USD";
+    return "USD"; // not cached — the next page load tries again
   }
 };
 
-// 🔄 Call after login/logout/profile-country change so the next page load
-// re-resolves instead of reusing a stale cached currency.
+// 🔄 Call after the user's country changes (signup step 2, Edit Profile) —
+// the login is the same there, so the cache can't detect it on its own.
 export const clearMyCurrencyCache = () => {
   myCurrencyMemoryCache = null;
   try {
     sessionStorage.removeItem(MY_CURRENCY_CACHE_KEY);
+    sessionStorage.removeItem(LEGACY_MY_CURRENCY_CACHE_KEY);
   } catch {
     // ignore
   }

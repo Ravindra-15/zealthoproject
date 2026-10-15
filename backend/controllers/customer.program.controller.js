@@ -7,6 +7,14 @@ const FreeConsultCard = require("../models/FreeConsultCard");
 const { hasReachedReferralLimit } = require("../utils/referralCode");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
 const paypal = require("../utils/paypal.util");
+const PaymentTransaction = require("../models/PaymentTransaction");
+const { PAYMENT_MODE } = require("../services/payment.service");
+const {
+  completeCheckout,
+  refundTransaction,
+  markCompleted,
+  isDuplicateKeyError,
+} = require("../services/paypalPayment.service");
 
 // 🎁 Generate staggered free-consult cards for a paid subscription.
 // yogaT20 (monthly): one card per 3 months, each valid for its own 3-month block.
@@ -212,6 +220,16 @@ const computeWeeklyAmount = (plan, weeks) => {
 // ============================================
 const subscribeToProgram = async (req, res) => {
   try {
+    // 🔒 This endpoint grants a plan without taking real payment. It's only
+    // allowed in mock mode (local dev/testing); with a live gateway every
+    // purchase must go through the PayPal checkout endpoints instead.
+    if (PAYMENT_MODE !== "mock") {
+      return res.status(400).json({
+        success: false,
+        message: "Please complete your purchase through PayPal checkout.",
+      });
+    }
+
     const { programId, tenure, weeks, referralCode } = req.body;
 
     // 🔐 DETECT ROLE
@@ -454,7 +472,7 @@ const resolveSubscriptionPricing = async ({ programId, tenure, weeks }) => {
 // ============================================
 const createProgramPaypalOrder = async (req, res) => {
   try {
-    const { programId, tenure, weeks, returnUrl, cancelUrl } = req.body;
+    const { programId, tenure, weeks, referralCode, returnUrl, cancelUrl } = req.body;
     const customerId = req.user?._id || null;
     const doctorId = req.doctor?._id || null;
 
@@ -496,16 +514,58 @@ const createProgramPaypalOrder = async (req, res) => {
       return res.status(pricing.error.status).json({ success: false, message: pricing.error.message });
     }
 
-    const { orderId, approveUrl } = await paypal.createOrder({
+    const description = `${programNames[programId]} — ${pricing.resolvedTenure}`;
+
+    let order;
+    try {
+      order = await paypal.createOrder({
+        amount: pricing.amount,
+        currency: "USD", // ProgramSubscription.amount is always the true USD settlement figure
+        description,
+        referenceId: `sub_${customerId || doctorId}_${Date.now()}`,
+        returnUrl,
+        cancelUrl,
+      });
+    } catch (err) {
+      console.error("[PAYPAL CREATE ORDER (program) ERROR]:", err.message);
+      return res.status(502).json({
+        success: false,
+        code: "PAYPAL_UNREACHABLE",
+        message: "We couldn't connect to PayPal. Please check your connection and try again — you haven't been charged.",
+      });
+    }
+
+    const buyer = customerId ? await User.findById(customerId).select("fullName nickName") : null;
+
+    // 🧾 Ledger entry — plan details live server-side from here on, so
+    // finishing the payment never depends on the browser still having them.
+    await PaymentTransaction.create({
+      purpose: "subscription",
+      orderId: order.orderId,
+      customer: customerId || null,
+      doctor: doctorId || null,
+      buyerName: buyer?.fullName || buyer?.nickName || "A customer",
+      platform: programId,
       amount: pricing.amount,
-      currency: "USD", // ProgramSubscription.amount is always the true USD settlement figure
-      description: `${programNames[programId]} — ${pricing.resolvedTenure}`,
-      referenceId: `sub_${customerId || doctorId}_${Date.now()}`,
-      returnUrl,
-      cancelUrl,
+      currency: "USD",
+      description,
+      context: {
+        programId,
+        tenure: tenure || null,
+        weeks: weeks != null ? Number(weeks) : null,
+        referralCode: typeof referralCode === "string" ? referralCode.trim() : null,
+      },
     });
 
-    return res.status(200).json({ success: true, data: { orderId, approveUrl } });
+    return res.status(200).json({
+      success: true,
+      data: {
+        orderId: order.orderId,
+        approveUrl: order.approveUrl,
+        amount: pricing.amount,
+        currency: "USD",
+      },
+    });
   } catch (err) {
     console.error("[PAYPAL CREATE ORDER (program) ERROR]:", err);
     return res.status(500).json({ success: false, message: "Failed to start PayPal checkout" });
@@ -516,96 +576,107 @@ const createProgramPaypalOrder = async (req, res) => {
 // 🅿️ PAYPAL — CAPTURE ORDER (subscription)
 // POST /api/customer/programs/paypal/capture-order
 // ============================================
-const captureProgramPaypalOrder = async (req, res) => {
+/**
+ * Creates the ProgramSubscription for a CAPTURED PayPal transaction, using
+ * the plan details stored on the transaction at create-order time.
+ * Idempotent: an existing subscription for this capture is reused, never
+ * duplicated. If the plan can't be granted (active free trial started
+ * meanwhile, plan deactivated), the payment is refunded instead.
+ * Records the amount actually paid (tx.amount), even if the plan's price
+ * was edited by an admin while the buyer was on PayPal's page.
+ */
+const finalizeSubscriptionTx = async (tx) => {
+  // ♻️ Already created for this capture? Just settle the ledger.
+  const existing = await ProgramSubscription.findOne({ paymentProvider: "paypal", transactionId: tx.captureId });
+  if (existing) {
+    if (tx.status !== "completed") await markCompleted(tx, { subscriptionId: existing._id, notify: false });
+    return { tx, record: existing };
+  }
+
+  const { programId, tenure, weeks, referralCode } = tx.context || {};
+  const customerId = tx.customer || null;
+  const doctorId = tx.doctor || null;
+
+  const existingSubscription = await ProgramSubscription.findOne({
+    programId,
+    status: "active",
+    endDate: { $gt: new Date() },
+    ...(customerId ? { customer: customerId } : { doctor: doctorId }),
+  });
+  if (existingSubscription?.isTrial) {
+    return refundTransaction(
+      tx,
+      "You're currently on a free trial, so a plan can't be purchased until it ends."
+    );
+  }
+
+  const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks });
+  if (pricing.error) {
+    return refundTransaction(tx, "The selected plan is no longer available.");
+  }
+  const { resolvedTenure, resolvedWeeks, pricingType, months } = pricing;
+
+  const startDate = existingSubscription ? new Date(existingSubscription.endDate) : new Date();
+  const endDate = new Date(startDate);
+  if (pricingType === "weekly") {
+    endDate.setDate(endDate.getDate() + resolvedWeeks * 7);
+  } else {
+    endDate.setMonth(endDate.getMonth() + months);
+  }
+
+  const buyerId = customerId || doctorId;
+  const buyerUser = buyerId ? await User.findById(buyerId).select("countryIso") : null;
+  const { currency: purchaseCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(buyerUser);
+
+  let subscription;
   try {
-    const { orderId, programId, tenure, weeks, referralCode } = req.body;
-    const customerId = req.user?._id || null;
-    const doctorId = req.doctor?._id || null;
-
-    if (!customerId && !doctorId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access." });
-    }
-    if (!orderId || typeof orderId !== "string") {
-      return res.status(400).json({ success: false, message: "Valid orderId is required." });
-    }
-    if (!programId || !programNames[programId]) {
-      return res.status(400).json({ success: false, message: "Invalid program selected." });
-    }
-
-    const captureResult = await paypal.captureOrder(orderId);
-    if (!captureResult.success) {
-      return res.status(402).json({ success: false, message: captureResult.message || "Payment could not be completed" });
-    }
-
-    const purchasedByRole = doctorId ? "doctor" : "customer";
-
-    const existingSubscription = await ProgramSubscription.findOne({
-      programId,
-      status: "active",
-      endDate: { $gt: new Date() },
-      ...(customerId ? { customer: customerId } : { doctor: doctorId }),
-    });
-
-    if (existingSubscription?.isTrial) {
-      // 💸 State changed while buyer was on PayPal's page — refund immediately.
-      const refundResult = await paypal.refundCapture(captureResult.captureId, {
-        reason: "Blocked by active free trial",
-      });
-      if (!refundResult.success) {
-        console.error(`[PAYPAL REFUND FAILED] captureId=${captureResult.captureId} — needs manual refund`);
-      }
-      return res.status(400).json({
-        success: false,
-        message: "You're currently on a free trial. You can purchase a plan once your trial ends." +
-          (refundResult.success ? "" : " Your payment is being refunded — contact support if it doesn't appear within a few days, reference: " + captureResult.captureId),
-      });
-    }
-
-    const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks });
-    if (pricing.error) {
-      const refundResult = await paypal.refundCapture(captureResult.captureId, { reason: "Plan unavailable" });
-      if (!refundResult.success) {
-        console.error(`[PAYPAL REFUND FAILED] captureId=${captureResult.captureId} — needs manual refund`);
-      }
-      return res.status(pricing.error.status).json({ success: false, message: pricing.error.message });
-    }
-    const { amount, resolvedTenure, resolvedWeeks, pricingType, months } = pricing;
-
-    const startDate = existingSubscription ? new Date(existingSubscription.endDate) : new Date();
-    const endDate = new Date(startDate);
-    if (pricingType === "weekly") {
-      endDate.setDate(endDate.getDate() + resolvedWeeks * 7);
-    } else {
-      endDate.setMonth(endDate.getMonth() + months);
-    }
-
-    const buyerId = customerId || doctorId;
-    const buyerUser = buyerId ? await User.findById(buyerId).select("countryIso") : null;
-    const { currency: purchaseCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(buyerUser);
-
-    const subscription = await ProgramSubscription.create({
-      customer: customerId || null,
-      doctor: doctorId || null,
-      purchasedByRole,
+    subscription = await ProgramSubscription.create({
+      customer: customerId,
+      doctor: doctorId,
+      purchasedByRole: doctorId && !customerId ? "doctor" : "customer",
       programId,
       programName: programNames[programId],
       tenure: resolvedTenure,
       weeks: resolvedWeeks,
       pricingType,
-      amount,
+      amount: tx.amount, // what was actually paid
       currency: purchaseCurrency,
       fxRateAtPurchase,
-      referralCode: referralCode?.trim() || null,
+      referralCode: referralCode || null,
       paymentStatus: "paid",
       paymentProvider: "paypal",
-      transactionId: captureResult.captureId,
+      transactionId: tx.captureId,
       status: "active",
       startDate,
       endDate,
     });
+  } catch (err) {
+    if (isDuplicateKeyError(err)) {
+      const winner = await ProgramSubscription.findOne({ paymentProvider: "paypal", transactionId: tx.captureId });
+      if (winner) {
+        if (tx.status !== "completed") await markCompleted(tx, { subscriptionId: winner._id, notify: false });
+        return { tx, record: winner };
+      }
+    }
+    throw err; // leaves tx "captured" — safe to retry / recovered by the background job
+  }
 
-    if (customerId) {
+  const startsLater = startDate.getTime() > Date.now() + 60 * 1000;
+  await markCompleted(tx, {
+    subscriptionId: subscription._id,
+    detail: startsLater
+      ? `Your ${programNames[programId]} ${resolvedTenure} plan is confirmed and starts on ${startDate.toDateString()}, right after your current plan.`
+      : `Your ${programNames[programId]} ${resolvedTenure} plan is now active.`,
+  });
+
+  // 🎁 Side benefits — best-effort, never undo a paid subscription
+  if (customerId) {
+    try {
       await grantReferralReward(customerId);
+    } catch (err) {
+      console.error("[PAYPAL SUB] referral reward failed:", err.message);
+    }
+    try {
       await generateFreeConsultCards({
         userId: customerId,
         programId,
@@ -616,16 +687,63 @@ const captureProgramPaypalOrder = async (req, res) => {
         startDate,
         endDate,
       });
+    } catch (err) {
+      console.error("[PAYPAL SUB] free consult cards failed:", err.message);
     }
+  }
+
+  return { tx, record: subscription };
+};
+
+const captureProgramPaypalOrder = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    const customerId = req.user?._id || null;
+
+    if (!customerId) {
+      return res.status(401).json({ success: false, message: "Unauthorized access." });
+    }
+    if (!orderId || typeof orderId !== "string" || !/^[A-Za-z0-9-]{5,64}$/.test(orderId)) {
+      return res.status(400).json({ success: false, message: "Valid orderId is required." });
+    }
+
+    const result = await completeCheckout({
+      orderId,
+      userId: customerId,
+      purpose: "subscription",
+      finalize: finalizeSubscriptionTx,
+    });
+
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+        code: result.error.code,
+      });
+    }
+
+    const subscription =
+      result.record || (await ProgramSubscription.findById(result.tx.subscription));
 
     return res.status(201).json({
       success: true,
       message: "Program subscription activated successfully.",
       subscription,
+      payment: {
+        transactionId: result.tx.captureId,
+        amount: result.tx.amount,
+        currency: result.tx.currency,
+      },
     });
   } catch (err) {
+    // Unexpected (e.g. DB hiccup) — payment state is preserved in the ledger,
+    // so retrying is safe; the background job also finishes it if they don't.
     console.error("[PAYPAL CAPTURE ORDER (program) ERROR]:", err);
-    return res.status(500).json({ success: false, message: "Something went wrong while activating subscription." });
+    return res.status(500).json({
+      success: false,
+      code: "PAYMENT_RETRYABLE",
+      message: "We couldn't confirm your plan just yet. Please retry in a moment — you won't be charged twice.",
+    });
   }
 };
 
@@ -791,6 +909,7 @@ module.exports = {
   subscribeToProgram,
   createProgramPaypalOrder,
   captureProgramPaypalOrder,
+  finalizeSubscriptionTx,
   getMySubscriptions,
   getProgramStatus,
   cancelSubscription,
