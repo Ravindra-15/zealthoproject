@@ -140,7 +140,9 @@ const validateBookingSlot = async ({ userId, doctorId, scheduledAt, viewerTimezo
   // ============================================
 
   const [user, doctor] = await Promise.all([
-    User.findById(userId).select("fullName nickName isActive timezone").lean(),
+    // countryIso → the customer's receipt currency (resolveCustomerCurrency);
+    // without it every booking was frozen as USD.
+    User.findById(userId).select("fullName nickName isActive timezone countryIso").lean(),
     Doctor.findOne({
       _id: doctorId,
       isActive: true,

@@ -176,8 +176,16 @@ export default function Receipt() {
           {/* TOTAL */}
           <div className="flex items-center justify-between py-5 border-b border-gray-100">
             <span className="text-base font-bold text-gray-800">Total Paid</span>
-            <span className="text-base font-bold text-gray-800">
-              {formatCurrency(receipt.summary?.total || 0, receiptCurrency)}
+            <span className="text-right">
+              <span className="block text-base font-bold text-gray-800">
+                {formatCurrency(receipt.summary?.total || 0, receiptCurrency)}
+              </span>
+              {/* 💱 Paid in another currency → also show the USD amount actually charged */}
+              {receiptCurrency !== "USD" && receipt.summary?.amountUSD > 0 && (
+                <span className="block text-xs font-normal text-gray-400 mt-0.5">
+                  Charged as {formatCurrency(receipt.summary.amountUSD, "USD")} USD
+                </span>
+              )}
             </span>
           </div>
 
