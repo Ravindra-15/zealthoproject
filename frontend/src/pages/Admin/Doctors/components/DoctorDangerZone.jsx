@@ -122,7 +122,7 @@ const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
             <AlertTriangle size={18} className="text-red-500" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Danger Zone</h3>
+            <h3 className="text-sm font-bold text-gray-900">Account Actions</h3>
             <p className="text-xs text-gray-600 mt-0.5">
               Sensitive actions for this doctor account
             </p>

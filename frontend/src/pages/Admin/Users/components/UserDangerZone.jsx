@@ -53,7 +53,7 @@ const UserDangerZone = ({ user, onUserUpdated }) => {
           <AlertTriangle size={16} className="text-red-500" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-gray-900">Danger Zone</h3>
+          <h3 className="text-sm font-bold text-gray-900">Account Actions</h3>
           <p className="text-xs text-gray-500 mt-0.5">
             Account-level actions. Use with care.
           </p>
