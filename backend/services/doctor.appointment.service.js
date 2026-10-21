@@ -618,7 +618,75 @@ const markPrescriptionSent = async (doctorId, appointmentId) => {
 };
 
 
+// ============================================
+// 🚫 MARK NO SHOW BY DOCTOR (patient didn't join)
+// ============================================
+// Allowed only on the doctor's own booked appointment, once 15 minutes
+// of the slot have passed. No refund, no Consultation record (not revenue);
+// a plan free-consult card used for it counts as used.
+const NO_SHOW_GRACE_MINUTES = 15;
+
+const markNoShowByDoctor = async (doctorId, appointmentId) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  });
+
+  if (!appointment) return { error: { status: 404, message: "Appointment not found" } };
+
+  if (!["pending", "confirmed"].includes(appointment.status)) {
+    return { error: { status: 400, message: `Cannot mark a ${appointment.status.replace("_", " ")} appointment as No Show` } };
+  }
+
+  const allowedFrom = new Date(appointment.scheduledAt).getTime() + NO_SHOW_GRACE_MINUTES * 60 * 1000;
+  if (Date.now() < allowedFrom) {
+    return {
+      error: {
+        status: 400,
+        message: `You can mark No Show ${NO_SHOW_GRACE_MINUTES} minutes after the appointment starts`,
+      },
+    };
+  }
+
+  appointment.status = "no_show";
+  await appointment.save();
+
+  // 🎁 a plan free-consult card used for this booking is consumed
+  if (appointment.paidWithPlanCredit) {
+    try {
+      await FreeConsultCard.updateOne(
+        { appointment: appointment._id },
+        { $set: { status: "completed" } }
+      );
+    } catch (err) {
+      console.log("CARD NO-SHOW SYNC ERROR (doctor):", err.message);
+    }
+  }
+
+  // 🔔 Let the patient know
+  try {
+    const patient = await User.findById(appointment.user).select("timezone").lean();
+    await Notification.create({
+      userId: appointment.user,
+      userType: "customer",
+      type: "general",
+      title: "Missed Appointment",
+      body: `You were marked as not attending your consultation with ${appointment.doctorName || "your doctor"} on ${formatInZone(appointment.scheduledAt, patient?.timezone || DEFAULT_TIMEZONE)}. Please book a new slot if you still need a consultation.`,
+      metadata: { appointmentId: appointment._id, doctorId: appointment.doctor },
+    });
+  } catch (err) {
+    console.log("NO-SHOW NOTIFICATION ERROR:", err.message);
+  }
+
+  const populatedAppointment = await Appointment.findById(appointment._id)
+    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .lean();
+
+  return { appointment: populatedAppointment };
+};
+
 module.exports = {
+  markNoShowByDoctor,
   listByDate,
   setMeetingLink,
   generateMeetingLink,

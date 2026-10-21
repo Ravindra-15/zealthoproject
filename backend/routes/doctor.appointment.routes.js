@@ -15,6 +15,7 @@ const {
   cancelAppointment,
   rescheduleAppointment,
   markAppointmentComplete,
+  markAppointmentNoShow,
   getPatientBodyProfile,
   setPrescription,
   sendPrescription,
@@ -111,6 +112,14 @@ router.patch(
   writeLimiter,
   validateObjectIdParam("id"),
   markAppointmentComplete
+);
+
+// 🚫 Mark appointment No Show (patient didn't join)
+router.patch(
+  "/:id/no-show",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  markAppointmentNoShow
 );
 
 // 🧬 Get patient's 27-point body profile

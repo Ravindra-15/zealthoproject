@@ -31,6 +31,7 @@ import {
 import { listMyAppointments } from "../../../services/customerAppointmentService";
 
 import EditProfileModal from "./components/EditProfileModal";
+import ReportIssueModal from "./components/ReportIssueModal";
 import ChangePasswordForm from "./components/ChangePasswordForm";
 import PastAppointmentCard from "./components/PastAppointmentCard";
 
@@ -42,6 +43,7 @@ export default function MyProfile() {
   const [pastAppointments, setPastAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // 📸 Photo upload state
   const fileInputRef = useRef(null);
@@ -381,6 +383,21 @@ export default function MyProfile() {
 
           <ChangePasswordForm />
 
+          {/* 🛟 Report an Issue */}
+          <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Facing a problem?</p>
+              <p className="text-xs text-gray-500">Tell us and our team will look into it.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              className="w-full sm:w-auto border border-gray-200 hover:bg-gray-50 text-orange-500 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors"
+            >
+              Report an Issue
+            </button>
+          </div>
+
           <div className="mt-8 pt-6 border-t border-gray-100">
             <button
               onClick={handleLogout}
@@ -395,8 +412,12 @@ export default function MyProfile() {
 
       <CustomerFooter />
 
+      {/* 🛟 REPORT AN ISSUE MODAL */}
+      <ReportIssueModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
+
       {/* EDIT MODAL */}
       {editOpen && (
+
         <EditProfileModal
           user={user}
           onClose={() => setEditOpen(false)}

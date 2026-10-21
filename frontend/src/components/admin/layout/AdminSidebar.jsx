@@ -38,6 +38,7 @@ import {
   Check,
   UserCog,
   Clock,
+  LifeBuoy,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
@@ -225,6 +226,7 @@ const AdminSidebar = ({ onNavigate }) => {
           : []),
         { icon: MessageSquare, label: "Enquiries", to: "/admin/enquiries" },
         { icon: Mail, label: "Messages", to: "/admin/messages" },
+        { icon: LifeBuoy, label: "Reported Issues", to: "/admin/issues" },
         // 💰 Financial Reports — super admin only
         ...(isSuperAdmin
           ? [

@@ -21,6 +21,7 @@ const adminNotificationSchema = new mongoose.Schema(
         "payment_failed",
         "payment_refunded",
         "payment_action_required",
+        "issue_reported",
       ],
       required: true,
     },

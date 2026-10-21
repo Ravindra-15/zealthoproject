@@ -66,6 +66,7 @@ import EditUser from "./pages/Admin/Users/EditUser";
 import AppointmentLog from "./pages/Admin/Appointments/AppointmentLog";
 
 import Enquiries from "./pages/Admin/Enquiries/Enquiries";
+import ReportedIssues from "./pages/Admin/Issues/ReportedIssues";
 import Messages from "./pages/Admin/Messages/Messages";
 import FinancialReports from "./pages/Admin/FinancialReports/FinancialReports";
 import AdminReceipt from "./pages/Admin/FinancialReports/AdminReceipt";
@@ -270,6 +271,7 @@ function App() {
           />
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="messages" element={<Messages />} />
+          <Route path="issues" element={<ReportedIssues />} />
           <Route
             path="billing/receipt/:id"
             element={

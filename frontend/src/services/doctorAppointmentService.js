@@ -84,6 +84,16 @@ export const markAppointmentComplete = async (appointmentId) => {
 };
 
 // ============================================
+// 🚫 MARK NO SHOW (patient didn't join)
+// ============================================
+export const markAppointmentNoShow = async (appointmentId) => {
+  const response = await doctorApi.patch(
+    `/doctor/appointments/${appointmentId}/no-show`
+  );
+  return response.data.data.appointment;
+};
+
+// ============================================
 // 🧬 GET PATIENT BODY PROFILE
 // ============================================
 export const fetchPatientBodyProfile = async (appointmentId) => {

@@ -182,7 +182,7 @@ const MyAppointments = () => {
               </button>
 
               <p className="text-[11px] text-white/80 mt-3">
-                *Requires 120 Seconds
+                *Takes just a few seconds
               </p>
             </div>
           )}

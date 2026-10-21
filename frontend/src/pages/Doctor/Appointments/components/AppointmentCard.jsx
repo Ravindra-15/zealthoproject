@@ -15,6 +15,7 @@ import {
   Video,
   X,
   CheckCircle,
+  UserX,
   ChevronDown,
   HeartPulse,
   Pill,
@@ -30,6 +31,7 @@ import {
   cancelDoctorAppointment,
   rescheduleDoctorAppointment,
   markAppointmentComplete,
+  markAppointmentNoShow,
   fetchPatientBodyProfile,
   setPrescription,
   sendPrescription,
@@ -74,6 +76,11 @@ const statusPill = (status) => {
       return {
         cls: "bg-red-100 text-red-700 border-red-100",
         label: "Cancelled",
+      };
+    case "no_show":
+      return {
+        cls: "bg-gray-100 text-gray-700 border-gray-200",
+        label: "No Show",
       };
     default:
       return {
@@ -243,6 +250,27 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const canCancel = ["pending", "confirmed"].includes(status);
   const canMarkComplete =
     ["pending", "confirmed"].includes(status) && !!meetingLinkSentAt;
+
+  // 🚫 No Show — patient didn't join; allowed 15 min after the start time
+  const [noShowConfirm, setNoShowConfirm] = useState(false);
+  const [markingNoShow, setMarkingNoShow] = useState(false);
+  const canMarkNoShow =
+    ["pending", "confirmed"].includes(status) &&
+    Date.now() >= new Date(appointment.scheduledAt).getTime() + 15 * 60 * 1000;
+
+  const handleNoShow = async () => {
+    try {
+      setMarkingNoShow(true);
+      const updated = await markAppointmentNoShow(_id);
+      toast.success("Marked as No Show");
+      setNoShowConfirm(false);
+      onUpdated?.(updated);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to mark No Show");
+    } finally {
+      setMarkingNoShow(false);
+    }
+  };
 
   // Cancels appointment with a reason
   const handleCancelConfirm = async (reason) => {
@@ -637,6 +665,39 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
                     Mark Complete
                   </button>
                 )}
+
+                {canMarkNoShow &&
+                  (noShowConfirm ? (
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-gray-600">Patient didn't join?</span>
+                      <button
+                        type="button"
+                        onClick={handleNoShow}
+                        disabled={markingNoShow}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gray-700 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                      >
+                        {markingNoShow ? <Loader2 size={12} className="animate-spin" /> : <UserX size={12} />}
+                        Yes, No Show
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNoShowConfirm(false)}
+                        disabled={markingNoShow}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setNoShowConfirm(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
+                    >
+                      <UserX size={12} />
+                      Mark No Show
+                    </button>
+                  ))}
 
                 {canCancel && !alreadyRescheduled && (
                   <button
