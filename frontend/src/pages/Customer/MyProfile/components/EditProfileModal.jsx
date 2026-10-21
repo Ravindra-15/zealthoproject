@@ -13,7 +13,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { X, LogOut } from "lucide-react";
+import { X } from "lucide-react";
 import { updateMyProfile } from "../../../../services/customerProfileService";
 import { clearMyCurrencyCache } from "../../../../services/currencyService";
 import { useAuth } from "../../../../context/AuthContext";
@@ -417,14 +417,6 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
               className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-semibold px-6 py-2.5 rounded-full shadow-[0_4px_14px_rgba(249,115,22,0.35)] transition-colors"
             >
               {saving ? "Saving..." : "Save Changes"}
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center justify-center gap-2 border border-red-200 hover:bg-red-50 text-red-600 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors"
-            >
-              <LogOut size={16} />
-              Sign Out
             </button>
           </div>
         </form>

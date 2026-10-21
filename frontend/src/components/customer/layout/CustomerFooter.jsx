@@ -280,10 +280,6 @@ const CustomerFooter = () => {
           <p className="text-xs text-gray-400">
             © {new Date().getFullYear()} Zealtho. All rights reserved.
           </p>
-
-          <p className="text-xs text-gray-400">
-            Made with care for your wellness journey.
-          </p>
         </div>
       </div>
     </footer>
