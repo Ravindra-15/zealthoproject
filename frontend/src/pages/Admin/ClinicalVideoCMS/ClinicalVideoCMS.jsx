@@ -27,7 +27,8 @@ import VideoUploadForm from "./components/VideoUploadForm";
 import VideosList from "./components/VideosList";
 
 // 🗓️ Programs that use a single video stream (no yoga type)
-const WEEKLY_PROGRAMS = ["diabmukt", "mommyfit", "slimfitter"];
+// (Diabmukt now has the same 3 categories as YogaT20)
+const WEEKLY_PROGRAMS = ["mommyfit", "slimfitter"];
 
 // 🧘 Yoga type options (yogat20 only)
 export const YOGA_TYPES = [
@@ -35,6 +36,13 @@ export const YOGA_TYPES = [
   { id: "chair_yoga", label: "Chair Yoga", shortLabel: "Chair", color: "bg-orange-500" },
   { id: "high_intensity", label: "High Intensity Yoga", shortLabel: "High Intensity", color: "bg-red-500" },
 ];
+
+// 🏷️ Per-program display names for the same 3 categories
+const YOGA_TYPE_LABELS = {
+  diabmukt: { high_intensity: { label: "Yoga for Diabetes", shortLabel: "Yoga for Diabetes" } },
+};
+const yogaTypesFor = (programId) =>
+  YOGA_TYPES.map((t) => ({ ...t, ...(YOGA_TYPE_LABELS[programId]?.[t.id] || {}) }));
 
 const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
   const { selectedProgramId, selectedProgram } = useSelectedProgram();
@@ -178,8 +186,9 @@ const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
     );
   }
 
+  const programYogaTypes = yogaTypesFor(selectedProgramId);
   const currentYogaType =
-    YOGA_TYPES.find((t) => t.id === selectedYogaType) || YOGA_TYPES[0];
+    programYogaTypes.find((t) => t.id === selectedYogaType) || programYogaTypes[0];
 
     
 
@@ -218,7 +227,7 @@ const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
             Yoga Type
           </label>
           <div className="flex flex-wrap gap-2.5">
-            {YOGA_TYPES.map((t) => {
+            {programYogaTypes.map((t) => {
               const isActive = selectedYogaType === t.id;
               return (
                 <button
