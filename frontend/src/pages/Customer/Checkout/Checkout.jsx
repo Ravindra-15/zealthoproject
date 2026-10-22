@@ -16,6 +16,7 @@ import {
   HeartPulse,
   ChevronRight,
   AlertTriangle,
+  Paperclip,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -37,6 +38,8 @@ import {
 
 import { fetchMyProfile } from "../../../services/customerProfileService";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
+import useMedicalReports from "../../../hooks/useMedicalReports";
+import ReportList from "../../../components/customer/MedicalReports/ReportList";
 import { useCurrency } from "../../../hooks/useCurrency";
 
 const BOOKING_FEE = 20;
@@ -74,6 +77,9 @@ const Checkout = () => {
   );
   const [draft, setDraft] = useState(""); // temp text inside modal
   const [showProblemModal, setShowProblemModal] = useState(false);
+
+  // 📄 Optional medical reports (max 2 × 5 MB) — attached to the booking once it's created
+  const medical = useMedicalReports({ loadPending: true });
 
   const isMountedRef = useRef(false);
 
@@ -179,7 +185,7 @@ const Checkout = () => {
   // 💳 PROCESS PAYMENT + CREATE BOOKING
   // ============================================
   const handlePay = async () => {
-    if (paying || !intent) return;
+    if (paying || !intent || medical.busy) return;
     let redirecting = false;
 
     try {
@@ -192,6 +198,7 @@ const Checkout = () => {
         doctorId: intent.doctorId,
         scheduledAt: intent.scheduledAt,
         notes: problem || undefined,
+        reportIds: medical.reports.map((r) => r._id),
         platform: PLATFORM,
         returnUrl: `${origin}/checkout/paypal/return`,
         cancelUrl: `${origin}/checkout?paypalCancelled=1`,
@@ -205,6 +212,7 @@ const Checkout = () => {
           doctorId: intent.doctorId,
           scheduledAt: intent.scheduledAt,
           notes: problem || undefined,
+        reportIds: medical.reports.map((r) => r._id),
           platform: PLATFORM,
         });
         if (!isMountedRef.current) return;
@@ -299,7 +307,7 @@ const Checkout = () => {
               {/* ============================================ */}
               {/* 📝 PROBLEM DESCRIPTION                        */}
               {/* ============================================ */}
-              {problem ? (
+              {problem && (
                 // Saved problem preview card + edit button
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5">
                   <div className="flex items-center justify-between gap-3 mb-2">
@@ -321,8 +329,12 @@ const Checkout = () => {
                     {problem}
                   </p>
                 </div>
-              ) : (
-                // Initial "describe problem" trigger button
+              )}
+
+              {/* 📝 Describe problem + 📄 Upload reports (side by side; stacked on mobile) */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {!problem && (
                 <button
                   type="button"
                   onClick={openProblemModal}
@@ -331,7 +343,32 @@ const Checkout = () => {
                   <FileText size={15} />
                   Describe Your Problem
                 </button>
-              )}
+                  )}
+                  <button
+                    type="button"
+                    onClick={medical.pickFiles}
+                    disabled={medical.slotsLeft <= 0}
+                    className={`${problem ? "sm:col-span-2 " : ""}w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border border-dashed border-gray-300 text-sm font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white disabled:opacity-60 disabled:cursor-not-allowed`}
+                  >
+                    <Paperclip size={15} />
+                    Upload Reports ({medical.reports.length}/2)
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 text-center">
+                  Optional · PDF, JPG, PNG or DOC · up to 2 files · max 5 MB each
+                </p>
+                <ReportList
+                  reports={medical.reports}
+                  uploads={medical.uploads}
+                  onView={medical.viewReport}
+                  onRemove={medical.removeReport}
+                  onCancel={medical.cancelUpload}
+                  onRetry={medical.retryUpload}
+                  onDismiss={medical.dismissUpload}
+                  removingId={medical.removingId}
+                />
+              </div>
+              <input {...medical.inputProps} />
 
               {/* ============================================ */}
               {/* 🩺 BODY PROFILE PROMPT                        */}
@@ -398,7 +435,7 @@ const Checkout = () => {
               <button
                 type="button"
                 onClick={handlePay}
-                disabled={paying}
+                disabled={paying || medical.busy}
                 className="
                   w-full inline-flex items-center justify-center gap-2
                   px-8 py-3.5 rounded-full
@@ -420,6 +457,12 @@ const Checkout = () => {
                   `Pay ${convert(BOOKING_FEE)} with PayPal`
                 )}
               </button>
+
+              {medical.busy && (
+                <p className="text-[11px] text-amber-600 text-center">
+                  Please wait — your report is still uploading.
+                </p>
+              )}
 
               {/* 💱 Local-currency customers: be upfront that PayPal bills in USD */}
               {freeCredits === 0 && showsLocalCurrency && (

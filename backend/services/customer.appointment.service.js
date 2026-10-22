@@ -8,6 +8,7 @@
  * Payment handled by isolated payment service (mock now, gateway later).
  */
 const Notification = require("../models/Notification");
+const { attachPendingReports, reportsByAppointment } = require("./medicalReport.service");
 
 const mongoose = require("mongoose");
 const Doctor = require("../models/Doctor");
@@ -242,7 +243,7 @@ const validateBookingSlot = async ({ userId, doctorId, scheduledAt, viewerTimezo
   return { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek };
 };
 
-const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null }) => {
+const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null, reportIds = [] }) => {
   const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
   if (validated.error) return validated;
   const { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek } = validated;
@@ -403,6 +404,9 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   }
 
 
+  // 📄 attach reports uploaded at checkout (best-effort)
+  await attachPendingReports({ userId, appointmentId: appointment._id, reportIds });
+
   // 🔔 Customer notification
   try {
     await Notification.create({
@@ -451,6 +455,7 @@ const createAppointmentPaypalOrder = async ({
   viewerTimezone = null,
   returnUrl,
   cancelUrl,
+  reportIds = [],
 }) => {
   const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
   if (validated.error) return validated;
@@ -514,6 +519,7 @@ const createAppointmentPaypalOrder = async ({
       scheduledAt: slotStart.toISOString(),
       notes: typeof notes === "string" ? notes.trim() : "",
       viewerTimezone,
+      reportIds: (Array.isArray(reportIds) ? reportIds : []).map(String).slice(0, 2),
     },
   });
 
@@ -590,6 +596,9 @@ const finalizeAppointmentTx = async (tx) => {
     }
     throw err; // leaves tx "captured" — safe to retry / recovered by the background job
   }
+
+  // 📄 attach reports uploaded at checkout (best-effort)
+  await attachPendingReports({ userId, appointmentId: appointment._id, reportIds: tx.context?.reportIds });
 
   await markCompleted(tx, {
     appointmentId: appointment._id,
@@ -695,6 +704,10 @@ const listMyAppointments = async (
       .lean(),
   ]);
 
+  // 📄 my uploaded reports per appointment
+  const reportMap = await reportsByAppointment(appointments.map((a) => a._id));
+  for (const a of appointments) a.reports = reportMap[String(a._id)] || [];
+
   return {
     appointments,
     pagination: {
@@ -711,9 +724,14 @@ const listMyAppointments = async (
 // 👁️ GET SINGLE APPOINTMENT (must belong to user)
 // ============================================
 const getMyAppointmentById = async (userId, appointmentId) => {
-  return await Appointment.findOne({ _id: appointmentId, user: userId })
+  const appointment = await Appointment.findOne({ _id: appointmentId, user: userId })
     .populate("doctor", "fullName domain photo updatedAt")
     .lean();
+  if (appointment) {
+    const reportMap = await reportsByAppointment([appointment._id]);
+    appointment.reports = reportMap[String(appointment._id)] || [];
+  }
+  return appointment;
 };
 
 // ============================================

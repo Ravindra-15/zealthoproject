@@ -19,3 +19,6 @@ Thumbs.db
 # Uploaded files (keep folder structure but ignore actual uploads)
 uploads/**/*
 !uploads/**/.gitkeep
+
+# Patient medical reports (private, never commit)
+backend/private/

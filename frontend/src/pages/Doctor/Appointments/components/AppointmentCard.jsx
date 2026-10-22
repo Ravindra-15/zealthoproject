@@ -38,6 +38,7 @@ import {
 } from "../../../../services/doctorAppointmentService";
 
 import CancelReasonModal from "./CancelReasonModal";
+import PatientReports from "./PatientReports";
 import RescheduleModal from "./RescheduleModal";
 import Modal from "../../../../components/common/Modal";
 import BodyProfileView from "../../../../components/common/BodyProfileView";
@@ -556,6 +557,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
                 </p>
               )}
             </div>
+
+            {/* 📄 PATIENT REPORTS */}
+            <PatientReports appointment={appointment} />
 
             {/* 🔗 MEETING LINK */}
             <div className="mt-4">

@@ -57,6 +57,7 @@ const createBooking = async (req, res) => {
       // the booking action so their profile self-corrects without a
       // dedicated settings screen (used for reminder/confirmation emails).
       viewerTimezone: req.body.timezone,
+      reportIds: req.body.reportIds,
     });
 
     if (result.error) {
@@ -102,6 +103,7 @@ const createPaypalOrder = async (req, res) => {
       notes: req.body.notes,
       platform: req.body.platform || "zealtho",
       viewerTimezone: req.body.timezone,
+      reportIds: req.body.reportIds,
       returnUrl: req.body.returnUrl,
       cancelUrl: req.body.cancelUrl,
     });

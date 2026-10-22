@@ -123,3 +123,14 @@ export const sendPrescription = async (appointmentId) => {
   );
   return response.data.data.appointment;
 };
+
+// ============================================
+// 📄 OPEN A PATIENT'S MEDICAL REPORT (private file → blob)
+// ============================================
+export const fetchPatientReportBlob = async (appointmentId, reportId) => {
+  const response = await doctorApi.get(
+    `/doctor/appointments/${appointmentId}/reports/${reportId}/file`,
+    { responseType: "blob" }
+  );
+  return response.data;
+};

@@ -16,6 +16,7 @@ const {
   rescheduleAppointment,
   markAppointmentComplete,
   markAppointmentNoShow,
+  getPatientReportFile,
   getPatientBodyProfile,
   setPrescription,
   sendPrescription,
@@ -112,6 +113,14 @@ router.patch(
   writeLimiter,
   validateObjectIdParam("id"),
   markAppointmentComplete
+);
+
+// 📄 Open a patient's uploaded medical report (not for cancelled appointments)
+router.get(
+  "/:id/reports/:reportId/file",
+  readLimiter,
+  validateObjectIdParam("id"),
+  getPatientReportFile
 );
 
 // 🚫 Mark appointment No Show (patient didn't join)

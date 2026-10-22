@@ -43,8 +43,16 @@ const validateDayAvailabilityQuery = (req, res, next) => {
 // 📝 CREATE BOOKING
 // ============================================
 // Body: { doctorId, scheduledAt (ISO), notes? }
+
+// 📄 Optional report ids from checkout — keep at most 2 valid ObjectIds, silently drop the rest
+const cleanReportIds = (reportIds) =>
+  (Array.isArray(reportIds) ? reportIds : [])
+    .map(String)
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .slice(0, 2);
+
 const validateCreateBooking = (req, res, next) => {
-  const { doctorId, scheduledAt, notes, platform, timezone } = req.body;
+  const { doctorId, scheduledAt, notes, platform, timezone, reportIds } = req.body;
   const errors = [];
 
   if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
@@ -89,6 +97,7 @@ const validateCreateBooking = (req, res, next) => {
     ? platform.trim().toLowerCase()
     : "zealtho",
   timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
+  reportIds: cleanReportIds(reportIds),
 };
 
   next();
@@ -99,7 +108,7 @@ const validateCreateBooking = (req, res, next) => {
 // ============================================
 // Body: { doctorId, scheduledAt, notes?, platform?, timezone?, returnUrl, cancelUrl }
 const validatePaypalCreateOrder = (req, res, next) => {
-  const { doctorId, scheduledAt, notes, platform, timezone, returnUrl, cancelUrl } = req.body;
+  const { doctorId, scheduledAt, notes, platform, timezone, returnUrl, cancelUrl, reportIds } = req.body;
   const errors = [];
 
   if (notes !== undefined && notes !== null) {
@@ -150,6 +159,7 @@ const validatePaypalCreateOrder = (req, res, next) => {
     timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
     returnUrl,
     cancelUrl,
+    reportIds: cleanReportIds(reportIds),
   };
 
   next();

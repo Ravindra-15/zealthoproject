@@ -376,7 +376,43 @@ const markAppointmentNoShow = async (req, res) => {
   }
 };
 
+// ============================================
+// 📄 OPEN A PATIENT'S MEDICAL REPORT (doctor of that appointment only)
+// ============================================
+// GET /api/doctor/appointments/:id/reports/:reportId/file
+const getPatientReportFile = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    const Appointment = require("../models/Appointment");
+    const MedicalReport = require("../models/MedicalReport");
+    const { sendReportFile } = require("./customer.medicalReport.controller");
+
+    const { id, reportId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(reportId)) {
+      return res.status(400).json({ success: false, message: "Invalid report" });
+    }
+
+    const appointment = await Appointment.findOne({ _id: id, doctor: req.doctorId }).select("status").lean();
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: "Appointment not found" });
+    }
+    if (appointment.status === "cancelled") {
+      return res.status(403).json({ success: false, message: "Reports aren't available for cancelled appointments." });
+    }
+
+    const report = await MedicalReport.findOne({ _id: reportId, appointment: id }).lean();
+    if (!report) {
+      return res.status(404).json({ success: false, message: "Report not found" });
+    }
+    return sendReportFile(res, report);
+  } catch (err) {
+    console.error("[DOCTOR REPORT FILE ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to open report" });
+  }
+};
+
 module.exports = {
+  getPatientReportFile,
   markAppointmentNoShow,
   listAppointments,
   setMeetingLink,

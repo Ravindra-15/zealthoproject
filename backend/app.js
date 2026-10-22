@@ -56,6 +56,7 @@ const adminFinancialReportRoutes = require("./routes/admin.financialReport.route
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
 const adminIssueReportRoutes = require("./routes/admin.issueReport.routes");
 const customerIssueReportRoutes = require("./routes/customer.issueReport.routes");
+const customerMedicalReportRoutes = require("./routes/customer.medicalReport.routes");
 const adminBillingRoutes = require("./routes/admin.billing.routes");
 const adminProgramPlanRoutes = require("./routes/admin.programPlan.routes");
 const customerProgramPlanRoutes = require("./routes/customer.programPlan.routes");
@@ -148,6 +149,7 @@ app.use("/api/customer/billing", customerBillingRoutes);
 
 app.use("/api/customer/enquiries", customerEnquiryRoutes);
 app.use("/api/customer/issues", customerIssueReportRoutes);
+app.use("/api/customer/reports", customerMedicalReportRoutes);
 app.use("/api/customer/clinical-videos", customerClinicalVideoRoutes);
 app.use("/api/customer/referral", customerReferralRoutes);
 
