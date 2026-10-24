@@ -103,6 +103,8 @@ const AddDoctor = () => {
         onCancel={handleCancel}
         submitting={submitting}
         submitLabel="Onboard Doctor"
+        requireLicence
+        showLocation
       />
 
       {/* 🎉 Credentials modal — only shown after successful creation */}

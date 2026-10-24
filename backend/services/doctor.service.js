@@ -69,6 +69,10 @@ const createDoctor = async (doctorData, createdBy) => {
     licenceDocument: doctorData.licenceDocument || null,
     licenceDocumentOriginalName: doctorData.licenceDocumentOriginalName || null,
     licenceDocumentMimeType: doctorData.licenceDocumentMimeType || null,
+    // 🌍 set at onboarding; falls back to the model default when absent
+    ...(doctorData.timezone ? { timezone: doctorData.timezone } : {}),
+    country: doctorData.country || "",
+    countryIso: doctorData.countryIso || "",
     username,
     password: plainPassword,
     mustChangePassword: true,

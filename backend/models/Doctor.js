@@ -194,6 +194,10 @@ const doctorSchema = new mongoose.Schema(
       validate: [isValidTimezone, "Invalid timezone"],
     },
 
+    // 🌍 Country picked at admin onboarding (drives the timezone choice)
+    country: { type: String, trim: true, default: "" },
+    countryIso: { type: String, trim: true, uppercase: true, default: "" },
+
     isProfileComplete: {
       type: Boolean,
       default: false,

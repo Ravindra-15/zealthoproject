@@ -58,11 +58,16 @@ export const createDoctor = async (data) => {
     formData.append("photo", data.photo);
   }
 
-  // 📄 Licence — both optional at this stage
+  // 📄 Licence (required by the server at onboarding)
   if (data.licenceNumber) formData.append("licenceNumber", data.licenceNumber);
   if (data.licenceDocument instanceof File) {
     formData.append("licenceDocument", data.licenceDocument);
   }
+
+  // 🌍 Country + timezone
+  if (data.countryIso) formData.append("countryIso", data.countryIso);
+  if (data.country) formData.append("country", data.country);
+  if (data.timezone) formData.append("timezone", data.timezone);
 
   const response = await adminApi.post("/admin/doctors", formData, {
     headers: {

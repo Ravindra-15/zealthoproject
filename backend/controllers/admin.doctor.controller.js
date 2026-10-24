@@ -37,7 +37,7 @@ const createDoctor = async (req, res) => {
       uploadedLicencePath = `/uploads/doctors/${licenceFile.filename}`;
     }
 
-    const { fullName, domain, specializations, shortBio, licenceNumber } = req.body;
+    const { fullName, domain, specializations, shortBio, licenceNumber, timezone, country, countryIso } = req.body;
 
     const result = await doctorService.createDoctor(
       {
@@ -50,6 +50,9 @@ const createDoctor = async (req, res) => {
         licenceDocument: uploadedLicencePath,
         licenceDocumentOriginalName: licenceFile ? licenceFile.originalname : null,
         licenceDocumentMimeType: licenceFile ? licenceFile.mimetype : null,
+        timezone,
+        country,
+        countryIso,
       },
       req.admin._id
     );

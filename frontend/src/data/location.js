@@ -23,6 +23,31 @@ export const loadCountries = async () => {
   }));
 };
 
+// 🌍 Countries with their timezones (doctor onboarding). Zones the browser
+// doesn't recognise are dropped so a doctor can never be saved with a bad zone.
+const isUsableZone = (zone) => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const loadCountriesWithTimezones = async () => {
+  if (!countriesMod) countriesMod = await import("countries-states-cities-service/countries");
+  return countriesMod.Countries.getCountries(sortName).map((c) => ({
+    code: c.iso2,
+    name: c.name,
+    timezones: (c.timezones || [])
+      .filter((t) => t?.zoneName && isUsableZone(t.zoneName))
+      .map((t) => ({
+        zone: t.zoneName,
+        label: `${t.gmtOffsetName || ""} · ${t.tzName || t.zoneName} (${t.zoneName})`,
+      })),
+  }));
+};
+
 export const loadStates = async (countryCode) => {
   if (!statesMod) statesMod = await import("countries-states-cities-service/states");
   return statesMod.States.getStates({

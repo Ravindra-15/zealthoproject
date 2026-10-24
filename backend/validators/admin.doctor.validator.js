@@ -7,6 +7,19 @@
 
 const { DOCTOR_LIMITS } = require("../utils/doctorConstants");
 const mongoose = require("mongoose");
+const fs = require("fs");
+const { isValidTimezone } = require("../utils/timezone");
+
+// 🧹 Reject + delete files multer already saved for this request
+const rejectCreate = (req, res, message) => {
+  for (const field of ["photo", "licenceDocument"]) {
+    const file = req.files?.[field]?.[0];
+    if (file?.path) {
+      try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch { /* ignore */ }
+    }
+  }
+  return res.status(400).json({ success: false, message });
+};
 
 // ============================================
 // 🔧 HELPERS
@@ -177,18 +190,39 @@ const validateCreateDoctor = (req, res, next) => {
   }
 
   // ============================================
-  // 📄 licenceNumber (optional at admin-onboarding time)
+  // 📄 licenceNumber + licence document (required at onboarding)
   // ============================================
   const { licenceNumber } = req.body;
-  if (licenceNumber !== undefined && licenceNumber !== null && licenceNumber !== "") {
-    if (typeof licenceNumber !== "string" || licenceNumber.trim().length > DOCTOR_LIMITS.LICENCE_NUMBER_MAX) {
-      return res.status(400).json({
-        success: false,
-        message: `Licence number cannot exceed ${DOCTOR_LIMITS.LICENCE_NUMBER_MAX} characters`,
-      });
-    }
-    req.body.licenceNumber = licenceNumber.trim();
+  if (typeof licenceNumber !== "string" || !licenceNumber.trim()) {
+    return rejectCreate(req, res, "Licence number is required");
   }
+  if (licenceNumber.trim().length > DOCTOR_LIMITS.LICENCE_NUMBER_MAX) {
+    return rejectCreate(req, res, `Licence number cannot exceed ${DOCTOR_LIMITS.LICENCE_NUMBER_MAX} characters`);
+  }
+  req.body.licenceNumber = licenceNumber.trim();
+
+  if (!req.files?.licenceDocument?.[0]) {
+    return rejectCreate(req, res, "Licence document is required");
+  }
+
+  // ============================================
+  // 🌍 country + timezone (required at onboarding)
+  // ============================================
+  const countryIso = typeof req.body.countryIso === "string" ? req.body.countryIso.trim().toUpperCase() : "";
+  if (!/^[A-Z]{2}$/.test(countryIso)) {
+    return rejectCreate(req, res, "Country is required");
+  }
+  const country = typeof req.body.country === "string" ? req.body.country.trim().slice(0, 80) : "";
+  const timezone = typeof req.body.timezone === "string" ? req.body.timezone.trim() : "";
+  if (!timezone) {
+    return rejectCreate(req, res, "Timezone is required");
+  }
+  if (!isValidTimezone(timezone)) {
+    return rejectCreate(req, res, "Invalid timezone");
+  }
+  req.body.countryIso = countryIso;
+  req.body.country = country;
+  req.body.timezone = timezone;
 
   // ✅ All checks passed
   next();

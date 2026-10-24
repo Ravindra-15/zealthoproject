@@ -23,6 +23,7 @@ import DOMPurify from "dompurify";
 
 import PhotoUploader from "./PhotoUploader";
 import LicenceUploader from "./LicenceUploader";
+import { loadCountriesWithTimezones } from "../../../../data/location";
 import ChipsInput from "./ChipsInput";
 import { fetchDoctorOptions } from "../../../../services/doctorService";
 
@@ -85,6 +86,8 @@ const DoctorForm = ({
   existingPhotoUrl = null,
   existingLicenceNumber = null,
   existingLicenceDocumentName = null,
+  requireLicence = false, // Add Doctor: licence number + document mandatory
+  showLocation = false, // Add Doctor: country + timezone fields
 }) => {
   // ============================================
   // 📝 FORM STATE
@@ -99,7 +102,46 @@ const DoctorForm = ({
     licenceNumber: existingLicenceNumber || "",
     licenceDocument: null, // File object (only set when admin picks a new one)
     licenceDocumentRemoved: false,
+    countryIso: "",
+    country: "",
+    timezone: "",
   });
+
+  // 🌍 Countries (+ their timezones) — only loaded on the onboarding form
+  const [countries, setCountries] = useState([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showLocation) return;
+    let active = true;
+    setCountriesLoading(true);
+    loadCountriesWithTimezones()
+      .then((list) => active && setCountries(list))
+      .catch(() => active && toast.error("Failed to load countries"))
+      .finally(() => active && setCountriesLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [showLocation]);
+
+  const selectedCountry = countries.find((c) => c.code === form.countryIso) || null;
+  // fall back to every zone if a country has none listed
+  const zoneOptions = selectedCountry
+    ? selectedCountry.timezones.length
+      ? selectedCountry.timezones
+      : (typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : []).map((z) => ({ zone: z, label: z }))
+    : [];
+
+  // picking a country auto-selects its timezone when it has only one
+  const handleCountry = (code) => {
+    const c = countries.find((x) => x.code === code);
+    setForm((prev) => ({
+      ...prev,
+      countryIso: code,
+      country: c?.name || "",
+      timezone: c && c.timezones.length === 1 ? c.timezones[0].zone : "",
+    }));
+  };
 
   // ============================================
   // 📦 DROPDOWN OPTIONS (loaded from backend)
@@ -208,7 +250,27 @@ const DoctorForm = ({
       return false;
     }
 
-    // 📄 Licence number — optional, but must fit the limit if provided
+    // 📄 Licence — mandatory when onboarding a new doctor
+    if (requireLicence && !form.licenceNumber.trim()) {
+      toast.error("Licence number is required");
+      return false;
+    }
+    if (requireLicence && !(form.licenceDocument instanceof File)) {
+      toast.error("Licence document is required");
+      return false;
+    }
+
+    // 🌍 Country + timezone — mandatory when onboarding
+    if (showLocation && !form.countryIso) {
+      toast.error("Country is required");
+      return false;
+    }
+    if (showLocation && !form.timezone) {
+      toast.error("Timezone is required");
+      return false;
+    }
+
+    // 📄 Licence number — must fit the limit if provided
     if (form.licenceNumber.trim().length > LIMITS.LICENCE_NUMBER_MAX) {
       toast.error(`Licence number cannot exceed ${LIMITS.LICENCE_NUMBER_MAX} characters`);
       return false;
@@ -237,6 +299,9 @@ const DoctorForm = ({
       licenceNumber: form.licenceNumber.trim(),
       licenceDocument: form.licenceDocument,
       licenceDocumentRemoved: form.licenceDocumentRemoved,
+      ...(showLocation
+        ? { countryIso: form.countryIso, country: form.country, timezone: form.timezone }
+        : {}),
     });
   };
 
@@ -404,7 +469,11 @@ const DoctorForm = ({
               className="block text-sm font-medium text-gray-700 mb-2"
             >
               Licence Number{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              {requireLicence ? (
+                <span className="text-red-500">*</span>
+              ) : (
+                <span className="text-gray-400 font-normal">(optional)</span>
+              )}
             </label>
             <input
               id="licenceNumber"
@@ -423,15 +492,21 @@ const DoctorForm = ({
                 transition-colors
               "
             />
-            <p className="mt-1.5 text-xs text-gray-400">
-              If left blank, the doctor will be asked to provide this when they complete their profile.
-            </p>
+            {!requireLicence && (
+              <p className="mt-1.5 text-xs text-gray-400">
+                If left blank, the doctor will be asked to provide this when they complete their profile.
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Licence Document{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              {requireLicence ? (
+                <span className="text-red-500">*</span>
+              ) : (
+                <span className="text-gray-400 font-normal">(optional)</span>
+              )}
             </label>
             <LicenceUploader
               value={form.licenceDocument}
@@ -446,6 +521,55 @@ const DoctorForm = ({
               disabled={submitting}
             />
           </div>
+
+          {/* 🌍 Country + Timezone (onboarding only) */}
+          {showLocation && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="doctorCountry" className="block text-sm font-medium text-gray-700 mb-2">
+                  Country <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="doctorCountry"
+                  value={form.countryIso}
+                  onChange={(e) => handleCountry(e.target.value)}
+                  disabled={submitting || countriesLoading}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <option value="">{countriesLoading ? "Loading countries..." : "Select country"}</option>
+                  {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="doctorTimezone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Timezone <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="doctorTimezone"
+                  value={form.timezone}
+                  onChange={(e) => handleField("timezone", e.target.value)}
+                  disabled={submitting || !form.countryIso}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <option value="">{form.countryIso ? "Select timezone" : "Select a country first"}</option>
+                  {zoneOptions.map((z) => (
+                    <option key={z.zone} value={z.zone}>
+                      {z.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-gray-400">
+                  {selectedCountry && selectedCountry.timezones.length === 1
+                    ? "Set automatically from the country."
+                    : "Used to show the doctor's availability and appointment times correctly."}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
