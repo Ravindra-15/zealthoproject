@@ -4,10 +4,13 @@
  */
 
 import React, { useState } from "react";
-import { FileText, Image as ImageIcon, Eye, Download, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { FileText, Image as ImageIcon, Eye, Download, Loader2, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
 import { fetchPatientReportBlob } from "../../../../services/doctorAppointmentService";
 import { openReportFile } from "../../../../utils/openReportFile";
+
+const PROGRESS_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
 
 const formatBytes = (n = 0) =>
   n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -30,9 +33,21 @@ const PatientReports = ({ appointment }) => {
 
   return (
     <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/40 p-3">
-      <p className="text-[11px] text-gray-500 font-semibold tracking-wide mb-2">
-        Patient Reports ({reports.length})
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[11px] text-gray-500 font-semibold tracking-wide">
+          Patient Reports ({reports.length})
+        </p>
+        {/* 📈 daily progress — only tracked in the program apps */}
+        {PROGRESS_PROGRAMS.includes(appointment.platform) && (
+          <Link
+            to={`/doctor/appointments/${appointment._id}/progress`}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:underline flex-shrink-0"
+          >
+            <TrendingUp size={12} />
+            View Daily Progress
+          </Link>
+        )}
+      </div>
       {reports.length === 0 ? (
         <p className="text-xs text-gray-400 italic">Patient hasn't uploaded any reports.</p>
       ) : (

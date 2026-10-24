@@ -134,3 +134,11 @@ export const fetchPatientReportBlob = async (appointmentId, reportId) => {
   );
   return response.data;
 };
+
+// ============================================
+// 📈 PATIENT DAILY PROGRESS (this appointment's program)
+// ============================================
+export const fetchPatientProgress = async (appointmentId) => {
+  const response = await doctorApi.get(`/doctor/appointments/${appointmentId}/progress`);
+  return response.data.data;
+};

@@ -17,6 +17,7 @@ const {
   markAppointmentComplete,
   markAppointmentNoShow,
   getPatientReportFile,
+  getPatientProgress,
   getPatientBodyProfile,
   setPrescription,
   sendPrescription,
@@ -113,6 +114,14 @@ router.patch(
   writeLimiter,
   validateObjectIdParam("id"),
   markAppointmentComplete
+);
+
+// 📈 Patient's daily progress for this appointment's program (not for cancelled)
+router.get(
+  "/:id/progress",
+  readLimiter,
+  validateObjectIdParam("id"),
+  getPatientProgress
 );
 
 // 📄 Open a patient's uploaded medical report (not for cancelled appointments)

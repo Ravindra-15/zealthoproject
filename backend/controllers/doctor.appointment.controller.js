@@ -411,7 +411,112 @@ const getPatientReportFile = async (req, res) => {
   }
 };
 
+// ============================================
+// 📈 PATIENT DAILY PROGRESS (doctor of that appointment only)
+// ============================================
+// GET /api/doctor/appointments/:id/progress
+// Same report the patient sees on their Progress Report page (shared
+// buildProgressReport), plus the raw daily values for the line graph.
+// The patient + program always come from the appointment itself.
+const PROGRESS_PROGRAMS = {
+  yogat20: "Yoga T20",
+  diabmukt: "Diabmukt",
+  mommyfit: "MommyFit",
+  slimfitter: "Slimfitter",
+};
+
+const getPatientProgress = async (req, res) => {
+  try {
+    const Appointment = require("../models/Appointment");
+    const ProgramSubscription = require("../models/ProgramSubscription");
+    const UserHabitProgress = require("../models/UserHabitProgress");
+    const { buildProgressReport } = require("../services/progressReport.service");
+
+    const appointment = await Appointment.findOne({ _id: req.params.id, doctor: req.doctorId })
+      .populate("user", "fullName nickName")
+      .select("user platform status scheduledAt")
+      .lean();
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: "Appointment not found" });
+    }
+    if (appointment.status === "cancelled") {
+      return res.status(403).json({ success: false, message: "Progress isn't available for cancelled appointments." });
+    }
+
+    const patientId = appointment.user?._id;
+    const patientName = appointment.user?.fullName || appointment.user?.nickName || "Patient";
+    const programId = appointment.platform;
+    const programName = PROGRESS_PROGRAMS[programId];
+    const base = { patientName, programId, programName: programName || "Zealtho" };
+
+    if (!patientId || !programName) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...base,
+          available: false,
+          message: "Daily progress is tracked in the program apps (Yoga T20, Diabmukt, MommyFit, Slimfitter). This appointment was booked on Zealtho.",
+        },
+      });
+    }
+
+    // Same plan choice as the patient's own report: the one running now, else the latest
+    const now = new Date();
+    const subs = await ProgramSubscription.find({
+      programId,
+      $or: [{ customer: patientId }, { doctor: patientId }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    const sub = subs.find((s) => new Date(s.startDate) <= now && now < new Date(s.endDate)) || subs[0];
+
+    if (!sub) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...base,
+          available: false,
+          message: `This patient doesn't have a ${programName} plan yet, so there's no daily progress to show.`,
+        },
+      });
+    }
+
+    const report = await buildProgressReport({ userId: patientId, programId, sub });
+
+    // 📈 daily values for the graph (only the habits shown in the report)
+    const habitIds = (report.habits || []).map((h) => h.habitId);
+    const logs = await UserHabitProgress.find({
+      user: patientId,
+      programId,
+      habit: { $in: habitIds },
+      logDate: { $gte: new Date(sub.startDate) },
+    })
+      .select("habit value logDate")
+      .sort({ logDate: 1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...base,
+        available: true,
+        plan: { startDate: sub.startDate, endDate: sub.endDate, isActive: sub.status === "active" && new Date(sub.endDate) > now },
+        report,
+        logs: logs.map((l) => ({
+          habitId: l.habit,
+          date: new Date(l.logDate).toISOString().slice(0, 10),
+          value: l.value,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error("[DOCTOR PATIENT PROGRESS ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to load patient progress" });
+  }
+};
+
 module.exports = {
+  getPatientProgress,
   getPatientReportFile,
   markAppointmentNoShow,
   listAppointments,
