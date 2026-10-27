@@ -461,7 +461,7 @@ const [cancelling, setCancelling] = useState(false);
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold text-gray-500 border-t border-gray-100 hover:bg-gray-50/60 transition-colors"
+        className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-gray-700 border-t border-gray-100 hover:bg-gray-50/60 transition-colors"
       >
         {expanded ? "Hide details" : "View problem & prescription"}
         <ChevronDown

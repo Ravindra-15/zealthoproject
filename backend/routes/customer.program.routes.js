@@ -11,6 +11,8 @@ const paypalLimiter = rateLimit({
 });
 
 const {
+  getPurchaseRules,
+  getSubscriptionQuote,
   subscribeToProgram,
   createProgramPaypalOrder,
   captureProgramPaypalOrder,
@@ -46,6 +48,11 @@ router.post(
 // ============================================
 // 🅿️ PAYPAL — start / finish checkout
 // ============================================
+// 💲 Live price for the selected plan (checkout re-checks before paying)
+router.get("/quote", getSubscriptionQuote);
+// 📏 New-subscriber minimum / extension steps for the plan page
+router.get("/purchase-rules", getPurchaseRules);
+
 router.post("/paypal/create-order", paypalLimiter, createProgramPaypalOrder);
 router.post("/paypal/capture-order", paypalLimiter, captureProgramPaypalOrder);
 

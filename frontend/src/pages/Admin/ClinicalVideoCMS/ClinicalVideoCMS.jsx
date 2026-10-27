@@ -62,6 +62,11 @@ const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
   // The yoga type actually used for queries (weekly = always normal_yoga)
   const effectiveYogaType = isWeekly ? "normal_yoga" : selectedYogaType;
 
+  // ✋ switching tab / program / trial mode cancels an open edit
+  useEffect(() => {
+    setEditingVideo(null);
+  }, [selectedProgramId, effectiveYogaType, isFreeTrialMode]);
+
   // 📥 Load videos
   const loadVideos = useCallback(async () => {
     if (isZealtho) {
@@ -257,7 +262,9 @@ const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
       {/* 📤 UPLOAD FORM                                */}
       {/* ============================================ */}
       <div ref={formRef}>
+        {/* key → the form resets when the tab / program / trial mode changes */}
         <VideoUploadForm
+          key={`${selectedProgramId}-${effectiveYogaType}-${isFreeTrialMode ? "trial" : "regular"}`}
           yogaTypeLabel={isWeekly ? selectedProgram.label : currentYogaType.label}
           uploadButtonText={isWeekly ? "Upload Video" : `Upload ${currentYogaType.shortLabel} Video`}
           onUpload={handleUpload}

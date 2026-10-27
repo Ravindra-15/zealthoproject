@@ -427,12 +427,45 @@ const subscribeToProgram = async (req, res) => {
 // this always re-derives it from the live ProgramPlan data, same formula
 // subscribeToProgram uses. Used by both PayPal steps below.
 // ============================================
-const resolveSubscriptionPricing = async ({ programId, tenure, weeks }) => {
+// 📏 Purchase rules (client, 11 Sep):
+//  - First-time subscribers: at least 3 months (weekly programs: 12 weeks)
+//  - Existing (active, paid) subscribers extend in monthly steps (4, 8, 12… weeks)
+const MIN_NEW_MONTHS = 3;
+const MIN_NEW_WEEKS = 12;
+const EXTEND_STEP_WEEKS = 4;
+
+const isExtendingSubscriber = async (userId, programId) => {
+  if (!userId) return false;
+  const found = await ProgramSubscription.exists({
+    programId,
+    status: "active",
+    endDate: { $gt: new Date() },
+    isTrial: { $ne: true },
+    $or: [{ customer: userId }, { doctor: userId }],
+  });
+  return !!found;
+};
+
+// effective slider limits for a weekly plan
+const weeklyLimits = (weeklyPlan, isExtension) => {
+  const planMin = weeklyPlan.minWeeks || 1;
+  const max = weeklyPlan.maxWeeks || planMin;
+  if (isExtension) {
+    const min = Math.min(max, Math.ceil(Math.max(EXTEND_STEP_WEEKS, planMin) / EXTEND_STEP_WEEKS) * EXTEND_STEP_WEEKS);
+    return { minWeeks: min, maxWeeks: max, stepWeeks: EXTEND_STEP_WEEKS };
+  }
+  return { minWeeks: Math.min(max, Math.max(MIN_NEW_WEEKS, planMin)), maxWeeks: max, stepWeeks: 1 };
+};
+
+// userId given → enforce the purchase rules (order creation + quote only;
+// never at payment completion, so a paid order is never refused afterwards)
+const resolveSubscriptionPricing = async ({ programId, tenure, weeks, userId = null }) => {
   const weeklyPlan = await ProgramPlan.findOne({
     programId,
     pricingType: "weekly",
     isActive: true,
   });
+  const isExtension = userId ? await isExtendingSubscriber(userId, programId) : null;
 
   if (weeklyPlan) {
     const w = Number(weeks);
@@ -440,6 +473,15 @@ const resolveSubscriptionPricing = async ({ programId, tenure, weeks }) => {
       return {
         error: { status: 400, message: `Please select between ${weeklyPlan.minWeeks} and ${weeklyPlan.maxWeeks} weeks.` },
       };
+    }
+    if (isExtension !== null) {
+      const lim = weeklyLimits(weeklyPlan, isExtension);
+      if (isExtension && (w % EXTEND_STEP_WEEKS !== 0 || w < lim.minWeeks)) {
+        return { error: { status: 400, message: "You can extend your plan in monthly steps: 4, 8, 12… weeks." } };
+      }
+      if (!isExtension && w < lim.minWeeks) {
+        return { error: { status: 400, message: `New subscribers start with at least ${lim.minWeeks} weeks (3 months).` } };
+      }
     }
     return {
       pricingType: "weekly",
@@ -456,6 +498,12 @@ const resolveSubscriptionPricing = async ({ programId, tenure, weeks }) => {
   const plan = await ProgramPlan.findOne({ programId, planName: tenure, isActive: true });
   if (!plan) {
     return { error: { status: 404, message: "Selected plan is unavailable. Please refresh and try again." } };
+  }
+  if (isExtension === false) {
+    const planMonths = plan.durationMonths || parseMonthsFromName(tenure);
+    if (planMonths && planMonths < MIN_NEW_MONTHS) {
+      return { error: { status: 400, message: "New subscribers start with a plan of at least 3 months." } };
+    }
   }
   return {
     pricingType: "fixed",
@@ -509,7 +557,7 @@ const createProgramPaypalOrder = async (req, res) => {
       });
     }
 
-    const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks });
+    const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks, userId: customerId || doctorId });
     if (pricing.error) {
       return res.status(pricing.error.status).json({ success: false, message: pricing.error.message });
     }
@@ -905,7 +953,68 @@ const cancelSubscription = async (req, res) => {
   }
 };
 
+// ============================================
+// 💲 LIVE PRICE QUOTE — what PayPal will charge right now
+// GET /api/customer/programs/quote?programId=&tenure=&weeks=
+// Same resolveSubscriptionPricing the PayPal order uses, so the checkout
+// never shows a stale price after an admin edits a plan.
+// ============================================
+const QUOTE_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
+const getSubscriptionQuote = async (req, res) => {
+  try {
+    const { programId, tenure, weeks } = req.query;
+    if (!QUOTE_PROGRAMS.includes(programId)) {
+      return res.status(400).json({ success: false, message: "Valid programId is required" });
+    }
+    const pricing = await resolveSubscriptionPricing({ programId, tenure, weeks, userId: req.user?.id || req.user?._id });
+    if (pricing.error) {
+      return res.status(pricing.error.status).json({ success: false, message: pricing.error.message });
+    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        amount: pricing.amount,
+        currency: "USD",
+        pricingType: pricing.pricingType,
+        tenure: pricing.resolvedTenure,
+        weeks: pricing.resolvedWeeks,
+      },
+    });
+  } catch (err) {
+    console.error("[SUBSCRIPTION QUOTE ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to load the current price" });
+  }
+};
+
+// ============================================
+// 📏 PURCHASE RULES for the plan page
+// GET /api/customer/programs/purchase-rules?programId=
+// ============================================
+const getPurchaseRules = async (req, res) => {
+  try {
+    const { programId } = req.query;
+    if (!QUOTE_PROGRAMS.includes(programId)) {
+      return res.status(400).json({ success: false, message: "Valid programId is required" });
+    }
+    const isExtension = await isExtendingSubscriber(req.user?.id || req.user?._id, programId);
+    const weeklyPlan = await ProgramPlan.findOne({ programId, pricingType: "weekly", isActive: true }).lean();
+    return res.status(200).json({
+      success: true,
+      data: {
+        isExtension,
+        minMonthsForNew: MIN_NEW_MONTHS,
+        weekly: weeklyPlan ? weeklyLimits(weeklyPlan, isExtension) : null,
+      },
+    });
+  } catch (err) {
+    console.error("[PURCHASE RULES ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to load plan options" });
+  }
+};
+
 module.exports = {
+  getPurchaseRules,
+  getSubscriptionQuote,
   subscribeToProgram,
   createProgramPaypalOrder,
   captureProgramPaypalOrder,
