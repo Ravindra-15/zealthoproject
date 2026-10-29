@@ -11,7 +11,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { COUNTRIES, flagUrl } from "../../data/countries";
 
-const CountryCodeSelect = ({ value, onChange, hasError = false }) => {
+const CountryCodeSelect = ({ value, onChange, hasError = false, buttonClassName = "" }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef(null);
@@ -47,7 +47,7 @@ const CountryCodeSelect = ({ value, onChange, hasError = false }) => {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`h-full border rounded-xl px-3 flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 transition-colors ${
+        className={buttonClassName || `h-full border rounded-xl px-3 flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 transition-colors ${
           hasError ? "border-red-400" : "border-gray-300"
         }`}
       >

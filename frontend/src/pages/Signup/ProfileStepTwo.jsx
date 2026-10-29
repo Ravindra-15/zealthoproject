@@ -11,6 +11,7 @@ import { loadCountries, loadStates, loadCities } from "../../data/location";
 import { profileStepTwo } from "../../services/authService";
 import { clearMyCurrencyCache } from "../../services/currencyService";
 import { validateProfileStep2 } from "../../utils/validators";
+import { ONBOARDING_WELCOME_KEY } from "../Customer/Landing/components/OnboardingWelcomePopup";
 import toast from "react-hot-toast";
 
 const ProfileStepTwo = () => {
@@ -162,9 +163,11 @@ const ProfileStepTwo = () => {
         ? localStorage
         : sessionStorage;
 
-      sessionStorage.removeItem("welcomeShown"); 
+      sessionStorage.removeItem("welcomeShown");
 
-      navigate("/book-doctor", { replace: true });
+      // 🎉 land on Home with a short welcome popup
+      sessionStorage.setItem(ONBOARDING_WELCOME_KEY, "1");
+      navigate("/home", { replace: true });
     } catch (err) {
       const message =
         err?.response?.data?.message || err.message || "Something went wrong";

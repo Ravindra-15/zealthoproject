@@ -9,6 +9,7 @@ import ProgramsSection from "./sections/ProgramsSection";
 import FAQSection from "./sections/FAQSection";
 import CallbackSection from "./sections/CallbackSection";
 import WelcomePopup from "./components/WelcomePopup";
+import OnboardingWelcomePopup from "./components/OnboardingWelcomePopup";
 // import PricingSection from "./sections/PricingSection";
 import ReferAndEarnSection from "./sections/ReferAndEarnSection";
 
@@ -39,6 +40,7 @@ export default function LandingPage() {
        
       <CustomerNavbar />
        <WelcomePopup />
+      <OnboardingWelcomePopup />
       <main className="flex-1 w-full">
         <HeroSection />
         <ConditionsSection />

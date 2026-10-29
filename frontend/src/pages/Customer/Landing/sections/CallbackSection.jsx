@@ -2,14 +2,21 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { submitEnquiry } from "../../../../services/customerEnquiryService";
+import CountryCodeSelect from "../../../../components/common/CountryCodeSelect";
+import { DEFAULT_COUNTRY } from "../../../../data/countries";
 
 const initialForm = { name: "", email: "", phone: "", message: "" };
 
 export default function CallbackSection() {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState(DEFAULT_COUNTRY);
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  // 📱 digits only, capped at the selected country's length
+  const handlePhone = (e) =>
+    setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, phoneCountry.max) });
 
   const submit = async () => {
     if (!form.name.trim()) {
@@ -20,7 +27,7 @@ export default function CallbackSection() {
       toast.error("Mobile number is required.");
       return;
     }
-    if (!/^\+?[0-9\s-]{7,20}$/.test(form.phone.trim())) {
+    if (form.phone.length < phoneCountry.min || form.phone.length > phoneCountry.max) {
       toast.error("Please enter a valid mobile number.");
       return;
     }
@@ -38,7 +45,7 @@ export default function CallbackSection() {
       await submitEnquiry({
         name: form.name.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim(),
+        phone: `+${phoneCountry.dialCode} ${form.phone}`,
         message: form.message.trim(),
         source: "zealtho",
       });
@@ -55,6 +62,10 @@ export default function CallbackSection() {
 
   const inputClass =
     "w-full border-0 border-b border-gray-300 focus:border-teal-700 outline-none py-2 text-sm text-gray-700 placeholder-gray-400 bg-transparent transition-colors";
+
+  // country-code button styled like the underline inputs
+  const codeButtonClass =
+    "h-full border-0 border-b border-gray-300 px-1 flex items-center gap-1.5 text-sm text-gray-700 bg-transparent hover:bg-gray-50 transition-colors";
 
   return (
     <section id="callback" className="bg-white">
@@ -89,14 +100,25 @@ export default function CallbackSection() {
               type="email"
               className={inputClass}
             />
-            <input
-              name="phone"
-              value={form.phone}
-              onChange={handle}
-              placeholder="Mobile Number *"
-              type="tel"
-              className={inputClass}
-            />
+            <div className="flex items-stretch gap-2">
+              <CountryCodeSelect
+                value={phoneCountry}
+                onChange={(c) => {
+                  setPhoneCountry(c);
+                  setForm((f) => ({ ...f, phone: f.phone.slice(0, c.max) }));
+                }}
+                buttonClassName={codeButtonClass}
+              />
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={handlePhone}
+                placeholder="Mobile Number *"
+                type="tel"
+                inputMode="numeric"
+                className={`${inputClass} flex-1 min-w-0`}
+              />
+            </div>
             <div>
               <textarea
                 name="message"
