@@ -9,7 +9,7 @@ import { Calendar, Clock, CheckCircle2, User } from "lucide-react";
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 import {
   formatUtcDate,
-  formatUtcTime24h,
+  formatUtcTime12h,
 } from "../../../../utils/time";
 const ConsultationCard = ({
   doctor,            // { fullName, domain, photo, updatedAt }
@@ -84,7 +84,7 @@ const ConsultationCard = ({
         Time
       </div>
       <p className="text-sm font-semibold text-gray-900 mt-1">
-        {formatUtcTime24h(scheduledAt)}
+        {formatUtcTime12h(scheduledAt)}
       </p>
     </div>
   </div>
