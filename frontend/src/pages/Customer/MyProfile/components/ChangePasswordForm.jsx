@@ -3,6 +3,7 @@
 // Calls customerProfileService.changeMyPassword
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { changeMyPassword } from "../../../../services/customerProfileService";
 
@@ -13,6 +14,8 @@ export default function ChangePasswordForm() {
     confirmPassword: "",
   });
   const [saving, setSaving] = useState(false);
+  // 👁️ per-field show / hide
+  const [show, setShow] = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -79,42 +82,75 @@ export default function ChangePasswordForm() {
         <label className="block text-xs font-medium text-gray-600 mb-1">
           Current Password
         </label>
-        <input
-          type="password"
-          name="currentPassword"
-          value={form.currentPassword}
-          onChange={handleChange}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400"
-          placeholder="Enter current password"
-        />
+        <div className="relative">
+          <input
+            type={show.currentPassword ? "text" : "password"}
+            name="currentPassword"
+            value={form.currentPassword}
+            onChange={handleChange}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 pr-11"
+            placeholder="Enter current password"
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => ({ ...s, currentPassword: !s.currentPassword }))}
+            aria-label={show.currentPassword ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            tabIndex={-1}
+          >
+            {show.currentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">
           New Password
         </label>
-        <input
-          type="password"
-          name="newPassword"
-          value={form.newPassword}
-          onChange={handleChange}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400"
-          placeholder="Enter new password"
-        />
+        <div className="relative">
+          <input
+            type={show.newPassword ? "text" : "password"}
+            name="newPassword"
+            value={form.newPassword}
+            onChange={handleChange}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 pr-11"
+            placeholder="Enter new password"
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => ({ ...s, newPassword: !s.newPassword }))}
+            aria-label={show.newPassword ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            tabIndex={-1}
+          >
+            {show.newPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">
           Confirm New Password
         </label>
-        <input
-          type="password"
-          name="confirmPassword"
-          value={form.confirmPassword}
-          onChange={handleChange}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400"
-          placeholder="Confirm new password"
-        />
+        <div className="relative">
+          <input
+            type={show.confirmPassword ? "text" : "password"}
+            name="confirmPassword"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 pr-11"
+            placeholder="Confirm new password"
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => ({ ...s, confirmPassword: !s.confirmPassword }))}
+            aria-label={show.confirmPassword ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            tabIndex={-1}
+          >
+            {show.confirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       <button
