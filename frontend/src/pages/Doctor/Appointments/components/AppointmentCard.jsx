@@ -47,9 +47,9 @@ import BodyProfileView from "../../../../components/common/BodyProfileView";
 // 🛠️ HELPERS
 // ============================================
 // Masks a phone number, showing only the last 2 digits
-const maskPhone = (phone) => {
+const maskPhone = (phone, dialCode = "+91") => {
   if (!phone || phone.length < 4) return phone || "—";
-  return `+91 ${"*".repeat(phone.length - 2)}${phone.slice(-2)}`;
+  return `${dialCode} ${"*".repeat(phone.length - 2)}${phone.slice(-2)}`;
 };
 
 // Builds avatar initials from a name
@@ -110,6 +110,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
   const displayName =
     user?.nickName || user?.fullName || patientName || "Patient";
   const phone = user?.phone || "";
+  const dialCode = user?.countryCode || "+91";
 
   // 🔽 expand/collapse state — collapsed by default
   const [expanded, setExpanded] = useState(false);
@@ -433,7 +434,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
             <div className="flex items-center justify-between gap-2 mt-3 mb-1">
               <p className="text-xs text-gray-500 flex items-center gap-1">
                 <span aria-hidden>📞</span>
-                <span>{maskPhone(phone)}</span>
+                <span>{maskPhone(phone, dialCode)}</span>
               </p>
               <span
                 className={`sm:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${pill.cls}`}

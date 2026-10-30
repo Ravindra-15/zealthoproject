@@ -31,6 +31,20 @@ const {
 } = require("../utils/timezone");
 
 // ============================================
+// 🔒 HELPER — patient phone stays private from doctors
+// Only stars + the last 2 digits leave the server (same length, so the
+// doctor UI's mask still lines up). Works on lean docs only — never saved.
+// ============================================
+const maskPatientPhone = (appointment) => {
+  const user = appointment?.user;
+  if (user && typeof user === "object" && user.phone) {
+    const digits = String(user.phone);
+    user.phone = "*".repeat(Math.max(digits.length - 2, 0)) + digits.slice(-2);
+  }
+  return appointment;
+};
+
+// ============================================
 // 🗓️ HELPER — day bounds for a YYYY-MM-DD, in `timezone`
 // (this doctor's own local midnight to midnight, not a fixed UTC slice)
 // ============================================
@@ -67,7 +81,7 @@ const listByDate = async (doctorId, dateStr) => {
   })
     .populate(
       "user",
-      "fullName nickName phone profilePhoto updatedAt"
+      "fullName nickName phone countryCode profilePhoto updatedAt"
     )
     .sort({ scheduledAt: 1 })
     .lean();
@@ -75,6 +89,7 @@ const listByDate = async (doctorId, dateStr) => {
   // 📄 patient-uploaded reports (list never includes cancelled appointments)
   const reportMap = await reportsByAppointment(appointments.map((a) => a._id));
   for (const a of appointments) a.reports = reportMap[String(a._id)] || [];
+  appointments.forEach(maskPatientPhone);
 
   return { date, appointments };
 };
@@ -107,11 +122,11 @@ const setMeetingLink = async (doctorId, appointmentId, meetingLink) => {
 )
   .populate(
     "user",
-    "fullName nickName phone profilePhoto updatedAt"
+    "fullName nickName phone countryCode profilePhoto updatedAt"
   )
   .lean();
 
-return { appointment: populatedAppointment };
+return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 // ============================================
@@ -151,10 +166,10 @@ const generateMeetingLink = async (doctorId, appointmentId) => {
   await appointment.save();
 
   const populatedAppointment = await Appointment.findById(appointment._id)
-    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .populate("user", "fullName nickName phone countryCode profilePhoto updatedAt")
     .lean();
 
-  return { appointment: populatedAppointment };
+  return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 // ============================================
@@ -186,11 +201,11 @@ const markMeetingLinkSent = async (doctorId, appointmentId) => {
 )
   .populate(
     "user",
-    "fullName nickName phone profilePhoto updatedAt"
+    "fullName nickName phone countryCode profilePhoto updatedAt"
   )
   .lean();
 
-return { appointment: populatedAppointment };
+return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 // ============================================
@@ -448,10 +463,10 @@ const rescheduleByDoctor = async (doctorId, appointmentId, scheduledAt, reason) 
   }
 
   const populatedAppointment = await Appointment.findById(appointment._id)
-    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .populate("user", "fullName nickName phone countryCode profilePhoto updatedAt")
     .lean();
 
-  return { appointment: populatedAppointment };
+  return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 // ============================================
@@ -573,10 +588,10 @@ const setPrescription = async (doctorId, appointmentId, prescription) => {
   await appointment.save();
 
   const populatedAppointment = await Appointment.findById(appointment._id)
-    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .populate("user", "fullName nickName phone countryCode profilePhoto updatedAt")
     .lean();
 
-  return { appointment: populatedAppointment };
+  return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 // ============================================
@@ -616,10 +631,10 @@ const markPrescriptionSent = async (doctorId, appointmentId) => {
   }
 
   const populatedAppointment = await Appointment.findById(appointment._id)
-    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .populate("user", "fullName nickName phone countryCode profilePhoto updatedAt")
     .lean();
 
-  return { appointment: populatedAppointment };
+  return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 
@@ -684,10 +699,10 @@ const markNoShowByDoctor = async (doctorId, appointmentId) => {
   }
 
   const populatedAppointment = await Appointment.findById(appointment._id)
-    .populate("user", "fullName nickName phone profilePhoto updatedAt")
+    .populate("user", "fullName nickName phone countryCode profilePhoto updatedAt")
     .lean();
 
-  return { appointment: populatedAppointment };
+  return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
 module.exports = {
