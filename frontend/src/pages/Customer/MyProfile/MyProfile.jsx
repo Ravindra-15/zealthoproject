@@ -8,6 +8,8 @@ import toast from "react-hot-toast";
 import {
   ArrowLeft,
   Mail,
+  Phone,
+  Cake,
   MapPin,
   Calendar,
   Shield,
@@ -173,6 +175,16 @@ export default function MyProfile() {
     : user?.phone
       ? `+${user.phone}`
       : "—";
+  // 🎂 DOB is a calendar date (stored at UTC midnight) — format in UTC so it never shifts a day
+  const dob = user?.dob
+    ? new Date(user.dob).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "—";
+
   // ============================================
   // ⏳ LOADING
   // ============================================
@@ -270,42 +282,48 @@ export default function MyProfile() {
           </div>
 
           {/* INFO CARD */}
-          <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 mb-5">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-bold text-gray-800">
                   {user?.fullName || "—"}
                 </h2>
 
-                <p className="text-orange-500 text-sm font-medium mt-0.5">
-                  {user?.nickName || "—"}
-                </p>
+                {/* nickname · location · member since — one row */}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-1 text-sm text-gray-600">
+                  <span className="text-orange-500 font-medium">{user?.nickName || "—"}</span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin size={14} className="text-gray-400" />
-
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={14} className="text-gray-400 shrink-0" />
                     {user?.city
                       ? [user.city, user.state, user.country].filter(Boolean).join(", ")
                       : "—"}
-                  </div>
+                  </span>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar size={14} className="text-gray-400" />
+                  <span className="flex items-center gap-1.5">
+                    <Calendar size={14} className="text-gray-400 shrink-0" />
                     Member since {memberSince}
-                  </div>
+                  </span>
+                </div>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail size={14} className="text-gray-400" />
-
-                    <span className="truncate">{user?.email || "—"}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="text-gray-400">Phone Number</span>
-
-                    <span>{fullPhone}</span>
-                  </div>
+                {/* contact tiles */}
+                <div className="flex flex-wrap gap-3 mt-4">
+                  {[
+                    { icon: Mail, label: "Email", value: user?.email || "—" },
+                    { icon: Phone, label: "Phone Number", value: fullPhone },
+                    { icon: Cake, label: "Date of Birth", value: dob },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div
+                      key={label}
+                      className="w-full sm:w-auto sm:min-w-[200px] max-w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5"
+                    >
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                        <Icon size={13} className="text-gray-500" />
+                        {label}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-0.5 break-all">{value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
