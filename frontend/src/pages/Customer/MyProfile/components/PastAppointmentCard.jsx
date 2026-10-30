@@ -32,7 +32,7 @@ export default function PastAppointmentCard({ appointment }) {
   //   : "—";
 
   return (
-    <div className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-orange-200 transition-colors">
+    <div className="h-full border border-gray-100 rounded-xl p-4 flex items-start gap-3 hover:border-orange-200 transition-colors">
       <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
         {photoUrl ? (
           <img
@@ -58,7 +58,7 @@ export default function PastAppointmentCard({ appointment }) {
           <p className="text-xs text-gray-500 mt-0.5">{specialization}</p>
         )}
 
-        <div className="flex flex-wrap gap-3 mt-3">
+        <div className="flex flex-wrap gap-2 mt-3">
           <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
             <Calendar size={12} className="text-gray-400" />
             <div className="leading-tight">
