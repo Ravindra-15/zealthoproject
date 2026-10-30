@@ -30,7 +30,7 @@ const ConsultationCard = ({
     p-5 sm:p-6
     min-h-[300px]
     flex flex-col justify-center
-    w-full max-w-md mx-auto
+    w-full
   "
 >
   <p className="text-sm font-bold text-gray-900 mb-4">Consultation Details</p>

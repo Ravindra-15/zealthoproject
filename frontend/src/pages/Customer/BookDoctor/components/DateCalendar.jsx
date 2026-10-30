@@ -113,12 +113,11 @@ const DateCalendar = ({ selectedDate, onSelect }) => {
   return (
     <div
       className="
-        bg-orange-50/50 rounded-2xl border border-orange-100
-        p-4 sm:p-5
+        bg-white rounded-2xl border border-orange-100 overflow-hidden
       "
     >
       {/* Header: Month/Year + nav */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-center gap-6 px-4 py-3 bg-orange-100">
         <button
           type="button"
           onClick={prevMonth}
@@ -135,7 +134,7 @@ const DateCalendar = ({ selectedDate, onSelect }) => {
           <ChevronLeft size={16} />
         </button>
 
-        <p className="text-sm font-semibold text-gray-900">
+        <p className="min-w-[150px] text-center text-base font-semibold text-teal-900">
           {MONTHS[view.month]} {view.year}
         </p>
 
@@ -156,54 +155,56 @@ const DateCalendar = ({ selectedDate, onSelect }) => {
         </button>
       </div>
 
-      {/* Day-of-week labels */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
-        {DAYS_OF_WEEK.map((d) => (
-          <p
-            key={d}
-            className="text-[10px] font-bold tracking-wider text-gray-400 text-center uppercase"
-          >
-            {d}
-          </p>
-        ))}
-      </div>
-
-      {/* Day cells */}
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((cell, idx) => {
-          if (!cell) return <div key={`blank-${idx}`} className="h-9" />;
-
-          const disabled = cell.isPast || cell.isFuture;
-          const isSelected = cell.isSelected;
-          const isToday = cell.isToday;
-
-          return (
-            <button
-              key={cell.iso}
-              type="button"
-              onClick={() => !disabled && onSelect(cell.iso)}
-              disabled={disabled}
-              className={`
-                h-9 rounded-lg
-                text-xs font-semibold
-                transition-colors
-                ${
-                  isSelected
-                    ? "bg-orange-500 text-white shadow-[0_4px_10px_rgba(249,115,22,0.35)]"
-                    : isToday
-                    ? "bg-white text-orange-600 border border-orange-200"
-                    : disabled
-                    ? "text-gray-300 cursor-not-allowed"
-                    : "text-gray-700 hover:bg-white"
-                }
-              `}
-              aria-pressed={isSelected}
-              aria-label={cell.iso}
+      <div className="p-4 sm:p-5">
+        {/* Day-of-week labels */}
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {DAYS_OF_WEEK.map((d) => (
+            <p
+              key={d}
+              className="text-[10px] font-bold tracking-wider text-gray-400 text-center uppercase"
             >
-              {cell.date.getUTCDate()}
-            </button>
-          );
-        })}
+              {d}
+            </p>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((cell, idx) => {
+            if (!cell) return <div key={`blank-${idx}`} className="h-9" />;
+
+            const disabled = cell.isPast || cell.isFuture;
+            const isSelected = cell.isSelected;
+            const isToday = cell.isToday;
+
+            return (
+              <button
+                key={cell.iso}
+                type="button"
+                onClick={() => !disabled && onSelect(cell.iso)}
+                disabled={disabled}
+                className={`
+                  h-9 w-9 mx-auto rounded-full
+                  text-xs font-semibold
+                  transition-colors
+                  ${
+                    isSelected
+                      ? "bg-orange-500 text-white shadow-[0_4px_10px_rgba(249,115,22,0.35)]"
+                      : isToday
+                      ? "bg-white text-orange-600 border border-orange-200"
+                      : disabled
+                      ? "text-gray-300 cursor-not-allowed"
+                      : "text-gray-700 hover:bg-orange-50"
+                  }
+                `}
+                aria-pressed={isSelected}
+                aria-label={cell.iso}
+              >
+                {cell.date.getUTCDate()}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
