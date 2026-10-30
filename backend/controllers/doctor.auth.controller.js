@@ -307,6 +307,14 @@ const completeProfile = async (req, res) => {
       try { if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath); } catch { }
     }
 
+    // 🪪 Licence number already belongs to another doctor
+    if (err.code === "DUPLICATE_LICENCE") {
+      return res.status(409).json({
+        success: false,
+        message: "This licence number is already registered to another doctor account. Please check it or contact support.",
+      });
+    }
+
     // 🛡️ Handle Mongoose validation errors gracefully
     if (err.name === "ValidationError") {
       const firstError = Object.values(err.errors)[0]?.message || "Invalid data";

@@ -21,6 +21,40 @@ const {
 } = require("../utils/credentialsGenerator");
 
 // ============================================
+// 🪪 HELPER — one licence number per doctor
+// ============================================
+// Compared ignoring case and spaces ("mci 123" = "MCI123"). Throws a
+// DUPLICATE_LICENCE error (→ 409) when another doctor already holds it.
+const normalizeLicence = (value) =>
+  typeof value === "string" ? value.replace(/\s+/g, "").toLowerCase() : "";
+
+const assertLicenceAvailable = async (licenceNumber, excludeDoctorId = null) => {
+  const wanted = normalizeLicence(licenceNumber);
+  if (!wanted) return;
+
+  // regex narrows the scan; the exact normalized compare decides
+  const escaped = wanted.split("").map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s*");
+  const query = { licenceNumber: { $regex: `^\\s*${escaped}\\s*$`, $options: "i" } };
+  if (excludeDoctorId) query._id = { $ne: excludeDoctorId };
+
+  const matches = await Doctor.find(query).select("fullName licenceNumber").lean();
+  const owner = matches.find((d) => normalizeLicence(d.licenceNumber) === wanted);
+  if (owner) {
+    const err = new Error("A doctor with this licence number already exists.");
+    err.code = "DUPLICATE_LICENCE";
+    err.existingDoctorName = owner.fullName;
+    throw err;
+  }
+};
+
+// only re-check when the licence number is actually being changed
+const licenceChanged = async (doctorId, nextLicence) => {
+  if (!normalizeLicence(nextLicence)) return false;
+  const current = await Doctor.findById(doctorId).select("licenceNumber").lean();
+  return normalizeLicence(current?.licenceNumber) !== normalizeLicence(nextLicence);
+};
+
+// ============================================
 // 🆕 CREATE DOCTOR
 // ============================================
 
@@ -43,6 +77,9 @@ const createDoctor = async (doctorData, createdBy) => {
   if (!createdBy) {
     throw new Error("createdBy (admin ID) is required");
   }
+
+  // 🪪 No duplicate doctors — licence number must be unique
+  await assertLicenceAvailable(doctorData.licenceNumber);
 
   // 🔐 Generate unique credentials
   const usernameExistsCheck = async (candidate) => {
@@ -242,6 +279,11 @@ const updateDoctor = async (doctorId, updates) => {
     return await getDoctorById(doctorId);
   }
 
+  // 🪪 No duplicate doctors — only when the licence number changes
+  if (await licenceChanged(doctorId, safeUpdates.licenceNumber)) {
+    await assertLicenceAvailable(safeUpdates.licenceNumber, doctorId);
+  }
+
   const updated = await Doctor.findByIdAndUpdate(doctorId, safeUpdates, {
     new: true,
     runValidators: true,
@@ -424,6 +466,11 @@ const completeDoctorProfile = async (doctorId, profileData) => {
           ? profileData[key].trim()
           : profileData[key];
     }
+  }
+
+  // 🪪 No duplicate doctors — only when the licence number changes
+  if (await licenceChanged(doctorId, safeUpdates.licenceNumber)) {
+    await assertLicenceAvailable(safeUpdates.licenceNumber, doctorId);
   }
 
   // ✅ Mark profile as complete

@@ -79,6 +79,14 @@ const createDoctor = async (req, res) => {
 
     console.error("[DOCTOR CREATE ERROR]:", err);
 
+    // 🪪 Licence number already belongs to another doctor
+    if (err.code === "DUPLICATE_LICENCE") {
+      return res.status(409).json({
+        success: false,
+        message: `This licence number is already registered to ${err.existingDoctorName || "another doctor"}. Duplicate doctor accounts aren't allowed.`,
+      });
+    }
+
     // Handle duplicate username (very rare due to conflict resolution)
     if (err.code === 11000) {
       return res.status(409).json({
@@ -282,6 +290,14 @@ const updateDoctor = async (req, res) => {
     }
 
     console.error("[DOCTOR UPDATE ERROR]:", err);
+
+    // 🪪 Licence number already belongs to another doctor
+    if (err.code === "DUPLICATE_LICENCE") {
+      return res.status(409).json({
+        success: false,
+        message: `This licence number is already registered to ${err.existingDoctorName || "another doctor"}. Duplicate doctor accounts aren't allowed.`,
+      });
+    }
 
     if (err.name === "ValidationError") {
       const firstError = Object.values(err.errors)[0]?.message || "Validation failed";
