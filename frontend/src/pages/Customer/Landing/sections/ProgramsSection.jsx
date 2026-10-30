@@ -1,6 +1,8 @@
 // Zealtho - Tailored Programs Section
 // Fully responsive + Figma aligned
 
+import { PROGRAM_URLS } from "../../../../data/programLinks";
+
 const programs = [
   {
     id: "yogat20",
@@ -12,7 +14,7 @@ const programs = [
     image: "/images/yoga-hero.png",
     btnBg:
       "bg-orange-500 hover:bg-orange-600 shadow-[0_4px_14px_rgba(249,115,22,0.35)]",
-    url: import.meta.env.VITE_YOGAT20_URL || "http://localhost:5174",
+    url: PROGRAM_URLS.yogat20,
   },
 
   {
@@ -25,7 +27,7 @@ const programs = [
     image: "/images/diabmuktCouple.png",
     btnBg:
       "bg-[#4F6EF7] hover:bg-[#3F5EE6] shadow-[0_4px_14px_rgba(79,110,247,0.30)]",
-    url: import.meta.env.VITE_DIABMUKT_URL || "#",
+    url: PROGRAM_URLS.diabmukt,
   },
 
   {
@@ -39,7 +41,7 @@ const programs = [
     image: "/images/mommyfitFamily.png",
     btnBg:
       "bg-pink-500 hover:bg-pink-600 shadow-[0_4px_14px_rgba(236,72,153,0.25)]",
-    url: import.meta.env.VITE_MOMMYFIT_URL || "#",
+    url: PROGRAM_URLS.mommyfit,
   },
 
   {
@@ -52,7 +54,7 @@ const programs = [
     image: "/images/slimfitterHero.png",
     btnBg:
       "bg-indigo-700 hover:bg-indigo-800 shadow-[0_4px_14px_rgba(67,56,202,0.25)]",
-    url: import.meta.env.VITE_SLIMFITTER_URL || "#",
+    url: PROGRAM_URLS.slimfitter,
   },
 ];
 

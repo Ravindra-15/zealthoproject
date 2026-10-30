@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Flower2, Droplet, Baby, Dumbbell } from "lucide-react";
+import { PROGRAM_URLS } from "../../../../data/programLinks";
 
 const heroImages = [
   "/images/hero1.png",
@@ -10,7 +11,13 @@ const heroImages = [
   "/images/hero6.png",
 ];
 
-const placeholderBlocks = [1, 2, 3, 4];
+// 🧭 Shortcuts to the 4 program apps (same links as "Join Now" in Programs)
+const programShortcuts = [
+  { id: "yogat20", name: "Yoga T20", Icon: Flower2, tile: "bg-[#FFF3E8] border-[#FFD8B5] text-orange-500" },
+  { id: "diabmukt", name: "Diabmukt", Icon: Droplet, tile: "bg-[#EAF0FB] border-[#DCE7FF] text-[#4F6EF7]" },
+  { id: "mommyfit", name: "MommyFit", Icon: Baby, tile: "bg-[#FDE8F0] border-[#FFD3E3] text-pink-500" },
+  { id: "slimfitter", name: "Slimfitter", Icon: Dumbbell, tile: "bg-[#E8EAF6] border-[#D8DDF8] text-indigo-700" },
+];
 
 // Duplicate images for seamless infinite loop
 const leftImgs  = [heroImages[0], heroImages[2], heroImages[4], heroImages[0], heroImages[2], heroImages[4]];
@@ -133,13 +140,27 @@ export default function HeroSection() {
                 15+ Years of Experience
               </p>
 
-              {/* Placeholder blocks */}
-              <div className="flex gap-4 flex-wrap">
-                {placeholderBlocks.map((b) => (
-                  <div
-                    key={b}
-                    className="w-16 h-16 rounded-2xl bg-gray-100 border border-gray-200"
-                  />
+              {/* 🧭 Program shortcuts — open each program app in a new tab */}
+              <div className="grid grid-cols-4 gap-2 sm:gap-4 w-full max-w-[352px]">
+                {programShortcuts.map(({ id, name, Icon, tile }) => (
+                  <a
+                    key={id}
+                    href={PROGRAM_URLS[id]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open ${name}`}
+                    aria-label={`Open ${name} program (opens in a new tab)`}
+                    className="group flex flex-col items-center gap-1.5 min-w-0"
+                  >
+                    <span
+                      className={`w-full max-w-[64px] aspect-square rounded-2xl border flex items-center justify-center transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md ${tile}`}
+                    >
+                      <Icon size={28} strokeWidth={1.8} />
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-gray-700 group-hover:text-gray-900 whitespace-nowrap">
+                      {name}
+                    </span>
+                  </a>
                 ))}
               </div>
             </div>
