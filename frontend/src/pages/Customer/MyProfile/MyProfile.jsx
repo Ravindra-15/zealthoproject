@@ -3,7 +3,7 @@
 // Route: /my-profile (protected, fully-onboarded users)
 
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
@@ -36,9 +36,11 @@ import EditProfileModal from "./components/EditProfileModal";
 import ReportIssueModal from "./components/ReportIssueModal";
 import ChangePasswordForm from "./components/ChangePasswordForm";
 import PastAppointmentCard from "./components/PastAppointmentCard";
+import { safeNextPath } from "../../../utils/profileCompletion";
 
 export default function MyProfile() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { logout } = useAuth();
 
   const [user, setUser] = useState(null);
@@ -96,6 +98,33 @@ export default function MyProfile() {
       setLoading(false);
     })();
   }, []);
+
+  // ============================================
+  // 👤 "COMPLETE YOUR PROFILE" ARRIVAL
+  // ============================================
+  // ?complete=1 opens the edit form straight away; after saving, go back to
+  // ?next (e.g. the checkout they came from).
+  const completing = searchParams.get("complete") === "1";
+  const autoOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (!completing) {
+      autoOpenedRef.current = false; // re-arm for the next ?complete=1 visit
+      return;
+    }
+    if (!loading && user && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      setEditOpen(true);
+    }
+  }, [loading, user, completing]);
+
+  const closeEdit = (saved) => {
+    setEditOpen(false);
+    if (!completing) return;
+    const next = safeNextPath(searchParams.get("next"));
+    if (saved && next) navigate(next, { replace: true });
+    else setSearchParams({}, { replace: true });
+  };
 
   // ============================================
   // 🚪 LOGOUT
@@ -438,10 +467,10 @@ export default function MyProfile() {
 
         <EditProfileModal
           user={user}
-          onClose={() => setEditOpen(false)}
+          onClose={() => closeEdit(false)}
           onUpdated={(updated) => {
             setUser(updated);
-            setEditOpen(false);
+            closeEdit(true);
           }}
         />
       )}

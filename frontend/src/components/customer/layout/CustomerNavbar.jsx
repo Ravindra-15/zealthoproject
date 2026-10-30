@@ -10,6 +10,7 @@ import { Menu, X, Bell } from "lucide-react";
 import AuthContext from "../../../context/AuthContext";
 import { fetchMyNotifications } from "../../../services/customerNotificationService";
 import { listMyAppointments } from "../../../services/customerAppointmentService";
+import { useFirstProfileNudge } from "../../../hooks/useProfileGate";
 
 // ============================================
 // 🔗 NAV LINK CONFIGS
@@ -29,6 +30,7 @@ const PRIVATE_LINKS = [
 
 const CustomerNavbar = () => {
   const navigate = useNavigate();
+  const { openProfile, profileNudgeModal } = useFirstProfileNudge();
   const location = useLocation();
 
   const auth = useContext(AuthContext) || {};
@@ -278,7 +280,7 @@ const CustomerNavbar = () => {
                   {/* 👤 PROFILE */}
                   <button
                     type="button"
-                    onClick={() => navigate("/my-profile")}
+                    onClick={openProfile}
                     className="
                       hidden sm:inline-flex items-center
                       px-5 py-2 rounded-full
@@ -377,7 +379,7 @@ const CustomerNavbar = () => {
                     type="button"
                     onClick={() => {
                       closeMobile();
-                      navigate("/my-profile");
+                      openProfile();
                     }}
                     className="
                       mt-1 px-4 py-2 rounded-full self-start
@@ -422,6 +424,7 @@ const CustomerNavbar = () => {
           </div>
         )}
       </header>
+      {profileNudgeModal}
       <div className="h-16" />
     </div>
   );

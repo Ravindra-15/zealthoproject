@@ -41,6 +41,7 @@ import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
 import useMedicalReports from "../../../hooks/useMedicalReports";
 import ReportList from "../../../components/customer/MedicalReports/ReportList";
 import { useCurrency } from "../../../hooks/useCurrency";
+import { useProfileGate } from "../../../hooks/useProfileGate";
 
 const BOOKING_FEE = 20;
 const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
@@ -49,6 +50,7 @@ const PLATFORM = "zealtho"; // current program identifier (change per subprogram
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const { requireCompleteProfile, profileGateModal } = useProfileGate();
   const location = useLocation();
 
   const [intent, setIntent] = useState(null);
@@ -190,6 +192,9 @@ const Checkout = () => {
 
     try {
       setPaying(true);
+
+      // 👤 phone + location needed before booking — ask first if missing
+      if (!(await requireCompleteProfile("/checkout"))) return;
 
       // The server decides free vs paid (it re-checks credits/consult cards
       // and that the slot is still open) — the client never guesses.
@@ -540,6 +545,8 @@ const Checkout = () => {
       </Modal>
 
       <CustomerFooter />
+
+      {profileGateModal}
     </div>
   );
 };

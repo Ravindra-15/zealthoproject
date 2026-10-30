@@ -4,11 +4,13 @@ import { X, Shield, CreditCard, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 import { subscribeToProgram } from "../../../services/programService";
 import { useCurrency } from "../../../hooks/useCurrency";
+import { useProfileGate } from "../../../hooks/useProfileGate";
 
 export default function ProgramCheckout() {
   const { id } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { requireCompleteProfile, profileGateModal } = useProfileGate();
 
   const customerToken =
     localStorage.getItem("token") || sessionStorage.getItem("token");
@@ -53,6 +55,10 @@ export default function ProgramCheckout() {
     }
     try {
       setLoading(true);
+
+      // 👤 phone + location needed before a plan — ask first if missing
+      if (!(await requireCompleteProfile(`/programs/${id}/checkout`))) return;
+
       await subscribeToProgram({
         programId: id,
         tenure,
@@ -260,6 +266,8 @@ export default function ProgramCheckout() {
           </div>
         </div>
       </div>
+
+      {profileGateModal}
     </div>
   );
 }
