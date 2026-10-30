@@ -355,7 +355,7 @@ exports.resetPassword = async (req, res) => {
 // 🔵 GOOGLE AUTH — signup + login via Google ID token
 exports.googleAuth = async (req, res) => {
   try {
-   const { credential, accessToken } = req.body;
+   const { credential, accessToken, mode } = req.body;
 
     if (!credential && !accessToken) {
       return errorResponse(res, "Google credential is required", 400);
@@ -406,6 +406,12 @@ exports.googleAuth = async (req, res) => {
       // 🚫 Block deactivated accounts
       if (user.isActive === false) {
         return errorResponse(res, "Account is deactivated", 403);
+      }
+
+      // 🙋 Already registered — the Signup page sends mode "signup", so don't
+      // sign in silently there; the user is pointed to Login instead.
+      if (mode === "signup") {
+        return errorResponse(res, "You already have an account with this email. Please log in.", 409);
       }
 
       // Link Google to an existing local account (first Google login)

@@ -153,7 +153,7 @@ const Signup = () => {
     try {
       setLoading(true);
 
-      const { data } = await googleAuth({ accessToken });
+      const { data } = await googleAuth({ accessToken, mode: "signup" });
 
       login(data.data.token, true);
       localStorage.setItem("user", JSON.stringify(data.data.user));
@@ -175,6 +175,12 @@ const Signup = () => {
         }
       }, 300);
     } catch (err) {
+      // 🙋 Google account already registered → point them to Login
+      if (err?.response?.status === 409) {
+        toast(err.response.data?.message || "You already have an account. Please log in.", { icon: "👋" });
+        navigate("/login");
+        return;
+      }
       const message = err?.response?.data?.message || "Google sign-in failed";
       toast.error(message);
     } finally {
