@@ -1,3 +1,5 @@
+// ⏳ must stay first: clears an expired customer token before anything reads it
+import "./utils/sessionGuard";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
