@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 const tenureOptions = [
   {
@@ -31,6 +32,9 @@ export default function SelectTenure() {
   const navigate = useNavigate();
   const programName = programNames[id] || id;
 
+  // ⬅️ Back: only the landing page links here
+  const handleBack = () => navigate("/", { replace: true });
+
   const handleSelect = (option) => {
     navigate(`/programs/${id}/checkout`, {
       state: {
@@ -44,7 +48,17 @@ export default function SelectTenure() {
 
   return (
     <div className="min-h-screen bg-gray-900/80 flex items-center justify-center px-4 py-12">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg px-8 py-10">
+      <div className="relative bg-white rounded-3xl shadow-xl w-full max-w-lg px-8 py-10">
+        <button
+          type="button"
+          onClick={handleBack}
+          aria-label="Go back"
+          title="Back"
+          className="absolute top-2 left-2 sm:top-4 sm:left-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
         {/* heading */}
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
