@@ -402,6 +402,12 @@ exports.googleAuth = async (req, res) => {
     // 🔍 Find existing user by email
     let user = await User.findOne({ email });
 
+    // 🔁 Same Google account, but a super admin has since changed this user's
+    // email: sign them in to their account instead of creating an empty one.
+    if (!user && googleId) {
+      user = await User.findOne({ googleId });
+    }
+
     if (user) {
       // 🚫 Block deactivated accounts
       if (user.isActive === false) {

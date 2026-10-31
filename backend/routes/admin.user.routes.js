@@ -14,6 +14,7 @@ const {
   exportUsersCsv,
   getUser,
   updateUser,
+  updateUserEmail,
   toggleStatus,
 } = require("../controllers/admin.user.controller");
 
@@ -21,6 +22,7 @@ const {
   validateListQuery,
   validateUserId,
   validateUpdateUser,
+  validateUpdateUserEmail,
 } = require("../validators/admin.user.validator");
 
 const {
@@ -81,6 +83,16 @@ router.put(
   validateUserId,
   validateUpdateUser,
   updateUser
+);
+
+// 📧 Change login email (super admin only — portal admins can't change it)
+router.patch(
+  "/:id/email",
+  userWriteLimiter,
+  requireSuperAdmin,
+  validateUserId,
+  validateUpdateUserEmail,
+  updateUserEmail
 );
 
 // 🔄 Toggle active/inactive status (super admin only — portal admins can't deactivate users)

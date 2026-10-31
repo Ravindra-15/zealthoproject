@@ -2,21 +2,24 @@
  * ADMIN MODULE — Edit User Page
  *
  * Form for fullName + nickName (operational fields only).
- * Read-only display of email/phone (auth identifiers).
+ * Read-only display of email/phone (auth identifiers). Only the super admin
+ * can change the email, through its own popup.
  * Bottom: Danger Zone with activate/deactivate.
  */
 
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, User, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Save, Loader2, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import UserDangerZone from "./components/UserDangerZone";
+import ChangeEmailModal from "./components/ChangeEmailModal";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import {
   getUserDetails,
   updateUser,
+  updateUserEmail,
   buildUserDisplayId,
 } from "../../../services/userService";
 
@@ -30,13 +33,15 @@ const LIMITS = {
 const EditUser = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  // 🛡️ Only the super admin can activate / deactivate users
+  // 🛡️ Only the super admin can activate / deactivate users or change their email
   const { isSuperAdmin } = useAdminAuth();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
 
   const [form, setForm] = useState({ fullName: "", nickName: "" });
   const [initialSnapshot, setInitialSnapshot] = useState(null);
@@ -157,6 +162,34 @@ const EditUser = () => {
   };
 
   // ============================================
+  // 📧 CHANGE EMAIL (super admin only)
+  // ============================================
+  const handleChangeEmail = async (email) => {
+    try {
+      setChangingEmail(true);
+      const data = await updateUserEmail(id, email);
+      if (!isMountedRef.current) return;
+
+      setUser(data.user);
+      setEmailModalOpen(false);
+
+      const { currentEmail, previousEmail } = data.notifications || {};
+      if (currentEmail?.status === "failed" || previousEmail?.status === "failed") {
+        toast("Email changed, but a notification email couldn't be sent", {
+          icon: "⚠️",
+        });
+      } else {
+        toast.success("Email changed. The patient has been notified by email");
+      }
+    } catch (err) {
+      if (!isMountedRef.current) return;
+      toast.error(err?.response?.data?.message || "Failed to change email");
+    } finally {
+      if (isMountedRef.current) setChangingEmail(false);
+    }
+  };
+
+  // ============================================
   // ⏳ LOADING
   // ============================================
   if (loading) {
@@ -269,15 +302,30 @@ const EditUser = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email
             </label>
-            <input
-              type="text"
-              value={user.email || ""}
-              disabled
-              readOnly
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 cursor-not-allowed"
-            />
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <input
+                type="text"
+                value={user.email || ""}
+                disabled
+                readOnly
+                className="flex-1 min-w-0 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 cursor-not-allowed"
+              />
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setEmailModalOpen(true)}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  <Mail size={15} />
+                  Change Email
+                </button>
+              )}
+            </div>
             <p className="mt-1.5 text-xs text-gray-400">
-              Cannot be changed by admin (auth identifier).
+              {isSuperAdmin
+                ? "The patient is notified by email when this is changed."
+                : "Only the super admin can change this."}
             </p>
           </div>
 
@@ -326,6 +374,16 @@ const EditUser = () => {
       {/* ============================================ */}
       {isSuperAdmin && (
         <UserDangerZone user={user} onUserUpdated={handleUserUpdated} />
+      )}
+
+      {isSuperAdmin && emailModalOpen && (
+        <ChangeEmailModal
+          isOpen
+          user={user}
+          loading={changingEmail}
+          onConfirm={handleChangeEmail}
+          onClose={() => setEmailModalOpen(false)}
+        />
       )}
     </div>
   );

@@ -19,6 +19,7 @@
 const {
   sendAccountDeactivatedEmail,
   sendAccountReactivatedEmail,
+  sendEmailChangedByAdmin,
 } = require("./email.service");
 const { sendWhatsApp } = require("./whatsapp.service");
 
@@ -78,4 +79,40 @@ const notifyUserStatusChanged = async ({ user, isActive, reasonLabel, descriptio
   return result;
 };
 
-module.exports = { notifyUserStatusChanged };
+// ============================================
+// 📧 LOGIN EMAIL CHANGED BY A SUPER ADMIN
+// ============================================
+// Both addresses get the same notice: the new one so the user knows which email
+// to sign in with, the old one in case they never asked for this. NEVER throws.
+const notifyUserEmailChanged = async ({ user, previousEmail, changedAt = new Date() }) => {
+  const deliver = async (to) => {
+    try {
+      await Promise.race([
+        sendEmailChangedByAdmin({
+          to,
+          recipientName: user.fullName,
+          previousEmail,
+          currentEmail: user.email,
+          signsInWithGoogle: user.provider === "google",
+          changedAt,
+          timeZone: user.timezone,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Email timed out")), EMAIL_TIMEOUT_MS)
+        ),
+      ]);
+      return { status: "sent", to };
+    } catch (err) {
+      console.error("[USER NOTIFY EMAIL ERROR]:", err.message);
+      return { status: "failed", to, error: err.message };
+    }
+  };
+
+  const [current, previous] = await Promise.all([deliver(user.email), deliver(previousEmail)]);
+  console.log(
+    `[USER NOTIFY] email changed ${previousEmail} → ${user.email} | current:${current.status} previous:${previous.status}`
+  );
+  return { currentEmail: current, previousEmail: previous };
+};
+
+module.exports = { notifyUserStatusChanged, notifyUserEmailChanged };

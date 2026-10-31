@@ -337,6 +337,65 @@ const sendAccountReactivatedEmail = async ({ to, recipientName }) => {
 };
 
 // ============================================
+// 📧 ACCOUNT EMAIL CHANGED BY SUPER ADMIN
+// THROWS on failure, so the admin can be told if the notice wasn't delivered.
+// ============================================
+const sendEmailChangedByAdmin = async ({
+  to,
+  recipientName,
+  previousEmail,
+  currentEmail,
+  signsInWithGoogle,
+  changedAt,
+  timeZone,
+}) => {
+  const name = recipientName || "there";
+  const when = formatAppointmentTime(changedAt, timeZone || DEFAULT_TIMEZONE);
+  const signInNote = signsInWithGoogle
+    ? "You can keep using Continue with Google with the same Google account. Your plans and appointments have not changed."
+    : "Please sign in with your current email from now on. Your password, plans and appointments have not changed.";
+  const label = "padding: 10px 12px; border: 1px solid #e5e7eb; background: #f9fafb; color: #6b7280; width: 38%;";
+  const value = "padding: 10px 12px; border: 1px solid #e5e7eb; word-break: break-all;";
+
+  await transporter.sendMail({
+    from: `"Zealtho" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: "Your Zealtho account email has been changed",
+    text: [
+      `Hi ${name},`,
+      "",
+      "The Super Admin has changed the email address on your Zealtho account.",
+      "",
+      `Previous email: ${previousEmail}`,
+      `Current email: ${currentEmail}`,
+      `Changed on: ${when}`,
+      "",
+      signInNote,
+      "If you did not ask for this change, please contact admin for support.",
+      "",
+      "- The Zealtho Team",
+    ].join("\n"),
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1f2937;">Account Email Changed</h2>
+        <p>Hi ${escapeHtml(name)},</p>
+        <p>The Super Admin has changed the email address on your Zealtho account.</p>
+        <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+          <tr><td style="${label}">Previous email</td><td style="${value}">${escapeHtml(previousEmail)}</td></tr>
+          <tr><td style="${label}">Current email</td><td style="${value}"><strong>${escapeHtml(currentEmail)}</strong></td></tr>
+          <tr><td style="${label}">Changed on</td><td style="${value}">${escapeHtml(when)}</td></tr>
+        </table>
+        <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 14px;">${escapeHtml(signInNote)}</p>
+        </div>
+        <p style="font-size: 14px;">If you did not ask for this change, please contact admin for support.</p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
+      </div>
+    `,
+  });
+};
+
+// ============================================
 // ⏰ FREE TRIAL EXPIRING SOON (YogaT20)
 // ============================================
 const sendTrialExpiryReminder = async ({ to, recipientName, daysLeft }) => {
@@ -502,6 +561,7 @@ module.exports.sendPlanExpiryReminder = sendPlanExpiryReminder;
 module.exports.sendBirthdayWish = sendBirthdayWish;
 module.exports.sendAccountDeactivatedEmail = sendAccountDeactivatedEmail;
 module.exports.sendAccountReactivatedEmail = sendAccountReactivatedEmail;
+module.exports.sendEmailChangedByAdmin = sendEmailChangedByAdmin;
 module.exports.sendProgressReportExportEmail = sendProgressReportExportEmail;
 module.exports.sendBroadcastMessageEmail = sendBroadcastMessageEmail;
 module.exports.sendTrialApprovedEmail = sendTrialApprovedEmail;

@@ -95,8 +95,31 @@ const validateUpdateUser = (req, res, next) => {
   next();
 };
 
+// ============================================
+// 📧 CHANGE EMAIL
+// ============================================
+// Same rule as customer signup and login, so the patient can sign in with it.
+const LOGIN_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+const validateUpdateUserEmail = (req, res, next) => {
+  const { email } = req.body || {};
+
+  if (typeof email !== "string" || !email.trim()) {
+    return res.status(400).json({ success: false, message: "Email is required" });
+  }
+
+  const cleaned = email.toLowerCase().trim();
+  if (cleaned.length > 254 || !LOGIN_EMAIL_REGEX.test(cleaned)) {
+    return res.status(400).json({ success: false, message: "Enter a valid email address" });
+  }
+
+  req.body = { email: cleaned };
+  next();
+};
+
 module.exports = {
   validateListQuery,
   validateUserId,
   validateUpdateUser,
+  validateUpdateUserEmail,
 };

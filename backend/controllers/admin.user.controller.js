@@ -6,7 +6,10 @@
  */
 
 const userService = require("../services/admin.user.service");
-const { notifyUserStatusChanged } = require("../services/customerNotification.service");
+const {
+  notifyUserStatusChanged,
+  notifyUserEmailChanged,
+} = require("../services/customerNotification.service");
 const { FLAG_REASON_CODES, getFlagReasonLabel } = require("../utils/userFlagReasons");
 const { toCsv } = require("../utils/csv.util");
 const {
@@ -181,6 +184,64 @@ const updateUser = async (req, res) => {
 };
 
 // ============================================
+// 📧 CHANGE LOGIN EMAIL (super admin only — enforced on the route)
+// ============================================
+const EMAIL_TAKEN_MESSAGE = "This email is already used by another account";
+
+const updateUserEmail = async (req, res) => {
+  try {
+    const result = await userService.changeUserEmail(req.params.id, req.body.email);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (result.conflict) {
+      return res.status(409).json({ success: false, message: EMAIL_TAKEN_MESSAGE });
+    }
+
+    const { user, previousEmail, changed } = result;
+
+    if (!changed) {
+      return res.status(200).json({
+        success: true,
+        message: "This is already the user's email",
+        data: { user, changed, notifications: null },
+      });
+    }
+
+    console.log(
+      `[ADMIN AUDIT] ${req.admin?.email} changed email of user ${user._id} from ${previousEmail} to ${user.email}`
+    );
+
+    // 📧 tell the user at both addresses (never throws)
+    const notifications = await notifyUserEmailChanged({ user, previousEmail });
+
+    return res.status(200).json({
+      success: true,
+      message: "Email changed successfully",
+      data: { user, changed, notifications },
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ success: false, message: EMAIL_TAKEN_MESSAGE });
+    }
+    if (err?.name === "ValidationError") {
+      const firstError = Object.values(err.errors)[0]?.message || "Invalid data";
+      return res.status(400).json({ success: false, message: firstError });
+    }
+    console.error("[ADMIN CHANGE USER EMAIL ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to change email",
+    });
+  }
+};
+
+// ============================================
 // 🔄 TOGGLE STATUS
 // Body may include `isActive` (the desired end state, from the confirm
 // modal) — falls back to a blind flip if omitted.
@@ -264,5 +325,6 @@ module.exports = {
   exportUsersCsv,
   getUser,
   updateUser,
+  updateUserEmail,
   toggleStatus,
 };

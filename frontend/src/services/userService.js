@@ -69,6 +69,14 @@ export const updateUser = async (userId, payload) => {
 };
 
 // ============================================
+// 📧 CHANGE LOGIN EMAIL (super admin only)
+// ============================================
+export const updateUserEmail = async (userId, email) => {
+  const response = await adminApi.patch(`/admin/users/${userId}/email`, { email });
+  return response.data.data;
+};
+
+// ============================================
 // 🔄 TOGGLE STATUS
 // `targetIsActive` — the desired end state (from the confirm modal).
 // Omit to blind-flip the current state. `flagInfo` — only meaningful when

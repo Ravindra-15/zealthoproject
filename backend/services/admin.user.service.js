@@ -131,6 +131,7 @@ const getUserById = async (userId) => {
 const updateUser = async (userId, updates) => {
   // 🔒 Whitelist — admin can only edit fullName + nickName
   // Auth fields (email, phone, password) and medical data stay user-owned.
+  // Email has its own super-admin-only route: see changeUserEmail.
   const ALLOWED_FIELDS = ["fullName", "nickName"];
 
   const safeUpdates = {};
@@ -151,6 +152,34 @@ const updateUser = async (userId, updates) => {
   })
     .select("-password")
     .lean();
+};
+
+// ============================================
+// 📧 CHANGE LOGIN EMAIL (route is super admin only)
+// ============================================
+// Writes only `email`, so the password, plans and active sessions are untouched.
+const changeUserEmail = async (userId, nextEmail) => {
+  const current = await User.findById(userId).select("email").lean();
+  if (!current) return null;
+
+  const previousEmail = current.email;
+  if (String(previousEmail).toLowerCase() === nextEmail) {
+    return { user: await getUserById(userId), previousEmail, changed: false };
+  }
+
+  const taken = await User.exists({ email: nextEmail, _id: { $ne: userId } });
+  if (taken) return { conflict: true };
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { email: nextEmail },
+    { new: true, runValidators: true }
+  )
+    .select("-password")
+    .lean();
+  if (!user) return null;
+
+  return { user, previousEmail, changed: true };
 };
 
 // ============================================
@@ -201,5 +230,6 @@ module.exports = {
   getUserDetails,
   getUserById,
   updateUser,
+  changeUserEmail,
   toggleUserStatus,
 };
