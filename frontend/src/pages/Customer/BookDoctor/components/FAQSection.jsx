@@ -30,7 +30,7 @@ const FAQ_ITEMS = [
   {
     question: "Can I reschedule or cancel my consultation?",
     answer:
-      "You can reschedule or cancel up to 4 hours before your appointment from the My Appointments page. Cancellations within 4 hours may incur a partial fee depending on the doctor's policy.",
+      "You can reschedule from the My Appointments page up to 48 hours before your appointment, and cancel any time before it starts. There is no refund if you cancel. If your doctor cancels, you receive a free consultation credit to book another available doctor.",
   },
   {
     question: "Is my health data kept private?",

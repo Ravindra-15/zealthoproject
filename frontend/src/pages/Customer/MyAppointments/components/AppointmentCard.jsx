@@ -4,7 +4,7 @@
  * Expanded: editable problem (only while upcoming) + doctor's prescription (if sent).
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Calendar,
   Clock,
@@ -50,6 +50,7 @@ const PROGRAM_NAMES = {
   slimfitter: "Slimfitter",
 };
 const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
+const MAX_TIMER_MS = 2 ** 31 - 1; // longest delay setTimeout accepts
 
 // 🟢 STATUS PILL
 const StatusPill = ({ status }) => {
@@ -136,7 +137,22 @@ const [cancelling, setCancelling] = useState(false);
   // local copy so UI updates instantly after edit
   const [localNotes, setLocalNotes] = useState(notes || "");
 
-  const canCancel = isUpcoming && ["pending", "confirmed"].includes(status);
+  // ⏱️ No cancelling once the appointment has started — matches the backend's
+  // check. The timer hides the button even if this page was left open.
+  const startMs = new Date(scheduledAt).getTime();
+  const [startedMs, setStartedMs] = useState(() => (Date.now() >= startMs ? startMs : null));
+  useEffect(() => {
+    const msLeft = startMs - Date.now();
+    if (msLeft > MAX_TIMER_MS) return;
+    const timer = setTimeout(() => {
+      setStartedMs(startMs);
+      setCancelModalOpen(false);
+    }, Math.max(msLeft, 0));
+    return () => clearTimeout(timer);
+  }, [startMs]);
+  const hasStarted = startedMs === startMs;
+
+  const canCancel = isUpcoming && !hasStarted && ["pending", "confirmed"].includes(status);
   const canRateConsultation = status === "completed" && appointment?.feedbackStatus !== "submitted";
   const canMarkComplete =
     ["pending", "confirmed"].includes(status) && !!meetingLinkSentAt;

@@ -9,16 +9,15 @@
  */
 
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
-const Notification = require("../models/Notification");
 const TimeOff = require("../models/TimeOff");
 const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
-const User = require("../models/User");
 const {
   generateSlotStartTimes,
   SLOT_DURATION_MINUTES,
 } = require("../utils/availabilityConstants");
-const { buildZonedSlotDate, getZonedHHMM, formatInZone, DEFAULT_TIMEZONE } = require("../utils/timezone");
+const { buildZonedSlotDate, getZonedHHMM, DEFAULT_TIMEZONE } = require("../utils/timezone");
+const { cancelByDoctor } = require("./doctor.appointment.service");
 
 // ============================================
 // 🛠️ DATE HELPERS
@@ -252,38 +251,10 @@ const deleteTimeOff = async (doctorId, timeOffId) => {
 // ============================================
 // ❌ CANCEL APPOINTMENT (from calendar context menu)
 // ============================================
-const cancelAppointment = async (doctorId, appointmentId, reason = "") => {
-  const appointment = await Appointment.findOne({
-    _id: appointmentId,
-    doctor: doctorId,
-  });
-
-  if (!appointment) return null;
-
-  // Only future/active appointments can be cancelled
-  if (["completed", "cancelled", "no_show"].includes(appointment.status)) {
-    return { error: `Cannot cancel a ${appointment.status} appointment` };
-  }
-
-  appointment.status = "cancelled";
-  appointment.cancelledReason = reason || "Cancelled by doctor";
-  await appointment.save();
-  // 🔔 Notify customer (rendered in THEIR own zone, not the doctor's)
-  try {
-    const patientForZone = await User.findById(appointment.user).select("timezone").lean();
-    await Notification.create({
-      userId: appointment.user,
-      type: "appointment_cancelled",
-      title: "Appointment Cancelled",
-      body: `Your consultation with Dr. ${appointment.doctorName} on ${formatInZone(appointment.scheduledAt, patientForZone?.timezone || DEFAULT_TIMEZONE)} has been cancelled. ${reason ? `Reason: ${reason}` : ""}`,
-      metadata: { appointmentId: appointment._id },
-    });
-  } catch (err) {
-    console.log("NOTIFICATION CREATE ERROR:", err);
-  }
-
-  return { appointment };
-};
+// Same cancel as the doctor's Appointments page: the patient gets their free
+// credit and it counts toward the doctor's cancellation flag.
+const cancelAppointment = (doctorId, appointmentId, reason = "") =>
+  cancelByDoctor(doctorId, appointmentId, reason || "Cancelled by doctor");
 
 // ============================================
 // 📋 LIST DOCTOR'S TIME OFFS

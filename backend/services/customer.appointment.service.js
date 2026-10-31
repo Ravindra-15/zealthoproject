@@ -680,13 +680,22 @@ const listMyAppointments = async (
   const now = new Date();
   const query = { user: userId };
 
+  // 🕒 An appointment stays "upcoming" until its slot ENDS, not until it
+  // starts, so a customer joining a few minutes late can still see the link.
+  const slotEnd = {
+    $add: [
+      "$scheduledAt",
+      { $multiply: [{ $ifNull: ["$durationMinutes", SLOT_DURATION_MINUTES] }, 60 * 1000] },
+    ],
+  };
+
   if (bucket === "upcoming") {
-    query.scheduledAt = { $gte: now };
+    query.$expr = { $gt: [slotEnd, now] };
     query.status = { $in: ["pending", "confirmed"] };
   } else if (bucket === "past") {
-    // Past = either time has passed OR status is final (completed/cancelled/no_show)
+    // Past = either the slot has ended OR status is final (completed/cancelled/no_show)
     query.$or = [
-      { scheduledAt: { $lt: now } },
+      { $expr: { $lte: [slotEnd, now] } },
       { status: { $in: ["completed", "cancelled", "no_show"] } },
     ];
   }
@@ -747,6 +756,17 @@ const cancelByUser = async (userId, appointmentId, reason = "") => {
 
   if (["cancelled", "completed", "no_show"].includes(appointment.status)) {
     return { error: { status: 400, message: `Cannot cancel a ${appointment.status} appointment` } };
+  }
+
+  // ⏱️ Once the appointment has started the customer can't cancel it — they
+  // attend, or the doctor marks it No Show. Doctors have no such limit.
+  if (Date.now() >= new Date(appointment.scheduledAt).getTime()) {
+    return {
+      error: {
+        status: 400,
+        message: "This appointment has already started and can no longer be cancelled.",
+      },
+    };
   }
 
   const cleanReason = (reason || "").trim();

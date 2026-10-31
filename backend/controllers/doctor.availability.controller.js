@@ -171,17 +171,10 @@ const cancelAppointment = async (req, res) => {
       req.body?.reason || ""
     );
 
-    if (!result) {
-      return res.status(404).json({
-        success: false,
-        message: "Appointment not found",
-      });
-    }
-
     if (result.error) {
-      return res.status(400).json({
+      return res.status(result.error.status).json({
         success: false,
-        message: result.error,
+        message: result.error.message,
       });
     }
 
