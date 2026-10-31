@@ -15,7 +15,7 @@ import { useDoctorAuth } from "../../../../context/DoctorAuthContext";
 import { updateDoctorProfile } from "../../../../services/doctorAuthService";
 import TimezoneSelect from "../../../../components/common/TimezoneSelect";
 import { DEFAULT_TIMEZONE, isValidTimezone } from "../../../../utils/time";
-// import { fetchDoctorOptions } from "../../../../services/doctorService";
+import { fetchDoctorOptions } from "../../../../services/doctorOptionsService";
 
 // 📏 Limits
 const LIMITS = {
