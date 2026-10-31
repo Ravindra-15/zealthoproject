@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
+import PlanLivePreview from "./components/PlanLivePreview";
 import {
   getPlanById,
   createPlan,
@@ -43,6 +44,8 @@ const AddEditPlan = () => {
 
   const isEditMode = !!id;
   const isZealtho = selectedProgramId === "zealtho";
+  // Fixed-plan cards are Yoga T20 only; weekly programs preview in their own editor
+  const showLivePreview = selectedProgramId === "yogat20";
 
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
@@ -208,185 +211,199 @@ const AddEditPlan = () => {
           <p className="text-sm text-gray-400">Loading plan...</p>
         </div>
       ) : (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6 space-y-5"
+        <div
+          className={`grid grid-cols-1 gap-6 items-start ${
+            showLivePreview ? "xl:grid-cols-[minmax(0,1fr)_360px]" : ""
+          }`}
         >
-          {/* Plan Name */}
-          <div>
-            <label htmlFor="planName" className={labelClass}>
-              Plan Name *
-            </label>
-            <input
-              id="planName"
-              name="planName"
-              type="text"
-              value={form.planName}
-              onChange={handleChange}
-              placeholder="e.g. 12 Months, 3 Months, Lifetime"
-              className={inputClass}
-              required
-            />
-          </div>
-
-          {/* Price row — 2 columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6 space-y-5"
+          >
+            {/* Plan Name */}
             <div>
-              <label htmlFor="originalPrice" className={labelClass}>
-                Plan Price (Original) *
+              <label htmlFor="planName" className={labelClass}>
+                Plan Name *
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                  $
-                </span>
-                <input
-                  id="originalPrice"
-                  name="originalPrice"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.originalPrice}
-                  onChange={handleChange}
-                  placeholder="84"
-                  className={`${inputClass} pl-7`}
-                  required
-                />
+              <input
+                id="planName"
+                name="planName"
+                type="text"
+                value={form.planName}
+                onChange={handleChange}
+                placeholder="e.g. 12 Months, 3 Months, Lifetime"
+                className={inputClass}
+                required
+              />
+            </div>
+
+            {/* Price row — 2 columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="originalPrice" className={labelClass}>
+                  Plan Price (Original) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                    $
+                  </span>
+                  <input
+                    id="originalPrice"
+                    name="originalPrice"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.originalPrice}
+                    onChange={handleChange}
+                    placeholder="84"
+                    className={`${inputClass} pl-7`}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="offerPrice" className={labelClass}>
+                  Offer Price (Discounted) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                    $
+                  </span>
+                  <input
+                    id="offerPrice"
+                    name="offerPrice"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.offerPrice}
+                    onChange={handleChange}
+                    placeholder="45"
+                    className={`${inputClass} pl-7`}
+                    required
+                  />
+                </div>
               </div>
             </div>
 
+            {/* Offer Badge */}
             <div>
-              <label htmlFor="offerPrice" className={labelClass}>
-                Offer Price (Discounted) *
+              <label htmlFor="offerBadge" className={labelClass}>
+                Offer Badge
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                  $
-                </span>
+              <input
+                id="offerBadge"
+                name="offerBadge"
+                type="text"
+                value={form.offerBadge}
+                onChange={handleChange}
+                placeholder="e.g. 50% Off, Limited Time, Bestseller"
+                className={inputClass}
+                maxLength={30}
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Shown as a badge on the plan card. Leave empty for no badge.
+              </p>
+            </div>
+
+            {/* Display Order + Duration */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="displayOrder" className={labelClass}>
+                  Display Order
+                </label>
                 <input
-                  id="offerPrice"
-                  name="offerPrice"
+                  id="displayOrder"
+                  name="displayOrder"
                   type="number"
-                  min="0"
+                  min="1"
                   step="1"
-                  value={form.offerPrice}
+                  value={form.displayOrder}
                   onChange={handleChange}
-                  placeholder="45"
-                  className={`${inputClass} pl-7`}
-                  required
+                  placeholder="1"
+                  className={inputClass}
                 />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Lower numbers appear first. Plan #1 gets Bestseller tag.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="durationMonths" className={labelClass}>
+                  Duration (Months)
+                </label>
+                <input
+                  id="durationMonths"
+                  name="durationMonths"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.durationMonths}
+                  onChange={handleChange}
+                  placeholder="Auto-detected from name"
+                  className={inputClass}
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Leave blank to auto-detect from plan name (e.g. "12 Months").
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Offer Badge */}
-          <div>
-            <label htmlFor="offerBadge" className={labelClass}>
-              Offer Badge
-            </label>
-            <input
-              id="offerBadge"
-              name="offerBadge"
-              type="text"
-              value={form.offerBadge}
-              onChange={handleChange}
-              placeholder="e.g. 50% Off, Limited Time, Bestseller"
-              className={inputClass}
-              maxLength={30}
-            />
-            <p className="text-[11px] text-gray-400 mt-1">
-              Shown as red pill on the plan card. Leave empty for no badge.
-            </p>
-          </div>
-
-          {/* Display Order + Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="displayOrder" className={labelClass}>
-                Display Order
-              </label>
+            {/* Landing visibility checkbox */}
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
               <input
-                id="displayOrder"
-                name="displayOrder"
-                type="number"
-                min="1"
-                step="1"
-                value={form.displayOrder}
+                id="isVisibleOnLanding"
+                name="isVisibleOnLanding"
+                type="checkbox"
+                checked={form.isVisibleOnLanding}
                 onChange={handleChange}
-                placeholder="1"
-                className={inputClass}
+                className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
               />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Lower numbers appear first. Plan #1 gets Bestseller tag.
-              </p>
+              <label
+                htmlFor="isVisibleOnLanding"
+                className="text-sm text-gray-700 cursor-pointer flex-1"
+              >
+                <span className="font-semibold">Show on landing page</span>
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Only the first 2 visible plans (by display order) appear on the
+                  public landing page.
+                </span>
+              </label>
             </div>
 
-            <div>
-              <label htmlFor="durationMonths" className={labelClass}>
-                Duration (Months)
-              </label>
-              <input
-                id="durationMonths"
-                name="durationMonths"
-                type="number"
-                min="1"
-                step="1"
-                value={form.durationMonths}
-                onChange={handleChange}
-                placeholder="Auto-detected from name"
-                className={inputClass}
-              />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Leave blank to auto-detect from plan name (e.g. "12 Months").
-              </p>
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => navigate("/admin/subscriptions")}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading
+                  ? isEditMode
+                    ? "Saving..."
+                    : "Creating..."
+                  : isEditMode
+                  ? "Save Changes"
+                  : "Create Plan"}
+              </button>
             </div>
-          </div>
+          </form>
 
-          {/* Landing visibility checkbox */}
-          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-            <input
-              id="isVisibleOnLanding"
-              name="isVisibleOnLanding"
-              type="checkbox"
-              checked={form.isVisibleOnLanding}
-              onChange={handleChange}
-              className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
+          {showLivePreview && (
+            <PlanLivePreview
+              form={form}
+              planId={id}
+              programId={selectedProgramId}
             />
-            <label
-              htmlFor="isVisibleOnLanding"
-              className="text-sm text-gray-700 cursor-pointer flex-1"
-            >
-              <span className="font-semibold">Show on landing page</span>
-              <span className="block text-xs text-gray-500 mt-0.5">
-                Only the first 2 visible plans (by display order) appear on the
-                public landing page.
-              </span>
-            </label>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => navigate("/admin/subscriptions")}
-              className="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading
-                ? isEditMode
-                  ? "Saving..."
-                  : "Creating..."
-                : isEditMode
-                ? "Save Changes"
-                : "Create Plan"}
-            </button>
-          </div>
-        </form>
+          )}
+        </div>
       )}
     </div>
   );

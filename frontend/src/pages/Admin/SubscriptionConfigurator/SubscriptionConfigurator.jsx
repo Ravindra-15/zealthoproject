@@ -13,7 +13,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Star } from "lucide-react";
+import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
@@ -25,11 +25,11 @@ import {
 } from "../../../services/adminProgramPlanService";
 import PlanCard from "./components/PlanCard";
 import WeeklyPlanEditor from "./components/WeeklyPlanEditor";
+import MemberPreviewModal from "./components/MemberPreviewModal";
+import { getMemberPlanView } from "./components/memberPlanView";
 
 // 🗓️ Programs that use weekly (slider) pricing
 const WEEKLY_PROGRAMS = ["diabmukt", "mommyfit", "slimfitter"];
-
-const formatPrice = (n) => `$${Number(n || 0).toLocaleString("en-US")}`;
 
 const SubscriptionConfigurator = () => {
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ const SubscriptionConfigurator = () => {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [memberPreviewPlan, setMemberPreviewPlan] = useState(null);
 
   const isZealtho = selectedProgramId === "zealtho";
   const isWeekly = WEEKLY_PROGRAMS.includes(selectedProgramId);
@@ -166,11 +167,9 @@ const SubscriptionConfigurator = () => {
   }
 
   // ════════════════════════════════════════
-  // 🟧 FIXED PROGRAM VIEW (yogat20) — unchanged
+  // 🟧 FIXED PROGRAM VIEW (yogat20)
   // ════════════════════════════════════════
-  const previewPlans = plans
-    .filter((p) => p.isVisibleOnLanding && p.isActive)
-    .slice(0, 2);
+  const memberView = getMemberPlanView(plans);
 
   return (
     <div className="space-y-6">
@@ -179,55 +178,11 @@ const SubscriptionConfigurator = () => {
         subtitle={`Configure dynamic pricing tiers for ${selectedProgram.label}`}
       />
 
-      {/* PREVIEW */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6">
-        <p className="text-sm font-semibold text-gray-700 mb-4">Preview</p>
-
-        {previewPlans.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">
-            No plans marked visible on landing. Toggle visibility on any plan
-            below to preview it here.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {previewPlans.map((p, idx) => (
-              <div
-                key={p._id}
-                className="border border-gray-200 rounded-xl p-5 relative bg-white"
-              >
-                {p.offerBadge && (
-                  <span className="absolute top-4 right-4 bg-red-500 text-white text-[11px] font-bold px-2 py-1 rounded-md">
-                    {p.offerBadge}
-                  </span>
-                )}
-                <p className="font-bold text-gray-800 text-sm mb-2">
-                  {p.planName}
-                </p>
-                {p.originalPrice > p.offerPrice && (
-                  <p className="text-xs text-gray-400 line-through mb-1">
-                    {formatPrice(p.originalPrice)}
-                  </p>
-                )}
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatPrice(p.offerPrice)}
-                </p>
-                {idx === 0 && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-500 mt-2">
-                    <Star size={12} fill="currentColor" />
-                    Bestseller
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* PLANS LIST + ADD */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3 mb-5">
           <p className="text-sm font-semibold text-gray-700">
-            Price Breakpoints
+            Subscription Lists
           </p>
           <button
             type="button"
@@ -264,6 +219,8 @@ const SubscriptionConfigurator = () => {
                 key={plan._id}
                 plan={plan}
                 index={idx + 1}
+                isBestseller={memberView.isBestseller(plan)}
+                onPreviewAsMember={() => setMemberPreviewPlan(plan)}
                 isUpdating={updatingId === plan._id}
                 isDeleting={deletingId === plan._id}
                 onToggleVisibility={() => handleToggleVisibility(plan)}
@@ -274,6 +231,13 @@ const SubscriptionConfigurator = () => {
           </div>
         )}
       </div>
+
+      <MemberPreviewModal
+        plan={memberPreviewPlan}
+        plans={plans}
+        programLabel={selectedProgram.label}
+        onClose={() => setMemberPreviewPlan(null)}
+      />
     </div>
   );
 };

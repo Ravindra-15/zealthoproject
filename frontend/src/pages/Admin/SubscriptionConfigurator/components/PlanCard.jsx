@@ -4,27 +4,28 @@
  * ============================================
  * Single plan row in the Subscription Configurator list.
  * Shows plan name, prices, badge, visibility status,
- * and action buttons (Edit, Toggle Visibility, Delete).
+ * and action buttons (Preview as Member, Toggle Visibility, Edit, Delete).
  *
  * Fully responsive: stacks cleanly on mobile.
  * ============================================
  */
 
 import React from "react";
-import { Pencil, Trash2, Eye, EyeOff, Star } from "lucide-react";
+import { Pencil, Trash2, Eye, EyeOff, Star, UserRound } from "lucide-react";
 
 const formatPrice = (n) => `$${Number(n || 0).toLocaleString("en-US")}`;
 
 const PlanCard = ({
   plan,
   index,
+  isBestseller,
   isUpdating,
   isDeleting,
+  onPreviewAsMember,
   onToggleVisibility,
   onEdit,
   onDelete,
 }) => {
-  const isBestseller = plan.displayOrder === 1;
   const hasDiscount = plan.originalPrice > plan.offerPrice;
 
   return (
@@ -136,7 +137,16 @@ const PlanCard = ({
       </div>
 
       {/* ACTION BUTTONS */}
-      <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+      <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={onPreviewAsMember}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+        >
+          <UserRound size={12} />
+          Preview as Member
+        </button>
+
         <button
           type="button"
           onClick={onToggleVisibility}
