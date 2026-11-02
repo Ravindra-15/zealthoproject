@@ -519,7 +519,7 @@ const createAppointmentPaypalOrder = async ({
       scheduledAt: slotStart.toISOString(),
       notes: typeof notes === "string" ? notes.trim() : "",
       viewerTimezone,
-      reportIds: (Array.isArray(reportIds) ? reportIds : []).map(String).slice(0, 2),
+      reportIds: (Array.isArray(reportIds) ? reportIds : []).map(String),
     },
   });
 

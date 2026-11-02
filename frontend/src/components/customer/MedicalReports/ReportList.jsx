@@ -16,8 +16,8 @@ const FileIcon = ({ mime, name }) => {
   const isImage = mime ? String(mime).startsWith("image/") : /\.(png|jpe?g)$/i.test(name || "");
   const Icon = isImage ? ImageIcon : FileText;
   return (
-    <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-      <Icon size={16} className="text-gray-500" />
+    <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0">
+      <Icon size={12} className="text-gray-500" />
     </div>
   );
 };
@@ -36,21 +36,21 @@ const ReportList = ({
   if (!reports.length && !uploads.length) return null;
 
   return (
-    <ul className="space-y-2">
+    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
       {reports.map((r) => (
-        <li key={r._id} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+        <li key={r._id} className="flex items-center gap-2 min-w-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
           <FileIcon mime={r.mimeType} name={r.originalName} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-800 truncate">{r.originalName}</p>
-            <p className="text-[11px] text-gray-400">{formatBytes(r.size)} · Uploaded</p>
+            <p className="text-xs font-medium text-gray-800 truncate" title={r.originalName}>{r.originalName}</p>
+            <p className="text-[10px] text-gray-400 leading-tight">{formatBytes(r.size)}</p>
           </div>
           {onView && (
             <button
               type="button"
               onClick={() => onView(r)}
-              className={`inline-flex items-center gap-1 text-xs font-semibold ${ACCENT_TEXT} hover:underline flex-shrink-0`}
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold ${ACCENT_TEXT} hover:underline flex-shrink-0`}
             >
-              <Eye size={13} />
+              <Eye size={12} />
               View
             </button>
           )}
@@ -60,9 +60,9 @@ const ReportList = ({
               onClick={() => onRemove(r._id)}
               disabled={removingId === r._id}
               aria-label={`Remove ${r.originalName}`}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50 flex-shrink-0"
+              className="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50 flex-shrink-0"
             >
-              {removingId === r._id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+              {removingId === r._id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
             </button>
           )}
         </li>
@@ -71,13 +71,13 @@ const ReportList = ({
       {uploads.map((u) => (
         <li
           key={u.tempId}
-          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+          className={`flex items-center gap-2 min-w-0 rounded-lg border px-2 py-1.5 ${
             u.status === "failed" ? "border-red-200 bg-red-50/40" : "border-gray-200 bg-white"
           }`}
         >
           <FileIcon name={u.name} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
+            <p className="text-xs font-medium text-gray-800 truncate" title={u.name}>{u.name}</p>
             {u.status === "uploading" ? (
               <div className="mt-1.5 flex items-center gap-2">
                 <div className="h-1.5 flex-1 rounded-full bg-gray-100 overflow-hidden">

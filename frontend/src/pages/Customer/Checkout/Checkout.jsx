@@ -1,7 +1,7 @@
 /**
  * CUSTOMER MODULE — Secure Checkout Page
  * Reads booking intent from sessionStorage, fetches doctor, processes payment.
- * Lets user describe their problem (max 200 chars) via modal before paying.
+ * Lets user describe their problem (max 500 chars) via modal before paying.
  */
 
 import React, { useEffect, useState, useRef } from "react";
@@ -45,7 +45,7 @@ import { useProfileGate } from "../../../hooks/useProfileGate";
 
 const BOOKING_FEE = 20;
 const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
-const PROBLEM_MAX = 200; // max characters allowed for problem description
+const PROBLEM_MAX = 500; // max characters allowed for problem description
 const PLATFORM = "zealtho"; // current program identifier (change per subprogram)
 
 const Checkout = () => {
@@ -80,7 +80,7 @@ const Checkout = () => {
   const [draft, setDraft] = useState(""); // temp text inside modal
   const [showProblemModal, setShowProblemModal] = useState(false);
 
-  // 📄 Optional medical reports (max 2 × 5 MB) — attached to the booking once it's created
+  // 📄 Optional medical reports (max 5 MB each) — attached to the booking once it's created
   const medical = useMedicalReports({ loadPending: true });
 
   const isMountedRef = useRef(false);
@@ -343,7 +343,7 @@ const Checkout = () => {
                 <button
                   type="button"
                   onClick={openProblemModal}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border border-dashed border-gray-300 text-sm font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-gray-300 text-xs font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white"
                 >
                   <FileText size={15} />
                   Describe Your Problem
@@ -352,15 +352,14 @@ const Checkout = () => {
                   <button
                     type="button"
                     onClick={medical.pickFiles}
-                    disabled={medical.slotsLeft <= 0}
-                    className={`${problem ? "sm:col-span-2 " : ""}w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border border-dashed border-gray-300 text-sm font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white disabled:opacity-60 disabled:cursor-not-allowed`}
+                    className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-gray-300 text-xs font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white disabled:opacity-60 disabled:cursor-not-allowed`}
                   >
                     <Paperclip size={15} />
-                    Upload Reports ({medical.reports.length}/2)
+                    Upload Reports ({medical.reports.length})
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-400 text-center">
-                  Optional · PDF, JPG, PNG or DOC · up to 2 files · max 5 MB each
+                  Optional · PDF, JPG, PNG or DOC · max 5 MB each
                 </p>
                 <ReportList
                   reports={medical.reports}

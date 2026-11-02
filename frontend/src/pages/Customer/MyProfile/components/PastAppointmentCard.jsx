@@ -1,5 +1,5 @@
 // Zealtho - Past Appointment Card
-// Single past appointment row inside MyProfile page
+// Single appointment card (upcoming and past) inside MyProfile page
 // Displays doctor info, date, and time
 
 import { CheckCircle2, Calendar, Clock } from "lucide-react";

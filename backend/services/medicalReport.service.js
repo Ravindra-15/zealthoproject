@@ -7,10 +7,9 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const cron = require("node-cron");
 const MedicalReport = require("../models/MedicalReport");
+const Appointment = require("../models/Appointment");
 
 const REPORTS_DIR = path.join(__dirname, "..", "private", "medical-reports");
-const MAX_REPORTS_PER_APPOINTMENT = 2;
-const MAX_PENDING_PER_USER = 2; // checkout holds at most 2 waiting reports
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const PENDING_TTL_MS = 24 * 60 * 60 * 1000; // unused uploads deleted after 24h
 const EDITABLE_STATUSES = ["pending", "confirmed"];
@@ -118,19 +117,8 @@ const attachPendingReports = async ({ userId, appointmentId, reportIds }) => {
       .filter((id) => mongoose.Types.ObjectId.isValid(id));
     if (!ids.length || !appointmentId) return 0;
 
-    const already = await MedicalReport.countDocuments({ appointment: appointmentId });
-    const room = MAX_REPORTS_PER_APPOINTMENT - already;
-    if (room <= 0) return 0;
-
-    const pending = await MedicalReport.find({ _id: { $in: ids }, user: userId, appointment: null })
-      .sort({ createdAt: 1 })
-      .limit(room)
-      .select("_id")
-      .lean();
-    if (!pending.length) return 0;
-
     const res = await MedicalReport.updateMany(
-      { _id: { $in: pending.map((p) => p._id) }, user: userId, appointment: null },
+      { _id: { $in: ids }, user: userId, appointment: null },
       { $set: { appointment: appointmentId } }
     );
     return res.modifiedCount || 0;
@@ -149,6 +137,43 @@ const reportsByAppointment = async (appointmentIds) => {
   for (const r of reports) {
     const key = String(r.appointment);
     (map[key] = map[key] || []).push(serialize(r));
+  }
+  return map;
+};
+
+// 📚 { appointmentId: [report, …] } — the patient's reports from their EARLIER
+// non-cancelled appointments with this doctor (never another doctor's), so the
+// doctor can refer back to them at any later appointment.
+const earlierReportsForDoctor = async (doctorId, appointments) => {
+  const userIds = [
+    ...new Set((appointments || []).map((a) => String(a.user?._id || a.user || "")).filter(Boolean)),
+  ];
+  if (!userIds.length) return {};
+
+  const visits = await Appointment.find({
+    doctor: doctorId,
+    user: { $in: userIds },
+    status: { $ne: "cancelled" },
+  })
+    .select("user scheduledAt")
+    .sort({ scheduledAt: -1 })
+    .lean();
+
+  const reportsByVisit = await reportsByAppointment(visits.map((v) => v._id));
+
+  const map = {};
+  for (const a of appointments) {
+    const userId = String(a.user?._id || a.user || "");
+    const startsAt = new Date(a.scheduledAt).getTime();
+    map[String(a._id)] = visits
+      .filter((v) => String(v.user) === userId && new Date(v.scheduledAt).getTime() < startsAt)
+      .flatMap((v) =>
+        (reportsByVisit[String(v._id)] || []).map((r) => ({
+          ...r,
+          appointmentId: v._id,
+          appointmentDate: v.scheduledAt,
+        }))
+      );
   }
   return map;
 };
@@ -175,8 +200,6 @@ const startMedicalReportCleanupCron = () => {
 
 module.exports = {
   REPORTS_DIR,
-  MAX_REPORTS_PER_APPOINTMENT,
-  MAX_PENDING_PER_USER,
   MAX_SIZE_BYTES,
   PENDING_TTL_MS,
   EDITABLE_STATUSES,
@@ -187,6 +210,7 @@ module.exports = {
   saveReport,
   attachPendingReports,
   reportsByAppointment,
+  earlierReportsForDoctor,
   cleanupPendingReports,
   startMedicalReportCleanupCron,
 };

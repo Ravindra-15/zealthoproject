@@ -7,7 +7,6 @@ import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
-export const MAX_REPORTS = 2;
 export const MAX_REPORT_BYTES = 5 * 1024 * 1024; // 5 MB
 export const REPORT_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"];
 export const REPORT_ACCEPT = REPORT_EXTENSIONS.join(",");

@@ -7,9 +7,10 @@ const ctrl = require("../controllers/customer.medicalReport.controller");
 
 const router = express.Router();
 
+// Patients can attach as many reports as they need; this only stops abuse
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many uploads. Please try again later." },

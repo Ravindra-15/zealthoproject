@@ -43,11 +43,6 @@ const listPending = async (req, res) => {
 
 const uploadPending = async (req, res) => {
   try {
-    const since = new Date(Date.now() - svc.PENDING_TTL_MS);
-    const pendingCount = await MedicalReport.countDocuments({ user: req.user.id, appointment: null, createdAt: { $gte: since } });
-    if (pendingCount >= svc.MAX_PENDING_PER_USER) {
-      return fail(res, 400, "You can upload up to 2 reports. Remove one to add another.");
-    }
     const result = await svc.saveReport({ userId: req.user.id, file: req.file });
     if (result.error) return fail(res, result.error.status, result.error.message);
     return res.status(201).json({ success: true, message: "Report uploaded", data: { report: svc.serialize(result.report) } });
@@ -66,11 +61,6 @@ const uploadForAppointment = async (req, res) => {
     if (!appointment) return fail(res, 404, "Appointment not found");
     if (!svc.EDITABLE_STATUSES.includes(appointment.status)) {
       return fail(res, 400, "Reports can only be added before the consultation is completed or cancelled.");
-    }
-
-    const count = await MedicalReport.countDocuments({ appointment: appointmentId });
-    if (count >= svc.MAX_REPORTS_PER_APPOINTMENT) {
-      return fail(res, 400, "You can attach up to 2 reports. Remove one to add another.");
     }
 
     const result = await svc.saveReport({ userId: req.user.id, file: req.file, appointmentId });

@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
-  MAX_REPORTS,
   MAX_REPORT_BYTES,
   REPORT_EXTENSIONS,
   REPORT_ACCEPT,
@@ -17,6 +16,9 @@ import {
   fetchReportBlob,
 } from "../services/medicalReportService";
 import { openReportFile } from "../utils/openReportFile";
+
+// Many files can be picked at once; send a few at a time so nothing gets overloaded
+const MAX_PARALLEL_UPLOADS = 3;
 
 const extOf = (name) => {
   const i = String(name || "").lastIndexOf(".");
@@ -29,6 +31,8 @@ export default function useMedicalReports({ appointmentId = null, initialReports
   const [removingId, setRemovingId] = useState(null);
   const controllers = useRef({});
   const inputRef = useRef(null);
+  const queue = useRef([]); // uploads waiting for a free slot
+  const activeCount = useRef(0);
 
   // checkout: reload reports already uploaded (survives refresh / back / PayPal round trip)
   useEffect(() => {
@@ -48,20 +52,37 @@ export default function useMedicalReports({ appointmentId = null, initialReports
   }, [initialReports]);
 
   // abort any in-flight upload when leaving the page
-  useEffect(() => () => Object.values(controllers.current).forEach((c) => c.abort()), []);
+  useEffect(
+    () => () => {
+      queue.current = [];
+      Object.values(controllers.current).forEach((c) => c.abort());
+    },
+    [],
+  );
 
-  const slotsLeft = MAX_REPORTS - reports.length - uploads.length;
   const busy = uploads.some((u) => u.status === "uploading");
 
   const startUpload = (item) => {
-    const controller = new AbortController();
-    controllers.current[item.tempId] = controller;
     const fresh = { ...item, status: "uploading", progress: 0, error: null };
     setUploads((list) =>
       list.some((u) => u.tempId === item.tempId)
         ? list.map((u) => (u.tempId === item.tempId ? fresh : u))
         : [...list, fresh],
     );
+    queue.current.push(item);
+    runQueue();
+  };
+
+  const runQueue = () => {
+    while (activeCount.current < MAX_PARALLEL_UPLOADS && queue.current.length) {
+      sendUpload(queue.current.shift());
+    }
+  };
+
+  const sendUpload = (item) => {
+    activeCount.current += 1;
+    const controller = new AbortController();
+    controllers.current[item.tempId] = controller;
 
     uploadReport(item.file, {
       appointmentId,
@@ -88,14 +109,12 @@ export default function useMedicalReports({ appointmentId = null, initialReports
       })
       .finally(() => {
         delete controllers.current[item.tempId];
+        activeCount.current -= 1;
+        runQueue();
       });
   };
 
   const pickFiles = () => {
-    if (slotsLeft <= 0) {
-      toast.error("You can upload up to 2 reports. Remove one to add another.");
-      return;
-    }
     inputRef.current?.click();
   };
 
@@ -104,12 +123,7 @@ export default function useMedicalReports({ appointmentId = null, initialReports
     e.target.value = ""; // allow picking the same file again
     if (!files.length) return;
 
-    let room = slotsLeft;
     for (const file of files) {
-      if (room <= 0) {
-        toast.error("Only 2 reports are allowed — extra files were skipped.");
-        break;
-      }
       if (!REPORT_EXTENSIONS.includes(extOf(file.name))) {
         toast.error(`"${file.name}" isn't supported. Use PDF, JPG, PNG, DOC or DOCX.`);
         continue;
@@ -122,7 +136,6 @@ export default function useMedicalReports({ appointmentId = null, initialReports
         toast.error(`"${file.name}" is larger than 5 MB.`);
         continue;
       }
-      room -= 1;
       startUpload({
         tempId: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
         file,
@@ -132,7 +145,16 @@ export default function useMedicalReports({ appointmentId = null, initialReports
     }
   };
 
-  const cancelUpload = (tempId) => controllers.current[tempId]?.abort();
+  const cancelUpload = (tempId) => {
+    const waiting = queue.current.findIndex((i) => i.tempId === tempId);
+    if (waiting >= 0) {
+      queue.current.splice(waiting, 1);
+      setUploads((list) => list.filter((u) => u.tempId !== tempId));
+      toast("Upload cancelled", { icon: "ℹ️" });
+      return;
+    }
+    controllers.current[tempId]?.abort();
+  };
 
   const retryUpload = (tempId) => {
     const item = uploads.find((u) => u.tempId === tempId);
@@ -175,7 +197,6 @@ export default function useMedicalReports({ appointmentId = null, initialReports
     reports,
     uploads,
     busy,
-    slotsLeft,
     removingId,
     pickFiles,
     inputProps,

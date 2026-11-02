@@ -20,9 +20,9 @@ const AppointmentReports = ({ appointment }) => {
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <p className="text-[11px] text-gray-500 font-semibold tracking-wide flex items-center gap-1.5">
           <Paperclip size={12} className="text-orange-500" />
-          Your Reports ({m.reports.length}/2)
+          Your Reports ({m.reports.length})
         </p>
-        {editable && m.slotsLeft > 0 && (
+        {editable && (
           <button
             type="button"
             onClick={m.pickFiles}
@@ -51,7 +51,7 @@ const AppointmentReports = ({ appointment }) => {
       ) : (
         <p className="text-xs text-gray-400 italic">
           {editable
-            ? "No reports added. You can add up to 2 (PDF, JPG, PNG, DOC · max 5 MB each)."
+            ? "No reports added. You can add as many as you need (PDF, JPG, PNG, DOC · max 5 MB each)."
             : "No reports added."}
         </p>
       )}

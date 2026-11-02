@@ -44,12 +44,11 @@ const validateDayAvailabilityQuery = (req, res, next) => {
 // ============================================
 // Body: { doctorId, scheduledAt (ISO), notes? }
 
-// 📄 Optional report ids from checkout — keep at most 2 valid ObjectIds, silently drop the rest
+// 📄 Optional report ids from checkout — keep the valid ObjectIds, silently drop the rest
 const cleanReportIds = (reportIds) =>
   (Array.isArray(reportIds) ? reportIds : [])
     .map(String)
-    .filter((id) => mongoose.Types.ObjectId.isValid(id))
-    .slice(0, 2);
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
 
 const validateCreateBooking = (req, res, next) => {
   const { doctorId, scheduledAt, notes, platform, timezone, reportIds } = req.body;

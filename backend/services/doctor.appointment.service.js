@@ -12,7 +12,7 @@ const googleMeetService = require("./googleMeet.service");
 const Doctor = require("../models/Doctor");
 const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
-const { reportsByAppointment } = require("./medicalReport.service");
+const { reportsByAppointment, earlierReportsForDoctor } = require("./medicalReport.service");
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
 const { checkAndFlagDoctor } = require("./doctorFlag.service");
 const { MAX_RESCHEDULE_COUNT } = require("../utils/reschedulePolicy");
@@ -89,6 +89,10 @@ const listByDate = async (doctorId, dateStr) => {
   // 📄 patient-uploaded reports (list never includes cancelled appointments)
   const reportMap = await reportsByAppointment(appointments.map((a) => a._id));
   for (const a of appointments) a.reports = reportMap[String(a._id)] || [];
+
+  // 📚 the same patient's reports from earlier appointments with this doctor
+  const earlierMap = await earlierReportsForDoctor(doctorId, appointments);
+  for (const a of appointments) a.earlierReports = earlierMap[String(a._id)] || [];
   appointments.forEach(maskPatientPhone);
 
   return { date, appointments };
