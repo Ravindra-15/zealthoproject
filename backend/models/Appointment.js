@@ -265,6 +265,22 @@ const appointmentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // 🗒️ Doctor's private notes after the consultation, for their own future
+    // reference. Never shown to the patient or admins — select: false keeps
+    // it out of every query unless the doctor's own queries ask for it.
+    doctorNotes: {
+      type: String,
+      default: "",
+      maxlength: 5000,
+      select: false,
+    },
+
+    doctorNotesUpdatedAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
     // 📧 Email reminder tracking — prevents duplicate sends
     reminded24hAt: {
       type: Date,

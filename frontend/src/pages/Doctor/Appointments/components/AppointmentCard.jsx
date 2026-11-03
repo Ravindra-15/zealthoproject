@@ -39,6 +39,7 @@ import {
 
 import CancelReasonModal from "./CancelReasonModal";
 import PatientReports from "./PatientReports";
+import DoctorNotes from "./DoctorNotes";
 import RescheduleModal from "./RescheduleModal";
 import Modal from "../../../../components/common/Modal";
 import BodyProfileView from "../../../../components/common/BodyProfileView";
@@ -531,6 +532,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
                 )}
               </div>
             </div>
+
+            {/* 🗒️ DOCTOR NOTES (private, after the consultation) */}
+            <DoctorNotes appointment={appointment} onUpdated={onUpdated} />
 
             {/* 🧬 BODY PROFILE BUTTON */}
             <button

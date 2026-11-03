@@ -67,6 +67,48 @@ const todayIso = (timezone = DEFAULT_TIMEZONE) => getZonedDateStr(new Date(), ti
 // ============================================
 // 📋 LIST APPOINTMENTS BY DATE
 // ============================================
+// 🗒️ For each appointment: this doctor's notes from the same patient's
+// earlier completed consultations (newest first). Other doctors' notes are
+// never included.
+const earlierNotesForDoctor = async (doctorId, appointments) => {
+  const userIds = [
+    ...new Set(
+      (appointments || [])
+        .map((a) => String(a.user?._id || a.user || ""))
+        .filter(Boolean)
+    ),
+  ];
+  if (!userIds.length) return {};
+
+  const visits = await Appointment.find({
+    doctor: doctorId,
+    user: { $in: userIds },
+    status: "completed",
+    doctorNotes: { $nin: ["", null] },
+  })
+    .select("user scheduledAt doctorNotes doctorNotesUpdatedAt")
+    .sort({ scheduledAt: -1 })
+    .lean();
+
+  const map = {};
+  for (const a of appointments) {
+    const userId = String(a.user?._id || a.user || "");
+    map[String(a._id)] = visits
+      .filter(
+        (v) =>
+          String(v.user) === userId &&
+          new Date(v.scheduledAt) < new Date(a.scheduledAt)
+      )
+      .map((v) => ({
+        appointmentId: v._id,
+        scheduledAt: v.scheduledAt,
+        doctorNotes: v.doctorNotes,
+        doctorNotesUpdatedAt: v.doctorNotesUpdatedAt,
+      }));
+  }
+  return map;
+};
+
 const listByDate = async (doctorId, dateStr) => {
   const doctorDoc = await Doctor.findById(doctorId).select("timezone").lean();
   const doctorTimezone = doctorDoc?.timezone || DEFAULT_TIMEZONE;
@@ -79,6 +121,7 @@ const listByDate = async (doctorId, dateStr) => {
     scheduledAt: { $gte: start, $lt: end },
     status: { $in: ["pending", "confirmed", "completed"] },
   })
+    .select("+doctorNotes +doctorNotesUpdatedAt") // 🗒️ private — doctor only
     .populate(
       "user",
       "fullName nickName phone countryCode profilePhoto updatedAt"
@@ -93,6 +136,10 @@ const listByDate = async (doctorId, dateStr) => {
   // 📚 the same patient's reports from earlier appointments with this doctor
   const earlierMap = await earlierReportsForDoctor(doctorId, appointments);
   for (const a of appointments) a.earlierReports = earlierMap[String(a._id)] || [];
+
+  // 🗒️ this doctor's own notes from the patient's earlier consultations
+  const notesMap = await earlierNotesForDoctor(doctorId, appointments);
+  for (const a of appointments) a.earlierNotes = notesMap[String(a._id)] || [];
   appointments.forEach(maskPatientPhone);
 
   return { date, appointments };
@@ -641,6 +688,42 @@ const markPrescriptionSent = async (doctorId, appointmentId) => {
   return { appointment: maskPatientPhone(populatedAppointment) };
 };
 
+// ============================================
+// 🗒️ SET DOCTOR NOTES (private — only after the consultation is complete)
+// ============================================
+// Empty text clears the notes.
+const setDoctorNotes = async (doctorId, appointmentId, doctorNotes) => {
+  const appointment = await Appointment.findOne({
+    _id: appointmentId,
+    doctor: doctorId,
+  })
+    .select("status")
+    .lean();
+
+  if (!appointment) return null;
+
+  if (appointment.status !== "completed") {
+    return { error: "You can add notes once the consultation is marked complete" };
+  }
+
+  const updated = await Appointment.findOneAndUpdate(
+    { _id: appointmentId, doctor: doctorId },
+    {
+      $set: {
+        doctorNotes,
+        doctorNotesUpdatedAt: doctorNotes ? new Date() : null,
+      },
+    },
+    { new: true, runValidators: true }
+  )
+    .select("+doctorNotes +doctorNotesUpdatedAt")
+    .populate("user", "fullName nickName phone countryCode profilePhoto updatedAt")
+    .lean();
+
+  if (!updated) return null;
+  return { appointment: maskPatientPhone(updated) };
+};
+
 
 // ============================================
 // 🚫 MARK NO SHOW BY DOCTOR (patient didn't join)
@@ -721,4 +804,5 @@ module.exports = {
   getPatientBodyProfile,
   setPrescription,
   markPrescriptionSent,
+  setDoctorNotes,
 };

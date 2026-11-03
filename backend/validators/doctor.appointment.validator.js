@@ -106,6 +106,33 @@ const validateSetPrescription = (req, res, next) => {
 };
 
 // ============================================
+// 🗒️ SET DOCTOR NOTES
+// ============================================
+// PATCH /api/doctor/appointments/:id/doctor-notes
+// Body: { doctorNotes: "..." } — empty string clears the notes
+const validateSetDoctorNotes = (req, res, next) => {
+  const { doctorNotes } = req.body || {};
+
+  if (typeof doctorNotes !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "doctorNotes must be a string",
+    });
+  }
+
+  const trimmed = doctorNotes.trim();
+  if (trimmed.length > 5000) {
+    return res.status(400).json({
+      success: false,
+      message: "Notes too long (max 5000 chars)",
+    });
+  }
+
+  req.body = { doctorNotes: trimmed };
+  next();
+};
+
+// ============================================
 // 🔁 RESCHEDULE
 // ============================================
 // PATCH /api/doctor/appointments/:id/reschedule
@@ -166,6 +193,7 @@ module.exports = {
   validateDateQuery,
   validateSetMeetingLink,
   validateSetPrescription,
+  validateSetDoctorNotes,
   validateObjectIdParam,
   validateReschedule,
 };

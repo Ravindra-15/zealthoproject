@@ -308,6 +308,43 @@ const setPrescription = async (req, res) => {
 };
 
 // ============================================
+// 🗒️ SET DOCTOR NOTES (private)
+// ============================================
+// PATCH /api/doctor/appointments/:id/doctor-notes
+const setDoctorNotes = async (req, res) => {
+  try {
+    const result = await doctorAppointmentService.setDoctorNotes(
+      req.doctorId,
+      req.params.id,
+      req.body.doctorNotes
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Notes saved",
+      data: { appointment: result.appointment },
+    });
+  } catch (err) {
+    console.error("[DOCTOR SET NOTES ERROR]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save notes",
+    });
+  }
+};
+
+// ============================================
 // 📤 SEND PRESCRIPTION
 // ============================================
 // POST /api/doctor/appointments/:id/send-prescription
@@ -529,4 +566,5 @@ module.exports = {
   getPatientBodyProfile,
   setPrescription,
   sendPrescription,
+  setDoctorNotes,
 };

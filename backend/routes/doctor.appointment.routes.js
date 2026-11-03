@@ -21,12 +21,14 @@ const {
   getPatientBodyProfile,
   setPrescription,
   sendPrescription,
+  setDoctorNotes,
 } = require("../controllers/doctor.appointment.controller");
 
 const {
   validateDateQuery,
   validateSetMeetingLink,
   validateSetPrescription,
+  validateSetDoctorNotes,
   validateObjectIdParam,
   validateReschedule,
 } = require("../validators/doctor.appointment.validator");
@@ -155,6 +157,15 @@ router.patch(
   validateObjectIdParam("id"),
   validateSetPrescription,
   setPrescription
+);
+
+// 🗒️ Set / update / clear the doctor's private notes (completed only)
+router.patch(
+  "/:id/doctor-notes",
+  writeLimiter,
+  validateObjectIdParam("id"),
+  validateSetDoctorNotes,
+  setDoctorNotes
 );
 
 // 📤 Send prescription to patient

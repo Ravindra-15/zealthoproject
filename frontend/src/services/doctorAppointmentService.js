@@ -142,3 +142,14 @@ export const fetchPatientProgress = async (appointmentId) => {
   const response = await doctorApi.get(`/doctor/appointments/${appointmentId}/progress`);
   return response.data.data;
 };
+
+// ============================================
+// 🗒️ SET / CLEAR DOCTOR'S PRIVATE NOTES (completed appointments only)
+// ============================================
+export const setDoctorNotes = async (appointmentId, doctorNotes) => {
+  const response = await doctorApi.patch(
+    `/doctor/appointments/${appointmentId}/doctor-notes`,
+    { doctorNotes }
+  );
+  return response.data.data.appointment;
+};
