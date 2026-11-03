@@ -32,7 +32,7 @@ const TestimonialCard = ({ t, themeColor }) => (
         <p className="text-xs font-semibold text-gray-900">{t.reviewerName}</p>
         <p className="text-[10px] text-gray-400">{formatUtcDate(t.createdAt)}</p>
       </div>
-      <StarRow rating={t.rating} />
+      {t.rating ? <StarRow rating={t.rating} /> : null}
     </div>
   </div>
 );
@@ -170,7 +170,7 @@ const DoctorTestimonials = ({ doctorId, themeColor = "#F97316" }) => {
                   <div key={t._id} className="rounded-xl border border-gray-100 p-4">
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="text-sm font-semibold text-gray-900">{t.reviewerName}</p>
-                      <StarRow rating={t.rating} />
+                      {t.rating ? <StarRow rating={t.rating} /> : null}
                     </div>
                     <p className="text-sm text-gray-700 leading-relaxed">{t.description}</p>
                     <p className="text-[10px] text-gray-400 mt-1.5">{formatUtcDate(t.createdAt)}</p>

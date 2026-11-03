@@ -46,18 +46,20 @@ const doctorFeedbackSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Everything below is optional — the customer fills in at least one of
+    // rating / any question / description. null = not answered.
     rating: {
       type: Number,
-      required: true,
       min: 1,
       max: 5,
+      default: null,
     },
 
     questions: {
-      sameDoctor: { type: Boolean, required: true },
-      chargedMore: { type: Boolean, required: true },
-      gotSolution: { type: Boolean, required: true },
-      audioVideoClear: { type: Boolean, required: true },
+      sameDoctor: { type: Boolean, default: null },
+      chargedMore: { type: Boolean, default: null },
+      gotSolution: { type: Boolean, default: null },
+      audioVideoClear: { type: Boolean, default: null },
     },
 
     description: {

@@ -18,7 +18,8 @@ const DoctorFeedback = require("../models/DoctorFeedback");
 // ============================================
 const getPublicSummary = async (doctorId) => {
   const result = await DoctorFeedback.aggregate([
-    { $match: { doctor: new (require("mongoose").Types.ObjectId)(doctorId) } },
+    // only feedback with a star rating counts here (rating is optional)
+    { $match: { doctor: new (require("mongoose").Types.ObjectId)(doctorId), rating: { $ne: null } } },
     { $group: { _id: null, average: { $avg: "$rating" }, count: { $sum: 1 } } },
   ]);
 

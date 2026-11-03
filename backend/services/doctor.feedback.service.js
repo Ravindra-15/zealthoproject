@@ -24,7 +24,8 @@ const listForDoctor = async (doctorId, { page = 1, limit = 20 } = {}) => {
   const [total, summaryAgg, rows] = await Promise.all([
     DoctorFeedback.countDocuments(query),
     DoctorFeedback.aggregate([
-      { $match: { doctor: new mongoose.Types.ObjectId(String(doctorId)) } },
+      // average over feedback that has a star rating (rating is optional)
+      { $match: { doctor: new mongoose.Types.ObjectId(String(doctorId)), rating: { $ne: null } } },
       { $group: { _id: null, average: { $avg: "$rating" }, count: { $sum: 1 } } },
     ]),
     DoctorFeedback.find(query)
@@ -39,10 +40,11 @@ const listForDoctor = async (doctorId, { page = 1, limit = 20 } = {}) => {
 
   const feedback = rows.map((f) => ({
     _id: f._id,
-    rating: f.rating,
+    rating: f.rating || null,
     description: f.description || "",
-    gotSolution: !!f.questions?.gotSolution,
-    audioVideoClear: !!f.questions?.audioVideoClear,
+    // null = patient didn't answer that question
+    gotSolution: typeof f.questions?.gotSolution === "boolean" ? f.questions.gotSolution : null,
+    audioVideoClear: typeof f.questions?.audioVideoClear === "boolean" ? f.questions.audioVideoClear : null,
     programId: f.programId,
     createdAt: f.createdAt,
     consultationAt: f.appointment?.scheduledAt || null,

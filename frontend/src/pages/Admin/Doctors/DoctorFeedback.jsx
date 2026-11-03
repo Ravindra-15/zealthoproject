@@ -129,14 +129,21 @@ const DoctorFeedback = () => {
                     {PROGRAM_LABELS[f.programId] || f.programId} · {formatUtcDateTime12h(f.createdAt)}
                   </p>
                 </div>
-                <StarRow rating={f.rating} />
+                {f.rating ? (
+                  <StarRow rating={f.rating} />
+                ) : (
+                  <span className="text-xs text-gray-400 italic">No rating</span>
+                )}
               </div>
 
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {QUESTIONS.map((q) => (
-                  <QuestionPill key={q.key} label={q.label} value={f.questions?.[q.key]} />
-                ))}
-              </div>
+              {/* unanswered questions (null) are left out */}
+              {QUESTIONS.some((q) => typeof f.questions?.[q.key] === "boolean") && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {QUESTIONS.filter((q) => typeof f.questions?.[q.key] === "boolean").map((q) => (
+                    <QuestionPill key={q.key} label={q.label} value={f.questions[q.key]} />
+                  ))}
+                </div>
+              )}
 
               {f.description && (
                 <p className="text-sm text-gray-700 leading-relaxed bg-gray-50/60 rounded-xl px-3 py-2">

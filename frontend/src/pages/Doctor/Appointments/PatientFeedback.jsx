@@ -151,14 +151,20 @@ const PatientFeedback = () => {
                     {f.consultationAt && ` · Consultation on ${formatUtcDate(f.consultationAt)}`}
                   </p>
                 </div>
-                <StarRow rating={f.rating} />
+                {f.rating ? (
+                  <StarRow rating={f.rating} />
+                ) : (
+                  <span className="text-xs text-gray-400 italic">No rating</span>
+                )}
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {QUESTIONS.map((q) => (
-                  <QuestionPill key={q.key} label={q.label} value={f[q.key]} />
-                ))}
-              </div>
+              {QUESTIONS.some((q) => f[q.key] !== null && f[q.key] !== undefined) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {QUESTIONS.filter((q) => f[q.key] !== null && f[q.key] !== undefined).map((q) => (
+                    <QuestionPill key={q.key} label={q.label} value={f[q.key]} />
+                  ))}
+                </div>
+              )}
 
               {f.description ? (
                 <p className="mt-3 text-sm text-gray-700 leading-relaxed bg-gray-50/60 rounded-xl px-3 py-2 break-words">

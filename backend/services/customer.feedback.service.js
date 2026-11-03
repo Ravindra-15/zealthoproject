@@ -19,6 +19,8 @@ const Appointment = require("../models/Appointment");
 const DoctorFeedback = require("../models/DoctorFeedback");
 const { notifyAllAdmins } = require("./admin.notification.service");
 
+const answerOrNull = (value) => (typeof value === "boolean" ? value : null);
+
 // ============================================
 // 🔔 GET THE NEXT APPOINTMENT ELIGIBLE FOR AN AUTO-POPUP
 // (completed, feedbackStatus still null — "skipped" ones are excluded so
@@ -60,12 +62,13 @@ const submitFeedback = async (userId, appointmentId, { rating, questions, descri
       user: userId,
       doctor: appointment.doctor,
       programId: appointment.platform || "zealtho",
-      rating,
+      rating: rating || null,
+      // null = question not answered (all optional, see validator)
       questions: {
-        sameDoctor: !!questions?.sameDoctor,
-        chargedMore: !!questions?.chargedMore,
-        gotSolution: !!questions?.gotSolution,
-        audioVideoClear: !!questions?.audioVideoClear,
+        sameDoctor: answerOrNull(questions?.sameDoctor),
+        chargedMore: answerOrNull(questions?.chargedMore),
+        gotSolution: answerOrNull(questions?.gotSolution),
+        audioVideoClear: answerOrNull(questions?.audioVideoClear),
       },
       description: cleanDescription,
     });
@@ -85,7 +88,7 @@ const submitFeedback = async (userId, appointmentId, { rating, questions, descri
     await notifyAllAdmins({
       type: "doctor_feedback",
       title: "New Doctor Feedback",
-      body: `New ${rating}★ feedback received for ${appointment.doctorName || "a doctor"}.`,
+      body: `New ${rating ? `${rating}★ ` : ""}feedback received for ${appointment.doctorName || "a doctor"}.`,
       metadata: { doctorId: appointment.doctor, link: `/admin/doctors/${appointment.doctor}/feedback` },
     });
   } catch (err) {

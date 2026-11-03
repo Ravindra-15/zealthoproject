@@ -1,6 +1,7 @@
 /**
  * SHARED — Post-Call Feedback Modal
  * Star rating + 4 Yes/No questions + optional 200-char description.
+ * Everything is optional, but at least one must be filled to submit.
  * Theme color passed via prop so one file works across all programs.
  *
  * Props:
@@ -44,8 +45,10 @@ const FeedbackModal = ({
 
   if (!open) return null;
 
-  const allAnswered = QUESTIONS.every((q) => answers[q.key] !== null);
-  const canSubmit = rating > 0 && allAnswered && !loading;
+  // ✅ any one is enough — a rating, any answer, or a comment
+  const hasAnything =
+    rating > 0 || QUESTIONS.some((q) => answers[q.key] !== null) || description.trim().length > 0;
+  const canSubmit = hasAnything && !loading;
 
   const handleClose = () => {
     if (loading) return;
@@ -54,7 +57,7 @@ const FeedbackModal = ({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSubmit({ rating, questions: answers, description: description.trim() });
+    onSubmit({ rating: rating || null, questions: answers, description: description.trim() });
   };
 
   // reset internal state so the next appointment's modal starts fresh
@@ -153,8 +156,14 @@ const FeedbackModal = ({
           </p>
         </div>
 
+        {!hasAnything && (
+          <p className="mt-3 text-xs text-gray-500 text-center">
+            Give a rating, answer any question or write a comment to submit.
+          </p>
+        )}
+
         {/* actions */}
-        <div className="flex gap-2 mt-5">
+        <div className={`flex gap-2 ${hasAnything ? "mt-5" : "mt-3"}`}>
           <button
             type="button"
             onClick={() => resetAndClose(handleClose)}
