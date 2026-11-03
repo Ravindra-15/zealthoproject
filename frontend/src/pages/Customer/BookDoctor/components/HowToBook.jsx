@@ -8,8 +8,8 @@
 import React from "react";
 import { Search, Calendar, Sparkles } from "lucide-react";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { useConsultationFee } from "../../../../hooks/useConsultationFee";
 
-const BOOKING_FEE = 20; // USD — same fee as Checkout.jsx
 
 // ============================================
 // 📋 3 STEPS
@@ -38,6 +38,7 @@ const STEPS = [
 
 const HowToBook = () => {
   const { convert } = useCurrency();
+  const { fee: bookingFee } = useConsultationFee(); // USD, by the visitor's country
 
   return (
     <section className="py-10 sm:py-14">
@@ -101,7 +102,7 @@ const HowToBook = () => {
               {/* Description */}
               <p className="text-xs sm:text-sm text-gray-600 mt-1.5 max-w-[260px] mx-auto leading-relaxed">
                 {typeof description === "function"
-                  ? description(convert(BOOKING_FEE))
+                  ? description(convert(bookingFee))
                   : description}
               </p>
             </div>

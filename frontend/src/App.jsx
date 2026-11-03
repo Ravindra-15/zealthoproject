@@ -78,6 +78,7 @@ import TrialApprovals from "./pages/Admin/TrialApprovals/TrialApprovals";
 import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
 import ReferralEngine from "./pages/Admin/Referrals/ReferralEngine";
 import PortalUsers from "./pages/Admin/PortalUsers/PortalUsers";
+import ConsultationPricing from "./pages/Admin/ConsultationPricing/ConsultationPricing";
 import SuperAdminRoute, {
   AdminHomeRedirect,
 } from "./components/admin/auth/SuperAdminRoute";
@@ -317,6 +318,16 @@ function App() {
             element={
               <SuperAdminRoute>
                 <AddEditPlan />
+              </SuperAdminRoute>
+            }
+          />
+
+          {/* 💵 APPOINTMENT PRICING — consultation fee by patient country */}
+          <Route
+            path="appointment-pricing"
+            element={
+              <SuperAdminRoute>
+                <ConsultationPricing />
               </SuperAdminRoute>
             }
           />

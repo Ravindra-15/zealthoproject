@@ -40,8 +40,11 @@ const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
 const { MAX_RESCHEDULE_COUNT, isWithinRescheduleCutoff } = require("../utils/reschedulePolicy");
+const { feeForUser } = require("./consultationPricing.service");
 // ============================================
-// 💰 BOOKING FEE (constant for now; future: per-doctor)
+// 💰 BOOKING FEE — the real fee now comes from the admin's country price
+// list (consultationPricing.service → feeForUser). This is only the
+// fallback for a PayPal transaction that somehow has no amount.
 // ============================================
 const BOOKING_FEE = 20;
 const BOOKING_CURRENCY = "USD";
@@ -143,7 +146,7 @@ const validateBookingSlot = async ({ userId, doctorId, scheduledAt, viewerTimezo
   const [user, doctor] = await Promise.all([
     // countryIso → the customer's receipt currency (resolveCustomerCurrency);
     // without it every booking was frozen as USD.
-    User.findById(userId).select("fullName nickName isActive timezone countryIso").lean(),
+    User.findById(userId).select("fullName nickName isActive timezone country countryIso").lean(),
     Doctor.findOne({
       _id: doctorId,
       isActive: true,
@@ -248,6 +251,9 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   if (validated.error) return validated;
   const { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek } = validated;
 
+  // 💵 This patient's fee (USD) from the admin's country price list
+  const { fee: bookingFee } = await feeForUser(user);
+
   // ============================================
   // STEP 4 — Use plan free consult → cancel credit → charge payment
   // ============================================
@@ -279,7 +285,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     paymentResult = {
       success: true,
       transactionId: `plan_consult_${Date.now()}`,
-      amount: BOOKING_FEE,
+      amount: bookingFee,
       currency: BOOKING_CURRENCY,
       method: "plan_free_consult",
     };
@@ -292,7 +298,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     paymentResult = {
       success: true,
       transactionId: `free_credit_${Date.now()}`,
-      amount: BOOKING_FEE,
+      amount: bookingFee,
       currency: BOOKING_CURRENCY,
       method: "free_credit",
     };
@@ -302,7 +308,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     // 💳 Charge payment normally
     paymentResult = await paymentService.charge({
       userId,
-      amount: BOOKING_FEE,
+      amount: bookingFee,
       currency: BOOKING_CURRENCY,
       description: `Consultation with ${doctor.fullName}`,
       metadata: { doctorId, scheduledAt: slotStart.toISOString() },
@@ -317,7 +323,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
             userId,
             type: "payment_failed",
             title: "Payment Failed",
-            body: `Your payment for the $${BOOKING_FEE} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
+            body: `Your payment for the $${bookingFee} consultation with ${doctor.fullName} failed. Please update your payment method and try again.`,
             metadata: { doctorId },
           });
         } catch (err) { }
@@ -349,7 +355,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     // 💸 Refund — slot was taken during payment processing
     await paymentService.refund({
       transactionId: paymentResult.transactionId,
-      amount: BOOKING_FEE,
+      amount: bookingFee,
       reason: "Slot taken during payment",
     });
     // ♻️ restore the consumed card so the user doesn't lose it
@@ -383,7 +389,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     platform,
     scheduledAt: slotStart,
     durationMinutes: SLOT_DURATION_MINUTES,
-    fee: BOOKING_FEE,  // Doctor still receives the original $20 (covered by credit/plan revenue)
+    fee: bookingFee,  // country price — doctor still receives it when a credit/plan card covers it
     paidWithCredit: usedFreeCredit || usedPlanConsult,
     paidWithPlanCredit: usedPlanConsult, // tags plan-funded free consults
     currency: displayCurrency,
@@ -461,6 +467,10 @@ const createAppointmentPaypalOrder = async ({
   if (validated.error) return validated;
   const { user, doctor, slotStart } = validated;
 
+  // 💵 This patient's fee (USD) from the admin's country price list —
+  // fixed into the PayPal order here, so it's exactly what gets charged
+  const { fee: bookingFee } = await feeForUser(user);
+
   // 🎁 Free consult card or cancel credit available? Don't charge — tell the
   // frontend to use the existing free-booking endpoint instead, which is the
   // only place that actually consumes a card/credit (avoids double-spend).
@@ -484,7 +494,7 @@ const createAppointmentPaypalOrder = async ({
   let order;
   try {
     order = await paypal.createOrder({
-      amount: BOOKING_FEE,
+      amount: bookingFee,
       currency: BOOKING_CURRENCY,
       description,
       referenceId: `appt_${userId}_${Date.now()}`,
@@ -510,7 +520,7 @@ const createAppointmentPaypalOrder = async ({
     customer: userId,
     buyerName: user.fullName || user.nickName || "A customer",
     platform,
-    amount: BOOKING_FEE,
+    amount: bookingFee,
     currency: BOOKING_CURRENCY,
     description,
     context: {
@@ -576,7 +586,7 @@ const finalizeAppointmentTx = async (tx) => {
       platform: tx.platform,
       scheduledAt: slotStart,
       durationMinutes: SLOT_DURATION_MINUTES,
-      fee: BOOKING_FEE,
+      fee: Number(tx.amount) || BOOKING_FEE, // exactly what PayPal charged
       currency: displayCurrency,
       fxRateAtPurchase,
       paymentStatus: "paid",

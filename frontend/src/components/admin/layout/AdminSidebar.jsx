@@ -39,6 +39,7 @@ import {
   UserCog,
   Clock,
   LifeBuoy,
+  BadgeDollarSign,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
@@ -174,24 +175,33 @@ const AdminSidebar = ({ onNavigate }) => {
         },
       ],
     },
-    // 🏢 CONFIGURATION section — only for child programs (yogat20, diabmukt, etc.)
-    // Zealtho is the parent platform and doesn't have program-specific configuration.
-    // (super admin only — pricing / habit configuration is hidden from portal admins)
-    ...(isChildProgram && isSuperAdmin
+    // 🏢 CONFIGURATION section (super admin only — pricing / habit configuration
+    // is hidden from portal admins). Habit + subscription configurators are
+    // per child program; Appointment Pricing applies to every program.
+    ...(isSuperAdmin
       ? [
           {
             title: "CONFIGURATION",
             collapsible: true,
             items: [
+              ...(isChildProgram
+                ? [
+                    {
+                      icon: Activity,
+                      label: "Habit Configurator",
+                      to: "/admin/habits",
+                    },
+                    {
+                      icon: IndianRupee,
+                      label: "Subscription Price Configurator",
+                      to: "/admin/subscriptions",
+                    },
+                  ]
+                : []),
               {
-                icon: Activity,
-                label: "Habit Configurator",
-                to: "/admin/habits",
-              },
-              {
-                icon: IndianRupee,
-                label: "Subscription Price Configurator",
-                to: "/admin/subscriptions",
+                icon: BadgeDollarSign,
+                label: "Appointment Pricing",
+                to: "/admin/appointment-pricing",
               },
             ],
           },
