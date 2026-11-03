@@ -53,6 +53,7 @@ const doctorAppointmentRoutes = require("./routes/doctor.appointment.routes");
 const doctorNotificationRoutes = require("./routes/doctor.notification.routes");
 const doctorDashboardRoutes = require("./routes/doctor.dashboard.routes");
 const doctorOptionsRoutes = require("./routes/doctor.options.routes");
+const doctorFeedbackRoutes = require("./routes/doctor.feedback.routes");
 const adminFinancialReportRoutes = require("./routes/admin.financialReport.routes");
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
 const adminIssueReportRoutes = require("./routes/admin.issueReport.routes");
@@ -173,6 +174,7 @@ app.use("/api/doctor/appointments", doctorAppointmentRoutes);
 app.use("/api/doctor/notifications", doctorNotificationRoutes);
 app.use("/api/doctor/dashboard", doctorDashboardRoutes);
 app.use("/api/doctor/options", doctorOptionsRoutes);
+app.use("/api/doctor/feedback", doctorFeedbackRoutes);
 // TODO: Future admin routes
 app.use("/api/admin/doctors", adminDoctorRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);

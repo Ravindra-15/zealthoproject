@@ -5,8 +5,8 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ArrowLeft, Star } from "lucide-react";
 
 import useDoctorAppointments from "../../../hooks/useDoctorAppointments";
 import AppointmentCard from "./components/AppointmentCard";
@@ -116,13 +116,24 @@ const Appointments = () => {
       {/* ============================================ */}
       {/* 🏷️ PAGE HEADER                               */}
       {/* ============================================ */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-          Overall Appointments
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage consultation requests and today's schedule
-        </p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+            Overall Appointments
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage consultation requests and today's schedule
+          </p>
+        </div>
+
+        {/* ⭐ Feedback patients left after consultations */}
+        <Link
+          to="/doctor/appointments/feedback"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors self-start sm:self-auto flex-shrink-0"
+        >
+          <Star size={14} />
+          Patient Feedback
+        </Link>
       </div>
 
       {/* ============================================ */}
