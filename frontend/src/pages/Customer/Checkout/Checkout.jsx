@@ -15,7 +15,6 @@ import {
   Pencil,
   HeartPulse,
   ChevronRight,
-  AlertTriangle,
   Paperclip,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,6 +22,7 @@ import toast from "react-hot-toast";
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import ConsultationCard from "./components/ConsultationCard";
+import BookingRulesNote from "./components/BookingRulesNote";
 import Modal from "../../../components/common/Modal";
 
 import { getPublicDoctor } from "../../../services/customerDoctorService";
@@ -44,7 +44,6 @@ import { useCurrency } from "../../../hooks/useCurrency";
 import { useProfileGate } from "../../../hooks/useProfileGate";
 
 const BOOKING_FEE = 20;
-const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
 const PROBLEM_MAX = 500; // max characters allowed for problem description
 const PLATFORM = "zealtho"; // current program identifier (change per subprogram)
 
@@ -298,16 +297,8 @@ const Checkout = () => {
                 showTotals
               />
 
-              {/* ⏱️ Short heads-up — within 48 hrs, no free reschedule later */}
-              {intent?.scheduledAt &&
-                new Date(intent.scheduledAt).getTime() - Date.now() < RESCHEDULE_CUTOFF_MS && (
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
-                    <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
-                    <p className="text-xs text-amber-700">
-                      Within 48 hrs — can't be rescheduled later.
-                    </p>
-                  </div>
-                )}
+              {/* 📋 Reschedule / cancellation rules for this slot */}
+              <BookingRulesNote scheduledAt={intent?.scheduledAt} />
 
               {/* ============================================ */}
               {/* 📝 PROBLEM DESCRIPTION                        */}
