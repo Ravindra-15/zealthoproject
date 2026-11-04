@@ -7,7 +7,7 @@ import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import ProgressBar from "../../components/common/ProgressBar";
 import LocationSelect from "../../components/common/LocationSelect";
-import { loadCountries, loadStates, loadCities } from "../../data/location";
+import { loadCountries, loadStates, loadCities, POPULAR_COUNTRY_CODES } from "../../data/location";
 import { profileStepTwo } from "../../services/authService";
 import { clearMyCurrencyCache } from "../../services/currencyService";
 import { validateProfileStep2 } from "../../utils/validators";
@@ -234,6 +234,7 @@ const ProfileStepTwo = () => {
                 value={country}
                 options={countries}
                 onChange={setCountry}
+                pinnedCodes={POPULAR_COUNTRY_CODES}
                 showFlag
               />
 

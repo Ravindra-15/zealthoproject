@@ -23,7 +23,7 @@ import {
   validatePhone,
 } from "../../../../utils/validators";
 import { COUNTRIES, DEFAULT_COUNTRY } from "../../../../data/countries";
-import { loadCountries, loadStates, loadCities } from "../../../../data/location";
+import { loadCountries, loadStates, loadCities, POPULAR_COUNTRY_CODES } from "../../../../data/location";
 import LocationSelect from "../../../../components/common/LocationSelect";
 import CountryCodeSelect from "../../../../components/common/CountryCodeSelect";
 
@@ -329,6 +329,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
             options={countries}
             onChange={handleCountryChange}
             disabled={resolving}
+            pinnedCodes={POPULAR_COUNTRY_CODES}
             showFlag
           />
 

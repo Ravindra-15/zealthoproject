@@ -14,6 +14,9 @@ let citiesMod = null;
 
 const sortName = { sort: { mode: "alphabetical", key: "name" } };
 
+// ⭐ Shown first in the country dropdown, in this order (ISO2 codes)
+export const POPULAR_COUNTRY_CODES = ["US", "IN", "GB", "CA", "AU", "AE", "CN", "RU", "ZA"];
+
 export const loadCountries = async () => {
   if (!countriesMod) countriesMod = await import("countries-states-cities-service/countries");
   return countriesMod.Countries.getCountries(sortName).map((c) => ({

@@ -21,6 +21,7 @@ const LocationSelect = ({
   hasError = false,
   showFlag = false,
   disabledHint, // shown instead of the dropdown when disabled
+  pinnedCodes = [], // codes shown first under "Popular" (hidden while searching)
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -46,6 +47,43 @@ const LocationSelect = ({
   const filtered = q
     ? options.filter((o) => o.name.toLowerCase().includes(q))
     : options;
+
+  // ⭐ Pinned options on top, then everything else — only when not searching
+  const pinned = q
+    ? []
+    : pinnedCodes.map((code) => options.find((o) => o.code === code)).filter(Boolean);
+  const pinnedSet = new Set(pinned.map((o) => o.code));
+  const rest = pinned.length ? filtered.filter((o) => !pinnedSet.has(o.code)) : filtered;
+
+  const renderOption = (o) => (
+    <button
+      key={o.code}
+      type="button"
+      onClick={() => {
+        onChange(o);
+        setOpen(false);
+        setQuery("");
+      }}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors ${
+        value?.code === o.code ? "bg-orange-50" : ""
+      }`}
+    >
+      {showFlag && (
+        <img
+          src={flagUrl(o.code)}
+          alt=""
+          className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0"
+        />
+      )}
+      <span className="truncate">{o.name}</span>
+    </button>
+  );
+
+  const groupLabel = (text) => (
+    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+      {text}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-2 w-full" ref={wrapRef}>
@@ -112,30 +150,16 @@ const LocationSelect = ({
                 <div className="px-3 py-4 text-xs text-gray-400 text-center">
                   No results found
                 </div>
+              ) : pinned.length ? (
+                <>
+                  {groupLabel("Popular")}
+                  {pinned.map(renderOption)}
+                  <div className="my-1 border-t border-gray-100" />
+                  {groupLabel("All countries")}
+                  {rest.map(renderOption)}
+                </>
               ) : (
-                filtered.map((o) => (
-                  <button
-                    key={o.code}
-                    type="button"
-                    onClick={() => {
-                      onChange(o);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors ${
-                      value?.code === o.code ? "bg-orange-50" : ""
-                    }`}
-                  >
-                    {showFlag && (
-                      <img
-                        src={flagUrl(o.code)}
-                        alt=""
-                        className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0"
-                      />
-                    )}
-                    <span className="truncate">{o.name}</span>
-                  </button>
-                ))
+                filtered.map(renderOption)
               )}
             </div>
           </div>
