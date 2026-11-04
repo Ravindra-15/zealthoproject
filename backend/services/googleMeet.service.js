@@ -1,13 +1,28 @@
 /**
  * GOOGLE MEET SERVICE
- * Generates a Google Meet link via the Google Calendar API using a single
- * company Google account (one refresh token, shared by all doctors).
+ * Generates a Google Meet link using a single company Google account
+ * (one refresh token, shared by all doctors).
  * Reads credentials from .env — never hardcode secrets.
+ *
+ * Why an "open" room: the company account is the meeting's owner, and it is
+ * never in the call. With a normal room the doctor AND the patient both get
+ * "Ask to join" and nobody is there to let them in. So we create the room
+ * through the Meet REST API with accessType OPEN — anyone with the link
+ * joins straight away, no knocking. The link is only shared with the
+ * doctor and that appointment's patient.
+ *
+ * If the Meet API isn't set up yet (API not enabled / old refresh token
+ * without the Meet scope), we fall back to the old Calendar-event method so
+ * link generation never breaks — those rooms still "knock", see the log.
  *
  * Required .env:
  *   GOOGLE_MEET_CLIENT_ID
  *   GOOGLE_MEET_CLIENT_SECRET
- *   GOOGLE_MEET_REFRESH_TOKEN
+ *   GOOGLE_MEET_REFRESH_TOKEN   — scopes:
+ *       https://www.googleapis.com/auth/meetings.space.created  (open rooms)
+ *       https://www.googleapis.com/auth/calendar                (fallback)
+ *
+ * Google Cloud project: enable "Google Meet REST API" (and Calendar API).
  */
 
 const { google } = require("googleapis");
@@ -26,19 +41,36 @@ const buildAuthClient = () => {
 };
 
 // ============================================
-// 🎥 CREATE A GOOGLE MEET LINK
-// Creates a Calendar event with a Meet conference and returns the join URL.
+// 🚪 OPEN ROOM via Meet REST API — anyone with the link joins without knocking
 // ============================================
-const createMeetingLink = async ({ summary, startTime, durationMinutes = 30 }) => {
-  if (
-    !process.env.GOOGLE_MEET_CLIENT_ID ||
-    !process.env.GOOGLE_MEET_CLIENT_SECRET ||
-    !process.env.GOOGLE_MEET_REFRESH_TOKEN
-  ) {
-    throw new Error("Google Meet credentials are not configured");
+const createOpenSpace = async (auth) => {
+  const meet = google.meet({ version: "v2", auth });
+  const response = await meet.spaces.create({
+    requestBody: {
+      config: {
+        accessType: "OPEN",
+        entryPointAccess: "ALL",
+      },
+    },
+  });
+
+  const link = response.data?.meetingUri || null;
+  if (!link) throw new Error("Meet API returned no meeting link");
+
+  // Google may silently apply a stricter access type (e.g. account policy) —
+  // log it so it's visible in the server logs
+  const accessType = response.data?.config?.accessType;
+  if (accessType && accessType !== "OPEN") {
+    console.log(`GOOGLE MEET: room created with accessType ${accessType} (wanted OPEN)`);
   }
 
-  const auth = buildAuthClient();
+  return { meetingLink: link, eventId: null, spaceName: response.data.name };
+};
+
+// ============================================
+// 📅 FALLBACK — Calendar event with a Meet conference (old method; rooms knock)
+// ============================================
+const createCalendarMeeting = async (auth, { summary, startTime, durationMinutes }) => {
   const calendar = google.calendar({ version: "v3", auth });
 
   const start = new Date(startTime);
@@ -81,6 +113,33 @@ const createMeetingLink = async ({ summary, startTime, durationMinutes = 30 }) =
     meetingLink: link,
     eventId: response.data.id,
   };
+};
+
+// ============================================
+// 🎥 CREATE A GOOGLE MEET LINK
+// Open room first; Calendar-event room if the Meet API isn't available.
+// ============================================
+const createMeetingLink = async ({ summary, startTime, durationMinutes = 30 }) => {
+  if (
+    !process.env.GOOGLE_MEET_CLIENT_ID ||
+    !process.env.GOOGLE_MEET_CLIENT_SECRET ||
+    !process.env.GOOGLE_MEET_REFRESH_TOKEN
+  ) {
+    throw new Error("Google Meet credentials are not configured");
+  }
+
+  const auth = buildAuthClient();
+
+  try {
+    return await createOpenSpace(auth);
+  } catch (err) {
+    console.log(
+      "GOOGLE MEET: open room failed, using Calendar fallback (doctor & patient will need to ask to join) —",
+      err.message
+    );
+  }
+
+  return createCalendarMeeting(auth, { summary, startTime, durationMinutes });
 };
 
 module.exports = { createMeetingLink };
