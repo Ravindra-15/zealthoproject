@@ -14,6 +14,15 @@ const applyFrozenRate = (amountUSD, currency, fxRateAtPurchase) => {
   const rate = Number.isFinite(fxRateAtPurchase) && fxRateAtPurchase > 0 ? fxRateAtPurchase : 1;
   return roundUpToCurrency(amountUSD * rate, currency);
 };
+
+// 🏷️ Appointment amount in the patient's currency — the exact amount they
+// saw (localFee) when stored, else the USD fee at the frozen rate.
+const appointmentDisplayAmount = (a, wasFree) => {
+  if (wasFree) return 0;
+  if (Number.isFinite(a.localFee) && a.localFee >= 0) return a.localFee;
+  return applyFrozenRate(a.fee || 0, a.currency || "USD", a.fxRateAtPurchase);
+};
+
 const getSummary = async (req, res) => {
   try {
     const totalCompleted = await Consultation.countDocuments({
@@ -56,7 +65,7 @@ const listTransactions = async (req, res) => {
         type: "appointment",
         date: a.createdAt,
         description: `Doctor Consultation Fee (${a.doctorName || "Consultation"})${freeLabel}`,
-        amount: applyFrozenRate(amountUSD, currency, a.fxRateAtPurchase),
+        amount: appointmentDisplayAmount(a, !!(a.paidWithPlanCredit || a.paidWithCredit)),
         currency,
         status: a.paymentStatus || "pending",
       };
@@ -148,7 +157,7 @@ const getReceipt = async (req, res) => {
       const wasFree = appointment.paidWithPlanCredit || appointment.paidWithCredit;
       const displayFeeUSD = wasFree ? 0 : appointment.fee || 0;
       const receiptCurrency = appointment.currency || "USD";
-      const convertedFee = applyFrozenRate(displayFeeUSD, receiptCurrency, appointment.fxRateAtPurchase);
+      const convertedFee = appointmentDisplayAmount(appointment, wasFree);
       const receipt = {
         receiptNumber: `TXN-${appointment._id.toString().slice(-8).toUpperCase()}`,
         date: appointment.createdAt,

@@ -4,14 +4,22 @@
  * signup (and anywhere else a country-aware phone input is needed).
  *
  * Search matches country name, dial code, or ISO2 ("in", "91", "india"
- * all find India). Pure Tailwind + local state — no extra dependency.
+ * all find India). Popular countries are listed first (hidden while
+ * searching). Pure Tailwind + local state — no extra dependency.
  */
 
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { COUNTRIES, flagUrl } from "../../data/countries";
+import { POPULAR_COUNTRY_CODES } from "../../data/location";
 
-const CountryCodeSelect = ({ value, onChange, hasError = false, buttonClassName = "" }) => {
+const CountryCodeSelect = ({
+  value,
+  onChange,
+  hasError = false,
+  buttonClassName = "",
+  pinnedCodes = POPULAR_COUNTRY_CODES, // shown first under "Popular"
+}) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef(null);
@@ -41,6 +49,42 @@ const CountryCodeSelect = ({ value, onChange, hasError = false, buttonClassName 
           c.iso2.toLowerCase().includes(q)
       )
     : COUNTRIES;
+
+  // ⭐ Popular countries on top, then everything else — only when not searching
+  const pinned = q
+    ? []
+    : pinnedCodes.map((code) => COUNTRIES.find((c) => c.iso2 === code)).filter(Boolean);
+  const pinnedSet = new Set(pinned.map((c) => c.iso2));
+  const rest = pinned.length ? filtered.filter((c) => !pinnedSet.has(c.iso2)) : filtered;
+
+  const renderOption = (c) => (
+    <button
+      key={c.iso2}
+      type="button"
+      onClick={() => {
+        onChange(c);
+        setOpen(false);
+        setQuery("");
+      }}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors ${
+        c.iso2 === value.iso2 ? "bg-orange-50" : ""
+      }`}
+    >
+      <img
+        src={flagUrl(c.iso2)}
+        alt=""
+        className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0"
+      />
+      <span className="flex-1 truncate">{c.name}</span>
+      <span className="text-gray-400 text-xs">+{c.dialCode}</span>
+    </button>
+  );
+
+  const groupLabel = (text) => (
+    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+      {text}
+    </div>
+  );
 
   return (
     <div className="relative" ref={wrapRef}>
@@ -80,29 +124,16 @@ const CountryCodeSelect = ({ value, onChange, hasError = false, buttonClassName 
               <div className="px-3 py-4 text-xs text-gray-400 text-center">
                 No country found
               </div>
+            ) : pinned.length ? (
+              <>
+                {groupLabel("Popular")}
+                {pinned.map(renderOption)}
+                <div className="my-1 border-t border-gray-100" />
+                {groupLabel("All countries")}
+                {rest.map(renderOption)}
+              </>
             ) : (
-              filtered.map((c) => (
-                <button
-                  key={c.iso2}
-                  type="button"
-                  onClick={() => {
-                    onChange(c);
-                    setOpen(false);
-                    setQuery("");
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors ${
-                    c.iso2 === value.iso2 ? "bg-orange-50" : ""
-                  }`}
-                >
-                  <img
-                    src={flagUrl(c.iso2)}
-                    alt=""
-                    className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0"
-                  />
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-gray-400 text-xs">+{c.dialCode}</span>
-                </button>
-              ))
+              filtered.map(renderOption)
             )}
           </div>
         </div>

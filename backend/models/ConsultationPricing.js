@@ -3,12 +3,13 @@
  * CONSULTATION PRICING — appointment fee by the patient's country
  * ============================================
  * A single settings document (key "global"), edited by the super admin.
- * Every price is in USD — the currency PayPal charges and every revenue /
- * margin report already sums — so a country price only changes how many
- * USD a booking costs, never how anything is calculated.
+ *  - defaultPrice → USD, every country without its own price
+ *  - countries    → per-country overrides, keyed by ISO2 (e.g. "IN"), as a
+ *                   whole number in that country's own currency (₹999).
+ *                   Rows saved before currencies existed have none = USD.
  *
- *  - defaultPrice → every country without its own price
- *  - countries    → per-country overrides, keyed by ISO2 (e.g. "IN")
+ * PayPal still charges USD: a booking stores the USD value of the price at
+ * that day's rate, so revenue / margin reports never change.
  * ============================================
  */
 
@@ -33,7 +34,15 @@ const countryPriceSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
-      max: 1000,
+      max: 100000000, // local currency — the USD range is checked in the service
+    },
+    // ISO-4217 of `price`; missing on older rows (those are USD)
+    currency: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      match: [/^[A-Z]{3}$/, "Invalid currency"],
+      default: undefined,
     },
   },
   { _id: false }

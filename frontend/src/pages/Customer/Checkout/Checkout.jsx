@@ -40,8 +40,7 @@ import { fetchMyProfile } from "../../../services/customerProfileService";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
 import useMedicalReports from "../../../hooks/useMedicalReports";
 import ReportList from "../../../components/customer/MedicalReports/ReportList";
-import { useCurrency } from "../../../hooks/useCurrency";
-import { useConsultationFee } from "../../../hooks/useConsultationFee";
+import { useConsultationFee, formatFee } from "../../../hooks/useConsultationFee";
 import { useProfileGate } from "../../../hooks/useProfileGate";
 
 const PROBLEM_MAX = 500; // max characters allowed for problem description
@@ -61,14 +60,19 @@ const Checkout = () => {
   const [freeCredits, setFreeCredits] = useState(0);
   // 💵 This patient's fee (USD) — admin sets it per country; the server
   // charges the same amount, this is just for display
-  const { fee: bookingFee, ready: feeReady } = useConsultationFee();
+  const {
+    fee: bookingFee,
+    label: bookingFeeLabel,
+    usdLabel: bookingFeeUsd,
+    currency: feeCurrency,
+    ready: feeReady,
+  } = useConsultationFee();
   const fee = freeCredits > 0 ? 0 : bookingFee; // USD
 
-  // 💱 Show the fee in the customer's own currency (from their profile
-  // country). Display only — PayPal still charges the USD amount.
-  const { convert, currency, rates, ready: currencyReady } = useCurrency();
-  const showsLocalCurrency =
-    !!currency && currency !== "USD" && Number.isFinite(rates?.[currency]);
+  // 💱 The fee in the patient's own currency, exactly as the admin set it
+  // for their country (e.g. ₹999). PayPal still charges the USD amount.
+  const showsLocalCurrency = feeCurrency !== "USD";
+  const feeLabel = fee === 0 ? formatFee(0, feeCurrency) : bookingFeeLabel;
 
   // body profile completion status — decides which button to show
   const { isComplete: bodyProfileComplete, loading: bodyProfileLoading } =
@@ -276,8 +280,8 @@ const Checkout = () => {
           {/* ============================================ */}
           {/* 📋 CHECKOUT BODY                              */}
           {/* ============================================ */}
-          {loading || !currencyReady || !feeReady ? (
-            // also wait for the currency, so the fee doesn't flash $20 first
+          {loading || !feeReady ? (
+            // also wait for the fee, so it doesn't flash $20 first
             <div className="bg-white rounded-2xl border border-gray-100 p-6 animate-pulse h-72" />
           ) : error ? (
             <div className="bg-white rounded-2xl border border-gray-100 px-6 py-12 text-center">
@@ -296,7 +300,7 @@ const Checkout = () => {
                 doctor={doctor}
                 scheduledAt={intent?.scheduledAt}
                 fee={fee}
-                feeLabel={convert(fee)}
+                feeLabel={feeLabel}
                 showTotals
               />
 
@@ -452,7 +456,7 @@ const Checkout = () => {
                 ) : freeCredits > 0 ? (
                   "Confirm Free Booking"
                 ) : (
-                  `Pay ${convert(bookingFee)} with PayPal`
+                  `Pay ${bookingFeeLabel} with PayPal`
                 )}
               </button>
 
@@ -466,9 +470,9 @@ const Checkout = () => {
               {freeCredits === 0 && showsLocalCurrency && (
                 <p className="text-xs text-gray-500 text-center leading-relaxed">
                   PayPal will charge{" "}
-                  <span className="font-semibold">${bookingFee.toFixed(2)} USD</span>{" "}
-                  (≈ {convert(bookingFee)}). Your bank or PayPal may apply its
-                  own conversion rate.
+                  <span className="font-semibold">{bookingFeeUsd} USD</span> — the value of{" "}
+                  {bookingFeeLabel} today. Your bank or PayPal may apply its own
+                  conversion rate.
                 </p>
               )}
 

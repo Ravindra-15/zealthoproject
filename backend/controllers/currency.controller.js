@@ -25,7 +25,7 @@ const getRates = async (req, res) => {
 // falls back to USD so a price page can never break because of this call.
 const getMyCurrency = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("countryIso");
+    const user = await User.findById(req.user.id).select("countryIso country");
     const { currency } = await resolveCustomerCurrency(user);
     res.status(200).json({ success: true, data: { currency } });
   } catch (err) {

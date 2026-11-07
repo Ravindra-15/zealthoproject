@@ -55,4 +55,34 @@ const currencyForCountry = (countryCode) => {
   return COUNTRY_TO_CURRENCY[countryCode.toUpperCase()] || DEFAULT_CURRENCY;
 };
 
-module.exports = { COUNTRY_TO_CURRENCY, DEFAULT_CURRENCY, currencyForCountry };
+// 🔎 ISO2 for a profile: the saved code, else looked up from the country
+// name (profiles saved before countryIso existed only have the name).
+const NAME_ALIASES = {
+  "turkey": "TR", "czech republic": "CZ", "ivory coast": "CI", "cote d'ivoire": "CI",
+  "south korea": "KR", "korea, south": "KR", "north korea": "KP", "russian federation": "RU",
+  "vatican city state (holy see)": "VA", "hong kong s.a.r.": "HK", "macau s.a.r.": "MO",
+  "palestinian territory occupied": "PS", "democratic republic of the congo": "CD",
+  "congo": "CG", "swaziland": "SZ", "macedonia": "MK", "usa": "US", "uk": "GB",
+};
+let nameToIso = null;
+const isoForCountry = (countryIso, countryName) => {
+  const iso = String(countryIso || "").trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(iso)) return iso;
+  const name = String(countryName || "").trim().toLowerCase();
+  if (!name) return null;
+  if (!nameToIso) {
+    nameToIso = { ...NAME_ALIASES };
+    try {
+      const names = new Intl.DisplayNames(["en"], { type: "region" });
+      for (const code of Object.keys(COUNTRY_TO_CURRENCY)) {
+        const n = names.of(code);
+        if (n && n !== code) nameToIso[n.toLowerCase()] = code;
+      }
+    } catch {
+      // no ICU data — aliases only
+    }
+  }
+  return nameToIso[name] || null;
+};
+
+module.exports = { COUNTRY_TO_CURRENCY, DEFAULT_CURRENCY, currencyForCountry, isoForCountry };

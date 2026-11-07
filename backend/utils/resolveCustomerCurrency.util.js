@@ -12,13 +12,14 @@
  * ============================================
  */
 
-const { currencyForCountry } = require("./countryCurrencyMap");
+const { currencyForCountry, isoForCountry } = require("./countryCurrencyMap");
 const { getCachedRates } = require("../services/exchangeRate.service");
 
-// `user` is a User document (or plain object) with a `countryIso` field.
+// `user` is a User document (or plain object) with `countryIso` (or, on
+// older profiles, only `country` — the name).
 const resolveCustomerCurrency = async (user) => {
   try {
-    const currency = currencyForCountry(user?.countryIso);
+    const currency = currencyForCountry(isoForCountry(user?.countryIso, user?.country));
     if (currency === "USD") return { currency: "USD", fxRateAtPurchase: 1 };
 
     const { rates } = await getCachedRates();

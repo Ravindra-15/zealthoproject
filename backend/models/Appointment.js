@@ -111,6 +111,15 @@ const appointmentSchema = new mongoose.Schema(
       default: 1,
     },
 
+    // 🏷️ The fee exactly as the patient saw it, in `currency` (e.g. 999 for
+    // ₹999 set by the admin). `fee` stays the USD amount PayPal charged.
+    // null on older bookings — those show fee × fxRateAtPurchase.
+    localFee: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+
     paymentStatus: {
       type: String,
       enum: PAYMENT_STATUSES,

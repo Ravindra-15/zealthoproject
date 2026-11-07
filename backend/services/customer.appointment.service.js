@@ -251,8 +251,10 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   if (validated.error) return validated;
   const { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek } = validated;
 
-  // 💵 This patient's fee (USD) from the admin's country price list
-  const { fee: bookingFee } = await feeForUser(user);
+  // 💵 This patient's fee (USD) from the admin's country price list, plus
+  // the amount they saw in their own currency (e.g. ₹999)
+  const priced = await feeForUser(user);
+  const bookingFee = priced.fee;
 
   // ============================================
   // STEP 4 — Use plan free consult → cancel credit → charge payment
@@ -379,7 +381,8 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
   // 🌍 Resolve the customer's display currency + freeze today's rate, so
   // their receipt always shows what they actually saw/paid — the real
   // settlement stays BOOKING_CURRENCY (USD) regardless of this.
-  const { currency: displayCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(user);
+  // 💱 the currency / rate / amount the patient saw at checkout
+  const { currency: displayCurrency, fxRate: fxRateAtPurchase, localFee } = priced;
 
   const appointment = await Appointment.create({
     user: userId,
@@ -394,6 +397,7 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     paidWithPlanCredit: usedPlanConsult, // tags plan-funded free consults
     currency: displayCurrency,
     fxRateAtPurchase,
+    localFee,
     paymentStatus: "paid",
     status: "confirmed",
     notes,
@@ -468,8 +472,10 @@ const createAppointmentPaypalOrder = async ({
   const { user, doctor, slotStart } = validated;
 
   // 💵 This patient's fee (USD) from the admin's country price list —
-  // fixed into the PayPal order here, so it's exactly what gets charged
-  const { fee: bookingFee } = await feeForUser(user);
+  // fixed into the PayPal order here, so it's exactly what gets charged.
+  // The local amount they saw (e.g. ₹999) is kept on the ledger for the receipt.
+  const priced = await feeForUser(user);
+  const bookingFee = priced.fee;
 
   // 🎁 Free consult card or cancel credit available? Don't charge — tell the
   // frontend to use the existing free-booking endpoint instead, which is the
@@ -530,6 +536,7 @@ const createAppointmentPaypalOrder = async ({
       notes: typeof notes === "string" ? notes.trim() : "",
       viewerTimezone,
       reportIds: (Array.isArray(reportIds) ? reportIds : []).map(String),
+      display: { currency: priced.currency, localFee: priced.localFee, fxRate: priced.fxRate },
     },
   });
 
@@ -574,7 +581,14 @@ const finalizeAppointmentTx = async (tx) => {
   }
   const { user, doctor, doctorTimezone, slotStart } = validated;
 
-  const { currency: displayCurrency, fxRateAtPurchase } = await resolveCustomerCurrency(user);
+  // 💱 what the patient saw at checkout (older ledger rows: resolve now)
+  const shown = tx.context?.display;
+  const hasShown =
+    shown && /^[A-Z]{3}$/.test(shown.currency || "") && Number(shown.fxRate) > 0 && Number(shown.localFee) >= 0;
+  const { currency: displayCurrency, fxRateAtPurchase } = hasShown
+    ? { currency: shown.currency, fxRateAtPurchase: Number(shown.fxRate) }
+    : await resolveCustomerCurrency(user);
+  const localFee = hasShown ? Number(shown.localFee) : null;
 
   let appointment;
   try {
@@ -589,6 +603,7 @@ const finalizeAppointmentTx = async (tx) => {
       fee: Number(tx.amount) || BOOKING_FEE, // exactly what PayPal charged
       currency: displayCurrency,
       fxRateAtPurchase,
+      localFee,
       paymentStatus: "paid",
       paymentProvider: "paypal",
       transactionId: tx.captureId,

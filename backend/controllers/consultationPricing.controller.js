@@ -11,8 +11,11 @@ const pricingService = require("../services/consultationPricing.service");
 // GET /api/admin/consultation-pricing
 const getPricingForAdmin = async (req, res) => {
   try {
-    const pricing = await pricingService.getPricing();
-    return res.status(200).json({ success: true, data: { pricing } });
+    const [pricing, currencies] = await Promise.all([
+      pricingService.getPricing(),
+      pricingService.getCurrencyTable(),
+    ]);
+    return res.status(200).json({ success: true, data: { pricing, currencies } });
   } catch (err) {
     console.error("[ADMIN PRICING GET ERROR]:", err);
     return res.status(500).json({ success: false, message: "Failed to load pricing" });
@@ -27,7 +30,8 @@ const savePricing = async (req, res) => {
     console.log(
       `[ADMIN AUDIT] consultation pricing updated by ${req.admin?._id}: default $${result.pricing.defaultPrice}, ${result.pricing.countries.length} countries`
     );
-    return res.status(200).json({ success: true, message: "Pricing saved", data: { pricing: result.pricing } });
+    const currencies = await pricingService.getCurrencyTable();
+    return res.status(200).json({ success: true, message: "Pricing saved", data: { pricing: result.pricing, currencies } });
   } catch (err) {
     console.error("[ADMIN PRICING SAVE ERROR]:", err);
     return res.status(500).json({ success: false, message: "Failed to save pricing" });
@@ -50,7 +54,10 @@ const getMyFee = async (req, res) => {
 const getDefaultFee = async (req, res) => {
   try {
     const { defaultPrice } = await pricingService.getPricing();
-    return res.status(200).json({ success: true, data: { fee: defaultPrice, currency: "USD", isDefault: true } });
+    return res.status(200).json({
+      success: true,
+      data: { fee: defaultPrice, currency: "USD", localFee: defaultPrice, fxRate: 1, isDefault: true },
+    });
   } catch (err) {
     console.error("[DEFAULT FEE ERROR]:", err);
     return res.status(500).json({ success: false, message: "Failed to load the consultation fee" });
