@@ -55,7 +55,7 @@ const WhatsAppFloat = () => {
         .wa-pop   { animation: waPop 0.25s ease-out forwards; }
       `}</style>
 
-      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50 flex items-center gap-2">
+      <div className="float-above-nav fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50 flex items-center gap-2">
         {/* Tooltip bubble (shows on the timer) */}
         {showBubble && (
           <div className="wa-pop bg-white text-gray-800 text-xs md:text-sm font-medium px-3 py-2 rounded-2xl rounded-br-sm shadow-[0_6px_18px_rgba(0,0,0,0.15)] whitespace-nowrap">

@@ -4,6 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 📱 Mobile bottom tab bar (CustomerNavbar → MobileBottomNav): below lg,
+   keep page content and floating buttons (WhatsApp) above the bar */
+@media (max-width: 1023.98px) {
+  body.has-bottom-nav {
+    padding-bottom: calc(65px + env(safe-area-inset-bottom)); /* bar = 64px + 1px border */
+  }
+  body.has-bottom-nav .float-above-nav {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+
 /* Global font */
 body {
   font-family: 'Bricolage Grotesque', sans-serif;
