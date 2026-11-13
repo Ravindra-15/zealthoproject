@@ -6,6 +6,7 @@
  */
 
 const Appointment = require("../models/Appointment");
+const { caseInfoFor } = require("./patientCase.service");
 
 // ============================================
 // 📋 LIST APPOINTMENTS
@@ -40,6 +41,10 @@ const listAppointments = async ({
       .limit(safeLimit)
       .lean(),
   ]);
+
+  // 🗂️ case badge ("Case 2 · Fever · Follow-up")
+  const caseMap = await caseInfoFor(appointments);
+  for (const x of appointments) x.caseInfo = caseMap[String(x._id)] || null;
 
   return {
     appointments,

@@ -13,8 +13,20 @@ export const fetchConsultationPricing = async () => {
   return response.data.data;
 };
 
-// ✏️ Save the whole price list
-export const saveConsultationPricing = async ({ defaultPrice, countries }) => {
-  const response = await adminApi.put("/admin/consultation-pricing", { defaultPrice, countries });
+// ✏️ Save the whole price list (+ follow-up prices and rules)
+export const saveConsultationPricing = async ({
+  defaultPrice,
+  countries,
+  defaultFollowUpPrice,
+  followUpWindowDays,
+  maxFollowUpsPerCase,
+}) => {
+  const response = await adminApi.put("/admin/consultation-pricing", {
+    defaultPrice,
+    countries,
+    defaultFollowUpPrice,
+    followUpWindowDays,
+    maxFollowUpsPerCase,
+  });
   return response.data.data;
 };

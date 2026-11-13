@@ -61,6 +61,32 @@ const appointmentSchema = new mongoose.Schema(
     },
 
     // ============================================
+    // 🗂️ CASE (one health problem + its follow-ups)
+    // ============================================
+    // null on appointments booked before cases existed
+    case: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PatientCase",
+      default: null,
+      index: true,
+    },
+
+    // "new" → first visit for a problem (new case)
+    // "follow_up" → a later visit in an existing case
+    visitType: {
+      type: String,
+      enum: ["new", "follow_up"],
+      default: "new",
+    },
+
+    // true when this follow-up was charged the follow-up price (a follow-up
+    // after the follow-up period / limit is charged the new price → false)
+    followUpPriced: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ============================================
     // 🗓️ SCHEDULING
     // ============================================
     scheduledAt: {

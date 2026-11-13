@@ -13,6 +13,7 @@ const Doctor = require("../models/Doctor");
 const Consultation = require("../models/Consultation");
 const Notification = require("../models/Notification");
 const { reportsByAppointment, earlierReportsForDoctor } = require("./medicalReport.service");
+const { caseInfoFor, caseHistoryFor, notifyFollowUpAvailable } = require("./patientCase.service");
 const AvailabilityTemplate = require("../models/AvailabilityTemplate");
 const { checkAndFlagDoctor } = require("./doctorFlag.service");
 const { MAX_RESCHEDULE_COUNT } = require("../utils/reschedulePolicy");
@@ -140,6 +141,13 @@ const listByDate = async (doctorId, dateStr) => {
   // 🗒️ this doctor's own notes from the patient's earlier consultations
   const notesMap = await earlierNotesForDoctor(doctorId, appointments);
   for (const a of appointments) a.earlierNotes = notesMap[String(a._id)] || [];
+
+  // 🗂️ case badge + the case's earlier visits (any doctor) for follow-ups
+  const [caseMap, historyMap] = await Promise.all([caseInfoFor(appointments), caseHistoryFor(appointments)]);
+  for (const a of appointments) {
+    a.caseInfo = caseMap[String(a._id)] || null;
+    a.caseHistory = historyMap[String(a._id)] || null;
+  }
   appointments.forEach(maskPatientPhone);
 
   return { date, appointments };
@@ -593,6 +601,9 @@ const markCompleteByDoctor = async (doctorId, appointmentId) => {
       metadata: { appointmentId: appointment._id },
     });
   } catch (err) { }
+
+  // 🔔 "you can book a follow-up for Case N" (best-effort)
+  await notifyFollowUpAvailable(appointment._id);
 
   return { appointment };
 };

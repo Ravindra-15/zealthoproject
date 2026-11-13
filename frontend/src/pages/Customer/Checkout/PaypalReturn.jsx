@@ -74,6 +74,8 @@ const PaypalReturn = () => {
 
         sessionStorage.removeItem("bookingIntent");
         sessionStorage.removeItem("bookingProblem");
+        sessionStorage.removeItem("bookingCaseId");
+        sessionStorage.removeItem("bookingCaseTitle");
         setStatus("success");
         toast.success("Payment received — appointment confirmed!");
         navigate(`/booking/confirmation/${result.appointment._id}`, { replace: true });

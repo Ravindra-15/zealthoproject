@@ -10,6 +10,7 @@ import { CalendarX } from "lucide-react";
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 import { formatUtcDateTime12h } from "../../../../utils/time";
 import { useAdminAuth } from "../../../../context/AdminAuthContext";
+import CaseChip from "../../../../components/customer/Cases/CaseChip";
 // ============================================
 // 🎨 STATUS PILL CONFIG
 // ============================================
@@ -153,6 +154,11 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
                   <span className="text-sm font-semibold text-gray-900">
                     {apt.patientName}
                   </span>
+                  {apt.caseInfo && (
+                    <span className="block mt-1">
+                      <CaseChip info={apt.caseInfo} />
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700">
@@ -202,6 +208,11 @@ const AppointmentTable = ({ appointments = [], loading = false }) => {
             <p className="text-xs text-gray-500 truncate mb-2">
               with {apt.doctorName}
             </p>
+            {apt.caseInfo && (
+              <div className="mb-2">
+                <CaseChip info={apt.caseInfo} />
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="text-gray-700">
                 {formatUtcDateTime12h(apt.scheduledAt)}

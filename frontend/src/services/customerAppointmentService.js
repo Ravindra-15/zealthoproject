@@ -50,8 +50,12 @@ export const fetchDayAvailability = async (doctorId, date) => {
 // 📝 CREATE BOOKING (auth)
 // ============================================
 export const createBooking = async ({
+  caseId,
+  caseTitle,
   reportIds, doctorId, scheduledAt, notes, platform }) => {
   const response = await authApi.post("/customer/appointments", {
+    caseId: caseId || undefined, // 🗂️ follow-up in this case (else a new problem)
+    caseTitle: caseTitle || undefined,
     reportIds,
     doctorId,
     scheduledAt,
@@ -69,8 +73,10 @@ export const createBooking = async ({
 // Returns either { approveUrl } (redirect the browser there) or
 // { freeBooking: true } (no payment needed — caller should use createBooking()).
 // ============================================
-export const createAppointmentPaypalOrder = async ({ reportIds, doctorId, scheduledAt, notes, platform, returnUrl, cancelUrl }) => {
+export const createAppointmentPaypalOrder = async ({ caseId, caseTitle, reportIds, doctorId, scheduledAt, notes, platform, returnUrl, cancelUrl }) => {
   const response = await authApi.post("/customer/appointments/paypal/create-order", {
+    caseId: caseId || undefined, // 🗂️ follow-up in this case (else a new problem)
+    caseTitle: caseTitle || undefined,
     reportIds,
     doctorId,
     scheduledAt,

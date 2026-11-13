@@ -58,6 +58,8 @@ const createBooking = async (req, res) => {
       // dedicated settings screen (used for reminder/confirmation emails).
       viewerTimezone: req.body.timezone,
       reportIds: req.body.reportIds,
+      caseId: req.body.caseId,
+      caseTitle: req.body.caseTitle,
     });
 
     if (result.error) {
@@ -104,6 +106,8 @@ const createPaypalOrder = async (req, res) => {
       platform: req.body.platform || "zealtho",
       viewerTimezone: req.body.timezone,
       reportIds: req.body.reportIds,
+      caseId: req.body.caseId,
+      caseTitle: req.body.caseTitle,
       returnUrl: req.body.returnUrl,
       cancelUrl: req.body.cancelUrl,
     });

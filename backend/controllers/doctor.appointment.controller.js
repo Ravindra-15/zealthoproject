@@ -429,7 +429,7 @@ const getPatientReportFile = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid report" });
     }
 
-    const appointment = await Appointment.findOne({ _id: id, doctor: req.doctorId }).select("status").lean();
+    const appointment = await Appointment.findOne({ _id: id, doctor: req.doctorId }).select("status case user").lean();
     if (!appointment) {
       return res.status(404).json({ success: false, message: "Appointment not found" });
     }
@@ -437,7 +437,13 @@ const getPatientReportFile = async (req, res) => {
       return res.status(403).json({ success: false, message: "Reports aren't available for cancelled appointments." });
     }
 
-    const report = await MedicalReport.findOne({ _id: reportId, appointment: id }).lean();
+    let report = await MedicalReport.findOne({ _id: reportId, appointment: id }).lean();
+    // 🗂️ or one from an earlier visit in the same case (shown in Case History)
+    if (!report && appointment.case) {
+      const other = await MedicalReport.findOne({ _id: reportId, user: appointment.user }).lean();
+      const { sharesCase } = require("../services/patientCase.service");
+      if (other?.appointment && (await sharesCase(appointment, other.appointment))) report = other;
+    }
     if (!report) {
       return res.status(404).json({ success: false, message: "Report not found" });
     }

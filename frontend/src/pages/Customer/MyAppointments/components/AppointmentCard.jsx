@@ -37,6 +37,7 @@ import {
 import Modal from "../../../../components/common/Modal";
 import RescheduleModal from "./RescheduleModal";
 import AppointmentReports from "./AppointmentReports";
+import CaseChip from "../../../../components/customer/Cases/CaseChip";
 
 const PROBLEM_MAX = 500; // max characters for problem description
 const MAX_RESCHEDULE_COUNT = 5; // mirrors backend/utils/reschedulePolicy.js
@@ -371,6 +372,12 @@ const [cancelling, setCancelling] = useState(false);
                 </span>
               </div>
             </div>
+            {/* 🗂️ Case 2 · Fever · Follow-up */}
+            {appointment.caseInfo && (
+              <div className="mt-1.5">
+                <CaseChip info={appointment.caseInfo} />
+              </div>
+            )}
           </div>
         </div>
 

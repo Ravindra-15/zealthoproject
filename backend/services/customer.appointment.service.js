@@ -40,7 +40,19 @@ const Consultation = require("../models/Consultation");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const { resolveCustomerCurrency } = require("../utils/resolveCustomerCurrency.util");
 const { MAX_RESCHEDULE_COUNT, isWithinRescheduleCutoff } = require("../utils/reschedulePolicy");
-const { feeForUser } = require("./consultationPricing.service");
+const PatientCase = require("../models/PatientCase");
+const {
+  resolveBookingCase,
+  createCaseForAppointment,
+  caseInfoFor,
+  caseLabel,
+  titleFromNotes,
+  notifyFollowUpAvailable,
+} = require("./patientCase.service");
+
+// 🗂️ " (Case 2 · Fever — follow-up)" for notification texts
+const caseSuffix = (c, visitType) =>
+  c ? ` (${caseLabel(c)} — ${visitType === "follow_up" ? "follow-up" : "new case"})` : "";
 // ============================================
 // 💰 BOOKING FEE — the real fee now comes from the admin's country price
 // list (consultationPricing.service → feeForUser). This is only the
@@ -246,14 +258,19 @@ const validateBookingSlot = async ({ userId, doctorId, scheduledAt, viewerTimezo
   return { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek };
 };
 
-const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null, reportIds = [] }) => {
+const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platform = "zealtho", viewerTimezone = null, reportIds = [], caseId = null, caseTitle = "" }) => {
   const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
   if (validated.error) return validated;
   const { user, doctor, doctorTimezone, slotStart, slotEnd, dayOfWeek } = validated;
 
+  // 🗂️ New problem (new case) or a follow-up in an existing case — checked
+  // before anything is spent. Its price: new-appointment or follow-up.
+  const caseChoice = await resolveBookingCase({ userId, user, caseId, caseTitle, notes });
+  if (caseChoice.error) return caseChoice;
+
   // 💵 This patient's fee (USD) from the admin's country price list, plus
   // the amount they saw in their own currency (e.g. ₹999)
-  const priced = await feeForUser(user);
+  const priced = caseChoice.priced;
   const bookingFee = priced.fee;
 
   // ============================================
@@ -401,7 +418,15 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
     paymentStatus: "paid",
     status: "confirmed",
     notes,
+    case: caseChoice.caseDoc?._id || null,
+    visitType: caseChoice.visitType,
+    followUpPriced: caseChoice.followUpPriced,
   });
+
+  // 🗂️ new problem → its case (Case N)
+  const bookedCase = caseChoice.caseDoc ||
+    (await createCaseForAppointment({ appointmentId: appointment._id, userId, platform, newCase: caseChoice.newCase }));
+  if (bookedCase) appointment.case = bookedCase._id;
 
   // 🔗 bind the consumed card to this appointment
   if (consumedCard) {
@@ -423,8 +448,8 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       userId: userId,
       type: "appointment_confirmed",
       title: "Appointment Confirmed",
-      body: `Your consultation with ${doctor.fullName} has been confirmed for ${formatInZone(slotStart, user.timezone || DEFAULT_TIMEZONE)}. Please join on time.`,
-      metadata: { appointmentId: appointment._id, doctorId },
+      body: `Your consultation with ${doctor.fullName} has been confirmed for ${formatInZone(slotStart, user.timezone || DEFAULT_TIMEZONE)}${caseSuffix(bookedCase, caseChoice.visitType)}. Please join on time.`,
+      metadata: { appointmentId: appointment._id, doctorId, caseId: bookedCase?._id },
     });
   } catch (err) {
     console.log("CUSTOMER NOTIFICATION ERROR:", err);
@@ -436,8 +461,8 @@ const createBooking = async ({ userId, doctorId, scheduledAt, notes = "", platfo
       userType: "doctor",                  // 👈 new field
       type: "appointment_confirmed",
       title: "New Appointment Booked",
-      body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${formatInZone(slotStart, doctorTimezone)}.`,
-      metadata: { appointmentId: appointment._id, patientId: userId },
+      body: `${user.fullName || user.nickName || "A patient"} booked a ${caseChoice.visitType === "follow_up" ? "follow-up" : "slot"} on ${formatInZone(slotStart, doctorTimezone)}${caseSuffix(bookedCase, caseChoice.visitType)}.`,
+      metadata: { appointmentId: appointment._id, patientId: userId, caseId: bookedCase?._id },
     });
   } catch (err) {
     console.log("DOCTOR NOTIFICATION ERROR:", err);
@@ -466,15 +491,21 @@ const createAppointmentPaypalOrder = async ({
   returnUrl,
   cancelUrl,
   reportIds = [],
+  caseId = null,
+  caseTitle = "",
 }) => {
   const validated = await validateBookingSlot({ userId, doctorId, scheduledAt, viewerTimezone });
   if (validated.error) return validated;
   const { user, doctor, slotStart } = validated;
 
+  // 🗂️ New problem or follow-up in a case — checked before going to PayPal
+  const caseChoice = await resolveBookingCase({ userId, user, caseId, caseTitle, notes });
+  if (caseChoice.error) return caseChoice;
+
   // 💵 This patient's fee (USD) from the admin's country price list —
   // fixed into the PayPal order here, so it's exactly what gets charged.
   // The local amount they saw (e.g. ₹999) is kept on the ledger for the receipt.
-  const priced = await feeForUser(user);
+  const priced = caseChoice.priced;
   const bookingFee = priced.fee;
 
   // 🎁 Free consult card or cancel credit available? Don't charge — tell the
@@ -495,7 +526,7 @@ const createAppointmentPaypalOrder = async ({
     return { freeBooking: true };
   }
 
-  const description = `Consultation with ${doctor.fullName}`;
+  const description = `${caseChoice.visitType === "follow_up" ? "Follow-up consultation" : "Consultation"} with ${doctor.fullName}`;
 
   let order;
   try {
@@ -537,6 +568,11 @@ const createAppointmentPaypalOrder = async ({
       viewerTimezone,
       reportIds: (Array.isArray(reportIds) ? reportIds : []).map(String),
       display: { currency: priced.currency, localFee: priced.localFee, fxRate: priced.fxRate },
+      // 🗂️ case chosen at checkout (null = new problem → new case)
+      caseId: caseChoice.caseDoc ? String(caseChoice.caseDoc._id) : null,
+      caseTitle: caseChoice.newCase?.title || "",
+      visitType: caseChoice.visitType,
+      followUpPriced: caseChoice.followUpPriced,
     },
   });
 
@@ -590,6 +626,18 @@ const finalizeAppointmentTx = async (tx) => {
     : await resolveCustomerCurrency(user);
   const localFee = hasShown ? Number(shown.localFee) : null;
 
+  // 🗂️ the case picked at checkout — already paid for at that price, so it's
+  // only re-checked to still be this patient's (a closed one is reopened)
+  const ctx = tx.context || {};
+  let paidCase = null;
+  if (ctx.caseId && mongoose.Types.ObjectId.isValid(ctx.caseId)) {
+    paidCase = await PatientCase.findOne({ _id: ctx.caseId, user: userId }).lean();
+    if (paidCase?.status === "closed") {
+      await PatientCase.updateOne({ _id: paidCase._id }, { $set: { status: "open", closedAt: null } });
+    }
+  }
+  const visitType = paidCase ? "follow_up" : "new";
+
   let appointment;
   try {
     appointment = await Appointment.create({
@@ -609,6 +657,9 @@ const finalizeAppointmentTx = async (tx) => {
       transactionId: tx.captureId,
       status: "confirmed",
       notes,
+      case: paidCase?._id || null,
+      visitType,
+      followUpPriced: !!paidCase && !!ctx.followUpPriced,
     });
   } catch (err) {
     if (isDuplicateKeyError(err)) {
@@ -621,6 +672,17 @@ const finalizeAppointmentTx = async (tx) => {
     }
     throw err; // leaves tx "captured" — safe to retry / recovered by the background job
   }
+
+  // 🗂️ new problem → its case (Case N)
+  const bookedCase =
+    paidCase ||
+    (await createCaseForAppointment({
+      appointmentId: appointment._id,
+      userId,
+      platform: tx.platform,
+      newCase: { title: ctx.caseTitle || titleFromNotes(notes), description: notes },
+    }));
+  if (bookedCase) appointment.case = bookedCase._id;
 
   // 📄 attach reports uploaded at checkout (best-effort)
   await attachPendingReports({ userId, appointmentId: appointment._id, reportIds: tx.context?.reportIds });
@@ -635,8 +697,8 @@ const finalizeAppointmentTx = async (tx) => {
       userId,
       type: "appointment_confirmed",
       title: "Appointment Confirmed",
-      body: `Your consultation with ${doctor.fullName} has been confirmed for ${formatInZone(slotStart, user.timezone || DEFAULT_TIMEZONE)}. Please join on time.`,
-      metadata: { appointmentId: appointment._id, doctorId },
+      body: `Your consultation with ${doctor.fullName} has been confirmed for ${formatInZone(slotStart, user.timezone || DEFAULT_TIMEZONE)}${caseSuffix(bookedCase, visitType)}. Please join on time.`,
+      metadata: { appointmentId: appointment._id, doctorId, caseId: bookedCase?._id },
     });
   } catch (err) {
     console.log("CUSTOMER NOTIFICATION ERROR:", err);
@@ -647,8 +709,8 @@ const finalizeAppointmentTx = async (tx) => {
       userType: "doctor",
       type: "appointment_confirmed",
       title: "New Appointment Booked",
-      body: `${user.fullName || user.nickName || "A patient"} booked a slot on ${formatInZone(slotStart, doctorTimezone)}.`,
-      metadata: { appointmentId: appointment._id, patientId: userId },
+      body: `${user.fullName || user.nickName || "A patient"} booked a ${visitType === "follow_up" ? "follow-up" : "slot"} on ${formatInZone(slotStart, doctorTimezone)}${caseSuffix(bookedCase, visitType)}.`,
+      metadata: { appointmentId: appointment._id, patientId: userId, caseId: bookedCase?._id },
     });
   } catch (err) {
     console.log("DOCTOR NOTIFICATION ERROR:", err);
@@ -742,6 +804,10 @@ const listMyAppointments = async (
   const reportMap = await reportsByAppointment(appointments.map((a) => a._id));
   for (const a of appointments) a.reports = reportMap[String(a._id)] || [];
 
+  // 🗂️ case badge ("Case 2 · Fever · Follow-up")
+  const caseMap = await caseInfoFor(appointments);
+  for (const a of appointments) a.caseInfo = caseMap[String(a._id)] || null;
+
   return {
     appointments,
     pagination: {
@@ -764,6 +830,8 @@ const getMyAppointmentById = async (userId, appointmentId) => {
   if (appointment) {
     const reportMap = await reportsByAppointment([appointment._id]);
     appointment.reports = reportMap[String(appointment._id)] || [];
+    const caseMap = await caseInfoFor([appointment]);
+    appointment.caseInfo = caseMap[String(appointment._id)] || null;
   }
   return appointment;
 };
@@ -1100,6 +1168,9 @@ const markComplete = async ({ appointmentId, actorId, actorType }) => {
       console.log("CARD COMPLETE SYNC ERROR:", err.message);
     }
   }
+
+  // 🔔 "you can book a follow-up for Case N" (best-effort)
+  await notifyFollowUpAvailable(appointment._id);
 
   // 💰 Create Consultation record → revenue counted now
   try {

@@ -39,6 +39,8 @@ import {
 
 import CancelReasonModal from "./CancelReasonModal";
 import PatientReports from "./PatientReports";
+import CaseHistory from "./CaseHistory";
+import CaseChip from "../../../../components/customer/Cases/CaseChip";
 import DoctorNotes from "./DoctorNotes";
 import RescheduleModal from "./RescheduleModal";
 import Modal from "../../../../components/common/Modal";
@@ -403,6 +405,11 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
                 : "Zealtho"}
             </span>
           </p>
+          {appointment.caseInfo && (
+            <span className="block mt-1">
+              <CaseChip info={appointment.caseInfo} />
+            </span>
+          )}
         </div>
 
         {/* status pill */}
@@ -545,6 +552,9 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
               <HeartPulse size={14} />
               See Body Profile
             </button>
+
+            {/* 🗂️ CASE HISTORY — earlier visits in the same case */}
+            <CaseHistory appointment={appointment} />
 
             {/* 🩹 PATIENT PROBLEM */}
             <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/40 p-3">

@@ -13,6 +13,7 @@ import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import AppointmentCard from "./components/AppointmentCard";
 import FeedbackModal from "./components/FeedbackModal";
+import MyCases from "./components/MyCases";
 
 import useMyAppointments from "../../../hooks/useMyAppointments";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
@@ -64,6 +65,7 @@ const MyAppointments = () => {
 
   const upcoming = useMyAppointments({ bucket: "upcoming", initialLimit: 20 });
   const past = useMyAppointments({ bucket: "past", initialLimit: 20 });
+  const [casesKey, setCasesKey] = useState(0); // 🗂️ refresh My Cases after a change
   const { isComplete, loading: profileLoading } = useMyBodyProfile();
 
   // 🎯 Show banner only if profile is loaded AND not yet complete
@@ -212,12 +214,15 @@ const MyAppointments = () => {
                     key={apt._id}
                     appointment={apt}
                     isUpcoming
-                    onUpdated={() => { upcoming.refetch?.(); past.refetch?.(); }}
+                    onUpdated={() => { setCasesKey((k) => k + 1); upcoming.refetch?.(); past.refetch?.(); }}
                   />
                 ))}
               </div>
             )}
           </section>
+
+          {/* 🗂️ MY CASES — each problem + its follow-ups */}
+          <MyCases refreshKey={casesKey} />
 
           {/* ============================================ */}
           {/* 📋 PAST APPOINTMENTS                          */}
@@ -244,7 +249,7 @@ const MyAppointments = () => {
                     key={apt._id}
                     appointment={apt}
                     isUpcoming={false}
-                    onUpdated={() => { upcoming.refetch?.(); past.refetch?.(); }}
+                    onUpdated={() => { setCasesKey((k) => k + 1); upcoming.refetch?.(); past.refetch?.(); }}
                     onRateConsultation={() => openFeedbackFor(apt)}
                   />
                 ))}

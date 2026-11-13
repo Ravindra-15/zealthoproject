@@ -36,6 +36,14 @@ const countryPriceSchema = new mongoose.Schema(
       min: 1,
       max: 100000000, // local currency — the USD range is checked in the service
     },
+    // 🔁 follow-up price, same currency as `price`; null = the default follow-up
+    // price (never more than this country's new-appointment price)
+    followUpPrice: {
+      type: Number,
+      min: 1,
+      max: 100000000,
+      default: null,
+    },
     // ISO-4217 of `price`; missing on older rows (those are USD)
     currency: {
       type: String,
@@ -61,6 +69,28 @@ const consultationPricingSchema = new mongoose.Schema(
       min: 1,
       max: 1000,
       default: 20,
+    },
+    // 🔁 USD follow-up price for countries without their own; null = same as defaultPrice
+    defaultFollowUpPrice: {
+      type: Number,
+      min: 1,
+      max: 1000,
+      default: null,
+    },
+    // 🔁 follow-up rules — 0 = no limit
+    followUpWindowDays: {
+      // days after the last visit that a follow-up gets the follow-up price
+      type: Number,
+      min: 0,
+      max: 365,
+      default: 0,
+    },
+    maxFollowUpsPerCase: {
+      // follow-ups per case at the follow-up price
+      type: Number,
+      min: 0,
+      max: 50,
+      default: 0,
     },
     countries: {
       type: [countryPriceSchema],

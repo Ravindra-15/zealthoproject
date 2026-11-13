@@ -51,7 +51,7 @@ const cleanReportIds = (reportIds) =>
     .filter((id) => mongoose.Types.ObjectId.isValid(id));
 
 const validateCreateBooking = (req, res, next) => {
-  const { doctorId, scheduledAt, notes, platform, timezone, reportIds } = req.body;
+  const { doctorId, scheduledAt, notes, platform, timezone, reportIds, caseId, caseTitle } = req.body;
   const errors = [];
 
   if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
@@ -97,6 +97,9 @@ const validateCreateBooking = (req, res, next) => {
     : "zealtho",
   timezone: typeof timezone === "string" && isValidTimezone(timezone.trim()) ? timezone.trim() : undefined,
   reportIds: cleanReportIds(reportIds),
+  // 🗂️ follow-up in an existing case (else: a new problem → new case)
+  caseId: typeof caseId === "string" && mongoose.Types.ObjectId.isValid(caseId) ? caseId : null,
+  caseTitle: typeof caseTitle === "string" ? caseTitle.trim().slice(0, 120) : "",
 };
 
   next();
@@ -107,7 +110,7 @@ const validateCreateBooking = (req, res, next) => {
 // ============================================
 // Body: { doctorId, scheduledAt, notes?, platform?, timezone?, returnUrl, cancelUrl }
 const validatePaypalCreateOrder = (req, res, next) => {
-  const { doctorId, scheduledAt, notes, platform, timezone, returnUrl, cancelUrl, reportIds } = req.body;
+  const { doctorId, scheduledAt, notes, platform, timezone, returnUrl, cancelUrl, reportIds, caseId, caseTitle } = req.body;
   const errors = [];
 
   if (notes !== undefined && notes !== null) {
@@ -159,6 +162,9 @@ const validatePaypalCreateOrder = (req, res, next) => {
     returnUrl,
     cancelUrl,
     reportIds: cleanReportIds(reportIds),
+    // 🗂️ follow-up in an existing case (else: a new problem → new case)
+    caseId: typeof caseId === "string" && mongoose.Types.ObjectId.isValid(caseId) ? caseId : null,
+    caseTitle: typeof caseTitle === "string" ? caseTitle.trim().slice(0, 120) : "",
   };
 
   next();
