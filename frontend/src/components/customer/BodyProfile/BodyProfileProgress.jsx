@@ -41,7 +41,7 @@ const wizardUrl = (step, from) => {
 
 const stepsLeftText = (p) => {
   const left = p.steps.filter((s) => !s.done).length;
-  if (!p.started) return "Not started yet · takes about 2 minutes";
+  if (!p.started) return "Not started yet · takes just a few seconds";
   if (left === 0) return "All 27 points answered";
   return `${p.filled} of ${p.total} points answered · ${left} step${left > 1 ? "s" : ""} left`;
 };
