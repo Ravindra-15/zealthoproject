@@ -13,6 +13,7 @@ import successImage from "../../../assets/image-Photoroom.png";
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import ConsultationCard from "../Checkout/components/ConsultationCard";
+import { BodyProfilePrompt } from "../../../components/customer/BodyProfile/BodyProfileProgress";
 
 import { getMyAppointment } from "../../../services/customerAppointmentService";
 import {
@@ -169,6 +170,15 @@ const Confirmation = () => {
           )}
         </div>
       </main>
+
+      {/* 🩺 once per booking: "complete your body profile" (only if not done) */}
+
+      {appointment?._id && appointment.status !== "cancelled" && (
+
+        <BodyProfilePrompt appointmentId={appointment._id} />
+
+      )}
+
 
       <CustomerFooter />
     </div>

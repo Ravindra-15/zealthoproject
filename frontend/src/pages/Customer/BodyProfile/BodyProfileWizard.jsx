@@ -130,7 +130,11 @@ const BodyProfileWizard = () => {
   const { profile, loading: profileLoading, saving, save, complete } =
     useMyBodyProfile();
 
-  const [step, setStep] = useState(1);
+  // ?step=2 → open at that step (the progress card links to the first missing one)
+  const [step, setStep] = useState(() => {
+    const n = Number(new URLSearchParams(location.search).get("step"));
+    return Number.isInteger(n) && n >= 1 && n <= STEPS.length ? n : 1;
+  });
   const [formData, setFormData] = useState({});
 
   const isMountedRef = useRef(false);

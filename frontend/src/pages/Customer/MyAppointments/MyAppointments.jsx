@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
@@ -17,6 +17,7 @@ import MyCases from "./components/MyCases";
 
 import useMyAppointments from "../../../hooks/useMyAppointments";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
+import { BodyProfileProgressCard } from "../../../components/customer/BodyProfile/BodyProfileProgress";
 import {
   isCustomerLoggedIn,
   buildLoginRedirect,
@@ -66,10 +67,10 @@ const MyAppointments = () => {
   const upcoming = useMyAppointments({ bucket: "upcoming", initialLimit: 20 });
   const past = useMyAppointments({ bucket: "past", initialLimit: 20 });
   const [casesKey, setCasesKey] = useState(0); // 🗂️ refresh My Cases after a change
-  const { isComplete, loading: profileLoading } = useMyBodyProfile();
+  const { profile: bodyProfile, isComplete, loading: profileLoading, error: profileError } = useMyBodyProfile();
 
-  // 🎯 Show banner only if profile is loaded AND not yet complete
-  const showBodyProfileBanner = !profileLoading && !isComplete;
+  // 🎯 Show the progress card only once the profile is loaded (and not done — the card hides itself at 100%)
+  const showBodyProfileBanner = !profileLoading && !profileError && !isComplete;
 
   // ============================================
   // 🌟 POST-CALL FEEDBACK — auto-popup once per completed appointment.
@@ -153,41 +154,7 @@ const MyAppointments = () => {
           {/* ============================================ */}
           {/* 🟧 BODY PROFILE BANNER                        */}
           {/* ============================================ */}
-          {showBodyProfileBanner && (
-            <div
-              className="
-                relative overflow-hidden
-                bg-gradient-to-br from-orange-500 to-orange-600
-                rounded-2xl p-5 sm:p-6
-                text-center
-                shadow-[0_8px_24px_rgba(249,115,22,0.18)]
-              "
-            >
-              <p className="text-base sm:text-lg font-bold text-white">
-                Your doctor may need this before the consultation
-              </p>
-
-              <button
-                type="button"
-                onClick={() => navigate("/body-profile")}
-                className="
-                  mt-4 inline-flex items-center gap-1.5
-                  px-5 py-2 rounded-full
-                  text-sm font-semibold text-orange-600
-                  bg-white hover:bg-gray-50
-                  transition-colors
-                  shadow-[0_4px_14px_rgba(0,0,0,0.1)]
-                "
-              >
-                Complete now
-                <ChevronRight size={14} />
-              </button>
-
-              <p className="text-[11px] text-white/80 mt-3">
-                *Takes just a few seconds
-              </p>
-            </div>
-          )}
+          {showBodyProfileBanner && <BodyProfileProgressCard profile={bodyProfile} />}
 
           {/* ============================================ */}
           {/* 📋 UPCOMING APPOINTMENTS                      */}
