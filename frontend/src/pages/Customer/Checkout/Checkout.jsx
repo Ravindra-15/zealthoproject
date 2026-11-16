@@ -19,7 +19,7 @@ import toast from "react-hot-toast";
 
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
-import ConsultationCard from "./components/ConsultationCard";
+import ConsultationCard, { FeeSummary } from "./components/ConsultationCard";
 import BookingRulesNote from "./components/BookingRulesNote";
 import Modal from "../../../components/common/Modal";
 
@@ -347,11 +347,8 @@ const Checkout = () => {
                 scheduledAt={intent?.scheduledAt}
                 fee={fee}
                 feeLabel={feeLabel}
-                showTotals
+                showTotals={false}
               />
-
-              {/* 📋 Reschedule / cancellation rules for this slot */}
-              <BookingRulesNote scheduledAt={intent?.scheduledAt} />
 
               {/* 🗂️ New problem or a follow-up in an existing case */}
               <CasePicker
@@ -437,6 +434,12 @@ const Checkout = () => {
                 loading={bodyProfileLoading}
                 error={bodyProfileError}
               />
+
+              {/* 📋 Reschedule / cancellation rules for this slot */}
+              <BookingRulesNote scheduledAt={intent?.scheduledAt} />
+
+              {/* 💰 Consultation fee — last, right above Pay */}
+              <FeeSummary fee={fee} feeLabel={feeLabel} />
 
               {freeCredits > 0 && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">

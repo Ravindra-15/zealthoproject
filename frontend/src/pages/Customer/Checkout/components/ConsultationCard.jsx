@@ -106,4 +106,23 @@ const ConsultationCard = ({
   );
 };
 
+
+// 💰 Fee + Total on their own — checkout shows this just above the Pay button
+export const FeeSummary = ({ fee, feeLabel }) => {
+  const displayFee = feeLabel || (typeof fee === "number" ? `$${fee.toFixed(2)}` : "");
+  if (typeof fee !== "number") return null;
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-4 sm:p-5 space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-600">Consultation Fee</span>
+        <span className="font-semibold text-gray-900">{displayFee}</span>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-700 font-semibold">Total</span>
+        <span className="font-bold text-orange-600 text-base">{displayFee}</span>
+      </div>
+    </div>
+  );
+};
+
 export default ConsultationCard;
