@@ -489,35 +489,130 @@ const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho", att
 
 // ============================================
 // 📊 PROGRESS REPORT EXPORT (sent once, when a plan ends)
-// `monthlyCsv`/`weeklyCsv` — CSV strings, attached as files.
+// Body: a readable summary (totals, per-tracker averages vs goal, and a bar
+// per month / week of days on target). Attached: by-day, by-week and
+// by-month CSVs. THROWS on failure so the job retries instead of marking
+// the export as sent.
 // ============================================
+const PROGRESS_EMAIL_ACCENT = {
+  yogat20: "#F97316",
+  diabmukt: "#5B4FF7",
+  mommyfit: "#E27BA3",
+  slimfitter: "#4E4391",
+};
+const fmtNum = (n) =>
+  n == null || Number.isNaN(Number(n)) ? "—" : Number(n).toLocaleString("en-US", { maximumFractionDigits: 1 });
+const fmtDay = (key) =>
+  new Date(`${key}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" });
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+
+const progressSummaryHtml = (summary, accent) => {
+  if (!summary) return "";
+  const { totalDays, daysLogged, daysOnTarget, trackers = [], periods = [] } = summary;
+  const stat = (big, small) => `
+    <td style="padding:12px 8px; text-align:center; background:#f9fafb; border-radius:10px;">
+      <div style="font-size:22px; font-weight:bold; color:#111827;">${big}</div>
+      <div style="font-size:12px; color:#6b7280;">${small}</div>
+    </td>`;
+  const trackerRows = trackers
+    .map(
+      (t) => `
+      <tr>
+        <td style="padding:8px 6px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#374151;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:5px; background:${/^#[0-9A-Fa-f]{6}$/.test(t.colorHex || "") ? t.colorHex : accent}; margin-right:6px;"></span>${escapeHtml(t.name)}
+        </td>
+        <td style="padding:8px 6px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#111827; font-weight:bold; text-align:right; white-space:nowrap;">${t.avg == null ? "—" : `${fmtNum(t.avg)} ${escapeHtml(t.unit)}`}</td>
+        <td style="padding:8px 6px; border-bottom:1px solid #f3f4f6; font-size:12px; color:#6b7280; text-align:right; white-space:nowrap;">${t.goal == null ? "—" : `${fmtNum(t.goal)} ${escapeHtml(t.unit)}`}</td>
+        <td style="padding:8px 6px; border-bottom:1px solid #f3f4f6; font-size:12px; color:#6b7280; text-align:right; white-space:nowrap;">${t.daysLogged}${t.daysGoalMet == null ? "" : ` · ${t.daysGoalMet} met`}</td>
+      </tr>`
+    )
+    .join("");
+  const periodRows = periods
+    .map((p) => {
+      const w = pct(p.daysOnTarget, p.days);
+      return `
+      <tr>
+        <td style="padding:6px 6px 6px 0; font-size:12px; color:#374151; white-space:nowrap; vertical-align:middle;">
+          <strong>${escapeHtml(p.label)}</strong><br><span style="color:#9ca3af; font-size:11px;">${fmtDay(p.start)} – ${fmtDay(p.end)}</span>
+        </td>
+        <td style="padding:6px 0; width:55%; vertical-align:middle;">
+          <div style="background:#e5e7eb; border-radius:6px; height:12px; width:100%;">
+            <div style="background:#22c55e; border-radius:6px; height:12px; width:${w}%; font-size:0; line-height:0;">&nbsp;</div>
+          </div>
+        </td>
+        <td style="padding:6px 0 6px 8px; font-size:12px; color:#6b7280; white-space:nowrap; text-align:right; vertical-align:middle;">${p.daysOnTarget}/${p.days} days</td>
+      </tr>`;
+    })
+    .join("");
+
+  return `
+    <table role="presentation" width="100%" cellspacing="6" cellpadding="0" style="margin:16px 0;">
+      <tr>
+        ${stat(totalDays, "days in plan")}
+        ${stat(daysLogged, "days logged")}
+        ${stat(`${pct(daysOnTarget, totalDays)}%`, "days on target")}
+      </tr>
+    </table>
+    ${
+      trackers.length
+        ? `<h3 style="font-size:15px; color:#111827; margin:20px 0 6px;">Your trackers</h3>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+      <tr>
+        <th align="left" style="font-size:11px; color:#9ca3af; font-weight:normal; padding:0 6px 4px;">Tracker</th>
+        <th align="right" style="font-size:11px; color:#9ca3af; font-weight:normal; padding:0 6px 4px;">Daily avg</th>
+        <th align="right" style="font-size:11px; color:#9ca3af; font-weight:normal; padding:0 6px 4px;">Goal</th>
+        <th align="right" style="font-size:11px; color:#9ca3af; font-weight:normal; padding:0 6px 4px;">Days logged</th>
+      </tr>
+      ${trackerRows}
+    </table>`
+        : ""
+    }
+    ${
+      periods.length
+        ? `<h3 style="font-size:15px; color:#111827; margin:22px 0 6px;">Days on target</h3>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${periodRows}</table>
+    <p style="font-size:11px; color:#9ca3af; margin:6px 0 0;">A day is on target when at least half of that day's goals were met.</p>`
+        : ""
+    }`;
+};
+
 const sendProgressReportExportEmail = async ({
   to,
   recipientName,
   programName,
+  programId,
   monthlyCsv,
   weeklyCsv,
+  dailyCsv,
+  summary,
 }) => {
-  const name = recipientName || "there";
+  const name = escapeHtml(recipientName || "there");
+  const program = escapeHtml(programName || "your program");
+  const accent = PROGRESS_EMAIL_ACCENT[programId] || "#f97316";
+  const attachments = [
+    ...(dailyCsv ? [{ filename: "progress-by-day.csv", content: dailyCsv }] : []),
+    { filename: "progress-by-week.csv", content: weeklyCsv },
+    { filename: "progress-by-month.csv", content: monthlyCsv },
+  ];
   try {
     await sendRawEmail({
       to,
-      subject: `Your ${programName} progress report`,
+      subject: `Your ${programName || "program"} progress report`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #f97316;">Your Progress Report</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color:#374151;">
+          <h2 style="color: ${accent}; margin-bottom: 4px;">Your Progress Report</h2>
           <p>Hi ${name},</p>
-          <p>Your <strong>${programName}</strong> plan has ended, so in-app access to your progress report has closed. Attached is your full history, broken down by month and by week, for your records.</p>
+          <p>Your <strong>${program}</strong> plan has ended, so in-app access to your progress report has closed. Here's a summary of your journey — your full day-by-day history is attached for your records.</p>
+          ${progressSummaryHtml(summary, accent)}
+          <p style="font-size:12px; color:#6b7280; margin-top:22px;">Attached: <strong>progress-by-day.csv</strong> (every day's values), <strong>progress-by-week.csv</strong> and <strong>progress-by-month.csv</strong> (averages). They open in Excel or Google Sheets.</p>
           <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">— The Zealtho Team</p>
         </div>
       `,
-      attachments: [
-        { filename: "progress-by-month.csv", content: monthlyCsv },
-        { filename: "progress-by-week.csv", content: weeklyCsv },
-      ],
+      attachments,
     });
   } catch (error) {
     console.error("Progress Report Export Email Error:", error.message);
+    throw error; // let the job retry on its next run
   }
 };
 

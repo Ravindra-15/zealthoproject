@@ -102,6 +102,7 @@ const buildProgressReport = async ({ userId, programId, sub }) => {
     const startDate = new Date(sub.startDate);
     startDate.setUTCHours(0, 0, 0, 0);
     const today = new Date();
+    const todayKey = today.toISOString().split("T")[0];
 
     const daysSinceStart = Math.floor((today - startDate) / msPerDay);
     const elapsedPeriods = Math.max(1, Math.ceil((daysSinceStart + 1) / periodLengthDays));
@@ -136,11 +137,32 @@ const buildProgressReport = async ({ userId, programId, sub }) => {
                 color = verdictForDay(dayLogs);
             }
 
+            // 📊 Raw values for the day-by-day bar chart: { habitId: value },
+            // plus how many of the day's goals were met (the "Overall" bar).
+            const values = {};
+            let goalsMet = 0;
+            let goalsCounted = 0;
+            if (dayDate <= today) {
+                dayLogs.forEach((l) => {
+                    const hid = l.habit.toString();
+                    values[hid] = l.value;
+                    const goal = goalMap.get(hid);
+                    if (goal == null) return;
+                    goalsCounted += 1;
+                    if (l.value >= goal) goalsMet += 1;
+                });
+            }
+
             days.push({
                 dayNumber: d + 1,
                 date: key,
                 isFuture: dayDate > today,
+                isToday: key === todayKey,
                 color,
+                values,
+                habitsLogged: Object.keys(values).length,
+                goalsMet,
+                goalsCounted,
             });
         }
 

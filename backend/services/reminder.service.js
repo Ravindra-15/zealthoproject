@@ -275,7 +275,8 @@ const sendTrialExpiryReminders = async () => {
 // Per the client spec: once a plan ends, the user loses access to their
 // in-app progress report, so they're emailed a full CSV export instead —
 // by month and by week. Fires once endDate has passed, gated by
-// `progressCsvSentAt` so a subscription is never exported twice.
+// `progressCsvSentAt` so a subscription is never exported twice. If the
+// email fails it is NOT marked sent, so the next run (15 min) retries it.
 // ============================================
 const sendProgressReportExports = async () => {
     const now = new Date();
@@ -301,11 +302,12 @@ const sendProgressReportExports = async () => {
                 continue;
             }
 
-            const { monthlyCsv, weeklyCsv } = await buildProgressExportCsvs({
+            const { monthlyCsv, weeklyCsv, dailyCsv, summary } = await buildProgressExportCsvs({
                 userId: sub.customer,
                 programId: sub.programId,
                 startDate: sub.startDate,
                 endDate: sub.endDate,
+                pricingType: sub.pricingType,
             });
 
             const programName = sub.programName || programDisplayNames[sub.programId] || "your program";
@@ -314,8 +316,11 @@ const sendProgressReportExports = async () => {
                 to: user.email,
                 recipientName: user.fullName || user.nickName || "there",
                 programName,
+                programId: sub.programId,
                 monthlyCsv,
                 weeklyCsv,
+                dailyCsv,
+                summary,
             });
 
             await ProgramSubscription.findByIdAndUpdate(sub._id, {
