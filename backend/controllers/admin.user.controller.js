@@ -83,6 +83,7 @@ const exportUsersCsv = async (req, res) => {
       "Country",
       "State",
       "City",
+      "Pincode",
       "Status",
       "Joined On",
     ];
@@ -96,6 +97,7 @@ const exportUsersCsv = async (req, res) => {
       u.country || "",
       u.state || "",
       u.city || "",
+      u.pincode || "",
       u.isActive ? "Active" : "Inactive",
       u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "",
     ]);

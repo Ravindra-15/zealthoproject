@@ -126,6 +126,18 @@ const userSchema = new mongoose.Schema(
       minlength: [2, "City name too short"],
       match: [/^[\p{L}\s.'-]+$/u, "Invalid city"],
     },
+
+    // 📮 Pincode / postal code for `city` — format + (India) existence and
+    // state checked in utils/postalCode.js before it's saved. Empty for
+    // older profiles and for countries without postal codes.
+    pincode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+      maxlength: [10, "Invalid pincode"],
+      match: [/^[A-Z0-9 -]*$/, "Invalid pincode"],
+    },
     whatsapp: {
       type: String,
       trim: true,

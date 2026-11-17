@@ -1,5 +1,7 @@
 // validators/auth.validator.js
 
+const { checkPostalCode } = require("../utils/postalCode");
+
 exports.validateSignup = (req, res, next) => {
   let { email, password, phone, countryCode } = req.body;
 
@@ -192,7 +194,17 @@ exports.validateProfileStep2 = (req, res, next) => {
     return res.status(400).json({ success: false, message: "Invalid city name" });
   }
 
-  next();
+  // 📮 Pincode — format for every country; India also must exist + match the state
+  if (req.body.pincode !== undefined && typeof req.body.pincode !== "string") {
+    return res.status(400).json({ success: false, message: "Invalid pincode" });
+  }
+  checkPostalCode({ countryIso, state, pincode: req.body.pincode })
+    .then((pin) => {
+      if (!pin.ok) return res.status(400).json({ success: false, message: pin.message });
+      req.body.pincode = pin.pincode;
+      next();
+    })
+    .catch(next);
 };
 
 // Add at the bottom of auth.validator.js

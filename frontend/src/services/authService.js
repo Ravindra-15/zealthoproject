@@ -30,3 +30,7 @@ export const profileStepOne = (data) =>
 // Profile Step 2
 export const profileStepTwo = (data) =>
   API.put("/users/profile-step-2", data);
+
+// 📮 Live pincode check (format + India Post existence/state) — profile forms
+export const checkPincode = (params) =>
+  API.get("/users/pincode-check", { params });

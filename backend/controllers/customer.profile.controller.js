@@ -8,6 +8,7 @@ const User = require("../models/User");
 const fs = require("fs");
 const path = require("path");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
+const { checkPostalCode } = require("../utils/postalCode");
 
 const getProfile = async (req, res) => {
   try {
@@ -21,11 +22,27 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const allowed = ["fullName", "nickName", "dob", "country", "countryIso", "state", "city", "whatsapp", "profilePhoto", "timezone"];
+    const allowed = ["fullName", "nickName", "dob", "country", "countryIso", "state", "city", "pincode", "whatsapp", "profilePhoto", "timezone"];
     const updates = {};
     allowed.forEach((key) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     });
+
+    // 📮 Pincode is checked against the country/state being saved (or the
+    // stored ones when this request doesn't change them).
+    if (updates.pincode !== undefined) {
+      if (typeof updates.pincode !== "string") return errorResponse(res, "Invalid pincode", 400);
+      let { countryIso, state } = updates;
+      if (countryIso === undefined || state === undefined) {
+        const current = await User.findById(req.user.id).select("countryIso state").lean();
+        if (!current) return errorResponse(res, "User not found", 404);
+        if (countryIso === undefined) countryIso = current.countryIso;
+        if (state === undefined) state = current.state;
+      }
+      const pin = await checkPostalCode({ countryIso, state, pincode: updates.pincode });
+      if (!pin.ok) return errorResponse(res, pin.message, 400);
+      updates.pincode = pin.pincode;
+    }
 
     const user = await User.findByIdAndUpdate(req.user.id, updates, {
       new: true,

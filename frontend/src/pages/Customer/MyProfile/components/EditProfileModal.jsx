@@ -25,6 +25,13 @@ import {
 import { COUNTRIES, DEFAULT_COUNTRY } from "../../../../data/countries";
 import { loadCountries, loadStates, loadCities, POPULAR_COUNTRY_CODES } from "../../../../data/location";
 import LocationSelect from "../../../../components/common/LocationSelect";
+import PincodeField from "../../../../components/common/PincodeField";
+import {
+  needsPostalCode,
+  normalizePostalCode,
+  pincodeSubmitError,
+  postalLabel,
+} from "../../../../utils/postalCode";
 import CountryCodeSelect from "../../../../components/common/CountryCodeSelect";
 
 // 📱 "919876543210" (no separators, as stored) → best-effort { country, number }.
@@ -73,6 +80,10 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
   const [manualState, setManualState] = useState(false);
   const [manualCity, setManualCity] = useState(false);
   const [resolving, setResolving] = useState(true); // initial match-existing-data pass
+
+  // 📮 Pincode (next to City) + the live check result from <PincodeField>
+  const [pincode, setPincode] = useState(user?.pincode || "");
+  const [pinStatus, setPinStatus] = useState({ status: "idle", message: "" });
 
   // 📱 Phone country-code + number (parsed from the stored `whatsapp` string)
   const parsedPhone = parseStoredPhone(user?.whatsapp || user?.phone);
@@ -157,6 +168,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
 
   // 🔁 Country changed by the user → fresh cascade (same as onboarding)
   const handleCountryChange = async (c) => {
+    if (c?.code !== country?.code) setPincode(""); // old pincode can't fit a new country
     setCountry(c);
     setState(null);
     setCity(null);
@@ -217,6 +229,9 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
     });
     if (locationError) return locationError;
 
+    const pinError = pincodeSubmitError(country?.code, pincode, pinStatus);
+    if (pinError) return pinError;
+
     const phoneError = validatePhone(phoneNumber, phoneCountry);
     if (phoneError) return phoneError;
 
@@ -240,6 +255,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
       countryIso: country?.code || "",
       state: manualState ? form.stateManual.trim() : state?.name || "",
       city: manualCity ? form.cityManual.trim() : city?.name || "",
+      pincode: needsPostalCode(country?.code) ? normalizePostalCode(country?.code, pincode) : "",
       // 🌍 Stored the same way it always has been — dial code + national
       // number concatenated, no "+" or separators — so nothing else that
       // reads `whatsapp` (admin masking, etc.) needs to change.
@@ -386,6 +402,20 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
               loading={citiesLoading}
             />
           )}
+
+          <PincodeField
+            id="editPincode"
+            label={postalLabel(country?.code)}
+            value={pincode}
+            onChange={setPincode}
+            countryIso={resolving ? "" : country?.code}
+            stateName={manualState ? form.stateManual || "" : state?.name || ""}
+            onStatus={setPinStatus}
+            showRequiredMark
+            wrapperClassName="flex flex-col gap-1"
+            labelClassName="block text-xs font-medium text-gray-600"
+            inputClassName="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400"
+          />
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">

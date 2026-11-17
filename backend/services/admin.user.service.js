@@ -68,7 +68,7 @@ const listUsers = async ({
 // 📤 LIST USERS FOR CSV EXPORT (same filters as listUsers, no pagination)
 // ============================================
 const EXPORT_FIELDS =
-  "fullName nickName email phone whatsapp countryCode country state city isActive createdAt";
+  "fullName nickName email phone whatsapp countryCode country state city pincode isActive createdAt";
 
 const listUsersForExport = async ({
   search = "",
