@@ -122,7 +122,7 @@ const ResetOtp = () => {
       <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-20 pt-16 md:pt-20 pb-12 gap-8 md:gap-12">
         {/* LEFT SECTION */}
         <div className="w-full max-w-md text-center md:text-left mx-auto md:mx-0">
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight mb-6">
             <span className="text-teal-900">Reset Your</span>
             <br />
             <span className="text-orange-500">Password</span>

@@ -80,10 +80,10 @@ const ProfileStepOne = () => {
     <div className="min-h-screen bg-[#f5f3ef]">
       <CustomerNavbar />
 
-      <div className="flex flex-col md:flex-row justify-between items-start px-6 md:px-20 py-12 gap-12">
-        {/* LEFT SECTION */}
-        <div className="w-full max-w-md">
-          <h2 className="text-3xl font-bold text-gray-800 mb-8 leading-snug">
+      <div className="flex flex-col md:flex-row justify-between items-start px-6 md:px-20 py-8 md:py-12 gap-10 md:gap-12">
+        {/* LEFT SECTION — below the form on phones */}
+        <div className="w-full max-w-md order-2 md:order-1">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8 leading-snug">
             Stories of <br /> Transformation
           </h2>
 
@@ -106,7 +106,7 @@ const ProfileStepOne = () => {
         </div>
 
         {/* RIGHT SECTION */}
-        <div className="w-full max-w-md flex flex-col gap-4">
+        <div className="w-full max-w-md flex flex-col gap-4 order-1 md:order-2">
           {/* Progress bar in its OWN white card */}
           <div className="bg-white rounded-2xl shadow-sm px-6 py-4">
             <ProgressBar step={1} total={3} />
@@ -114,7 +114,7 @@ const ProfileStepOne = () => {
 
           {/* Form card */}
           <div className="bg-white rounded-2xl shadow-lg px-6 sm:px-10 py-8 sm:py-10">
-            <h2 className="text-3xl font-bold text-center text-teal-900 mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center text-teal-900 mb-6 sm:mb-8">
               Build Your Profile
             </h2>
 

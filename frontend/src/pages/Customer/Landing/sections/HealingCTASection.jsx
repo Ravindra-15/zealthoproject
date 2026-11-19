@@ -14,11 +14,11 @@ export default function HealingCTASection() {
         {/* left */}
         <div className="max-w-[520px]">
          <h2 className="font-bold leading-[1.05]">
-  <span className="block text-gray-800 text-4xl sm:text-5xl">
+  <span className="block text-gray-800 text-[28px] sm:text-4xl md:text-5xl">
     Ready to start your
   </span>
 
-  <span className="block text-orange-500 text-4xl sm:text-5xl mt-1">
+  <span className="block text-orange-500 text-[28px] sm:text-4xl md:text-5xl mt-1">
     healing journey?
   </span>
 </h2>

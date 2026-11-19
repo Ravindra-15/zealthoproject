@@ -247,7 +247,7 @@ const CustomerFooter = () => {
 
   {/* Heading */}
   <div className="relative z-10">
-    <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-white leading-[1.15] tracking-tight">
+    <h2 className="text-2xl sm:text-4xl lg:text-[40px] font-bold text-white leading-[1.15] tracking-tight">
       Find
       <br />
       Support,

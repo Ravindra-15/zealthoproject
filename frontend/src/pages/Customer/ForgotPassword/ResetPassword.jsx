@@ -155,12 +155,12 @@ const ResetPassword = () => {
       <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-20 pt-24 md:pt-28 pb-10 md:pb-16 gap-10 md:gap-0">
         {/* LEFT */}
         <div className="max-w-md mx-auto md:mx-0 text-center md:text-left px-2">
-          <h1 className="text-[38px] md:text-[52px] font-semibold text-teal-900 leading-[1.15]">
+          <h1 className="text-[30px] sm:text-[38px] md:text-[52px] font-semibold text-teal-900 leading-[1.15]">
             Set a New <br />
             <span className="text-orange-500">Password</span>
           </h1>
 
-          <p className="mt-4 text-gray-600 text-[20px] leading-[1.6] max-w-[420px] mx-auto md:mx-0">
+          <p className="mt-4 text-gray-600 text-base sm:text-[20px] leading-[1.6] max-w-[420px] mx-auto md:mx-0">
             Choose a strong password to keep your account secure
           </p>
         </div>
