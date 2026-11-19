@@ -282,7 +282,7 @@ export default function EditProfileModal({ user, onClose, onUpdated }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4 py-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[120] bg-black/50 flex items-center justify-center px-4 py-6 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-800">Edit Profile</h3>

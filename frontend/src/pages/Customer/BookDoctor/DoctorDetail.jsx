@@ -58,7 +58,7 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
 
   // 🌍 The patient's own detected zone — stable for the session, used only
   // for the "shown in your local time" hint (actual conversion is per-slot).
-  const viewerTimezoneLabel = getViewerTimezone().replace(/_/g, " ");
+  const viewerTimezoneLabel = getViewerTimezone().replace("Asia/Calcutta", "Asia/Kolkata").replace(/_/g, " ");
 
   // 📥 Load the logged-in user's upcoming appointment times (for conflict check)
   useEffect(() => {
@@ -291,7 +291,7 @@ const [selectedDate, setSelectedDate] = useState(todayIso());
 
                   {/* Time slots */}
                   <div>
-                    <div className="flex items-baseline justify-between mb-3">
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2 mb-3">
                       <p className="text-sm font-bold text-gray-900">
                         Select A Time
                       </p>

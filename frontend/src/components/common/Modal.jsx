@@ -6,9 +6,9 @@ const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[120]">
       
-      <div className="bg-white rounded-2xl p-8 w-[90%] max-w-md relative shadow-xl">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 w-[90%] max-w-md max-h-[90vh] overflow-y-auto relative shadow-xl">
 
         <button
           onClick={onClose}

@@ -174,7 +174,7 @@ const RescheduleModal = ({
   const canSubmit = reason.trim() && selectedDate && selectedTime && !loading;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6">
         {/* header */}
         <div className="flex items-start justify-between mb-4">
