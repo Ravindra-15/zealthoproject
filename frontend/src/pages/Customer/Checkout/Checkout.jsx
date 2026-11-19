@@ -1,7 +1,7 @@
 /**
  * CUSTOMER MODULE — Secure Checkout Page
  * Reads booking intent from sessionStorage, fetches doctor, processes payment.
- * Lets user describe their problem (max 500 chars) via modal before paying.
+ * Lets user describe their problem (max 500 chars) in a box on the page before paying.
  */
 
 import React, { useEffect, useState, useRef } from "react";
@@ -12,7 +12,6 @@ import {
   Loader2,
   Gift,
   FileText,
-  Pencil,
   Paperclip,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,7 +20,6 @@ import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 import ConsultationCard, { FeeSummary } from "./components/ConsultationCard";
 import BookingRulesNote from "./components/BookingRulesNote";
-import Modal from "../../../components/common/Modal";
 
 import { getPublicDoctor } from "../../../services/customerDoctorService";
 import {
@@ -122,8 +120,16 @@ const Checkout = () => {
   const [problem, setProblem] = useState(
     () => sessionStorage.getItem("bookingProblem") || "",
   );
-  const [draft, setDraft] = useState(""); // temp text inside modal
-  const [showProblemModal, setShowProblemModal] = useState(false);
+  // typing saves straight away, so it survives refresh / going back
+  const updateProblem = (value) => {
+    const v = String(value || "").slice(0, PROBLEM_MAX);
+    setProblem(v);
+    try {
+      sessionStorage.setItem("bookingProblem", v);
+    } catch {
+      // storage blocked / full — still works for this visit
+    }
+  };
 
   // 📄 Optional medical reports (max 5 MB each) — attached to the booking once it's created
   const medical = useMedicalReports({ loadPending: true });
@@ -213,22 +219,6 @@ const Checkout = () => {
   }, []);
 
   // ============================================
-  // 📝 PROBLEM MODAL HANDLERS
-  // ============================================
-  // Opens modal, preloads draft with already-saved problem (for edit)
-  const openProblemModal = () => {
-    setDraft(problem);
-    setShowProblemModal(true);
-  };
-
-  // Saves draft into problem, closes modal
-  const saveProblem = () => {
-    const cleaned = draft.trim();
-    setProblem(cleaned);
-    sessionStorage.setItem("bookingProblem", cleaned); // persist so it survives refresh/navigation
-    setShowProblemModal(false);
-  };
-  // ============================================
   // 💳 PROCESS PAYMENT + CREATE BOOKING
   // ============================================
   const handlePay = async () => {
@@ -247,7 +237,7 @@ const Checkout = () => {
       const result = await createAppointmentPaypalOrder({
         doctorId: intent.doctorId,
         scheduledAt: intent.scheduledAt,
-        notes: problem || undefined,
+        notes: problem.trim() || undefined,
         reportIds: medical.reports.map((r) => r._id),
         caseId: selectedCase?._id || undefined,
         caseTitle: !selectedCase && caseTitle.trim() ? caseTitle.trim() : undefined,
@@ -263,7 +253,7 @@ const Checkout = () => {
         const booked = await createBooking({
           doctorId: intent.doctorId,
           scheduledAt: intent.scheduledAt,
-          notes: problem || undefined,
+          notes: problem.trim() || undefined,
         reportIds: medical.reports.map((r) => r._id),
         caseId: selectedCase?._id || undefined,
         caseTitle: !selectedCase && caseTitle.trim() ? caseTitle.trim() : undefined,
@@ -362,49 +352,41 @@ const Checkout = () => {
               />
 
               {/* ============================================ */}
-              {/* 📝 PROBLEM DESCRIPTION                        */}
+              {/* 📝 DESCRIBE YOUR PROBLEM — typed right here   */}
               {/* ============================================ */}
-              {problem && (
-                // Saved problem preview card + edit button
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5">
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                      <FileText size={15} className="text-orange-500" />
-                      Your Problem
-                    </div>
-                    <button
-                      type="button"
-                      onClick={openProblemModal}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:underline flex-shrink-0"
-                    >
-                      <Pencil size={12} />
-                      Edit
-                    </button>
-                  </div>
-                  {/* break-words keeps long text from breaking layout */}
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
-                    {problem}
-                  </p>
-                </div>
-              )}
-
-              {/* 📝 Describe problem + 📄 Upload reports (side by side; stacked on mobile) */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {!problem && (
-                <button
-                  type="button"
-                  onClick={openProblemModal}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-gray-300 text-xs font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white"
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5">
+                <label
+                  htmlFor="checkout-problem"
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-2"
                 >
-                  <FileText size={15} />
-                  Describe Your Problem
-                </button>
-                  )}
+                  <FileText size={15} className="text-orange-500" />
+                  Describe your problem
+                </label>
+                {/* fixed height — longer text scrolls inside the box */}
+                <textarea
+                  id="checkout-problem"
+                  value={problem}
+                  onChange={(e) => updateProblem(e.target.value)}
+                  maxLength={PROBLEM_MAX}
+                  placeholder="e.g. I've had irregular periods and fatigue for 3 months…"
+                  className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent h-24 overflow-y-auto"
+                />
+                <div className="flex justify-end mt-1">
+                  <span
+                    className={`text-xs ${problem.length >= PROBLEM_MAX ? "text-amber-600" : "text-gray-400"}`}
+                  >
+                    {problem.length} / {PROBLEM_MAX}
+                  </span>
+                </div>
+              </div>
+
+              {/* 📄 Upload reports (optional) — centred */}
+              <div className="space-y-2">
+                <div className="flex justify-center">
                   <button
                     type="button"
                     onClick={medical.pickFiles}
-                    className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-gray-300 text-xs font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white disabled:opacity-60 disabled:cursor-not-allowed`}
+                    className="w-full sm:w-1/2 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-gray-300 text-xs font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-colors bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <Paperclip size={15} />
                     Upload Reports ({medical.reports.length})
@@ -518,54 +500,6 @@ const Checkout = () => {
         </div>
       </main>
 
-      {/* ============================================ */}
-      {/* 📝 PROBLEM MODAL                              */}
-      {/* ============================================ */}
-      <Modal
-        isOpen={showProblemModal}
-        onClose={() => setShowProblemModal(false)}
-      >
-        <h2 className="text-lg font-bold text-gray-900 mb-1">
-          Describe Your Problem
-        </h2>
-        <p className="text-xs text-gray-500 mb-4">
-          Briefly tell the doctor what's bothering you (max {PROBLEM_MAX}{" "}
-          characters).
-        </p>
-
-        {/* Textarea capped at PROBLEM_MAX chars */}
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value.slice(0, PROBLEM_MAX))}
-          rows={5}
-          placeholder="e.g. I've had irregular periods and fatigue for 3 months…"
-          className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-        />
-
-        {/* Live character counter */}
-        <div className="text-right text-[11px] text-gray-400 mt-1">
-          {draft.length}/{PROBLEM_MAX}
-        </div>
-
-        {/* Modal actions */}
-        <div className="flex items-center justify-end gap-2 mt-4">
-          <button
-            type="button"
-            onClick={() => setShowProblemModal(false)}
-            className="px-4 py-2 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={saveProblem}
-            disabled={!draft.trim()}
-            className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Done
-          </button>
-        </div>
-      </Modal>
 
       <CustomerFooter />
 
