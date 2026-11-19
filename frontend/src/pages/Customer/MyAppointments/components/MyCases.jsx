@@ -78,6 +78,7 @@ export const CaseRow = ({ c, prices, onChanged }) => {
     }
     if (b.reason === "period_ended") return `Follow-up period ended on ${formatUtcDate(c.followUpUntil)} — next visit at the regular price`;
     if (b.reason === "limit_reached") return "Follow-up limit reached — next visit at the regular price";
+    if (b.reason === "no_follow_ups") return "Follow-ups are charged the regular price";
     if (b.reason === "no_visit") return "No completed visit yet — next visit at the regular price";
     if (c.followUpUntil) return `Follow-up price until ${formatUtcDate(c.followUpUntil)}`;
     return "";
@@ -257,7 +258,8 @@ const MyCases = ({ refreshKey = 0 }) => {
     >
       <p className="text-sm font-bold text-gray-900">My Cases</p>
       <p className="text-xs text-gray-500 mt-0.5 mb-4">
-        Each health problem with its follow-ups. A follow-up in the same case is charged the follow-up price.
+        Each health problem with its follow-ups.
+        {data.rules?.maxFollowUps === 0 ? "" : " A follow-up in the same case is charged the follow-up price."}
       </p>
 
       {open.length > 0 ? (

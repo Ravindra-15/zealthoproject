@@ -41,12 +41,28 @@ const validRate = (rates, currency) => {
 // ⬆️ USD with at most 2 decimals, always rounded up (never under-charges)
 const ceilCents = (n) => Math.ceil(n * 100 - 1e-9) / 100;
 
+// 🔁 follow-ups per case at the follow-up price: 0 = none (every visit at the
+// new-appointment price), N = the first N follow-ups. 100 until the super admin
+// changes it, max 1000.
+const DEFAULT_FOLLOW_UPS_PER_CASE = 100;
+const MAX_FOLLOW_UPS_LIMIT = 1000;
+
+// The saved value — new field first. The old field's 0 meant "no limit", so an
+// old 0 (or nothing saved) starts at the default; an old N was already N.
+const followUpsPerCaseOf = (doc) => {
+  if (Number.isInteger(doc?.followUpsPerCase) && doc.followUpsPerCase >= 0) return doc.followUpsPerCase;
+  if (Number.isInteger(doc?.maxFollowUpsPerCase) && doc.maxFollowUpsPerCase > 0) {
+    return Math.min(doc.maxFollowUpsPerCase, MAX_FOLLOW_UPS_LIMIT);
+  }
+  return DEFAULT_FOLLOW_UPS_PER_CASE;
+};
+
 const toPlain = (doc) => ({
   defaultPrice: doc?.defaultPrice ?? DEFAULT_FEE,
   // 🔁 follow-up (null = same as the new-appointment price)
   defaultFollowUpPrice: doc?.defaultFollowUpPrice ?? null,
   followUpWindowDays: doc?.followUpWindowDays ?? 0,
-  maxFollowUpsPerCase: doc?.maxFollowUpsPerCase ?? 0,
+  maxFollowUpsPerCase: followUpsPerCaseOf(doc), // 0 = no follow-up price
   countries: (doc?.countries || []).map((c) => ({
     countryIso: c.countryIso,
     countryName: c.countryName,
@@ -152,10 +168,12 @@ const feeForUser = async (user, { followUp = false } = {}) => {
   return { ...fu, isDefault: quote.isDefault, isFollowUp: true };
 };
 
-// 🔁 the super admin's follow-up rules (0 = no limit)
+// 🔁 the super admin's follow-up rules
+//  windowDays   — 0 = no time limit
+//  maxFollowUps — follow-ups per case at the follow-up price, 0 = none
 const getFollowUpRules = async () => {
   const p = await getPricing();
-  return { windowDays: p.followUpWindowDays || 0, maxFollowUps: p.maxFollowUpsPerCase || 0 };
+  return { windowDays: p.followUpWindowDays || 0, maxFollowUps: p.maxFollowUpsPerCase };
 };
 
 // ============================================
@@ -198,8 +216,8 @@ const updatePricing = async (
     return { error: "Follow-up period must be 0–365 days (0 = no limit)" };
   }
   const maxFollowUps = maxFollowUpsPerCase === undefined ? current.maxFollowUpsPerCase : maxFollowUpsPerCase;
-  if (!Number.isInteger(maxFollowUps) || maxFollowUps < 0 || maxFollowUps > 50) {
-    return { error: "Follow-ups per case must be 0–50 (0 = no limit)" };
+  if (!Number.isInteger(maxFollowUps) || maxFollowUps < 0 || maxFollowUps > MAX_FOLLOW_UPS_LIMIT) {
+    return { error: `Follow-ups per case must be a whole number from 0 to ${MAX_FOLLOW_UPS_LIMIT} (0 = no follow-up price)` };
   }
   const savedRows = Object.fromEntries(current.countries.map((c) => [c.countryIso, c]));
 
@@ -261,10 +279,11 @@ const updatePricing = async (
         defaultPrice,
         defaultFollowUpPrice: fuDefault,
         followUpWindowDays: windowDays,
-        maxFollowUpsPerCase: maxFollowUps,
+        followUpsPerCase: maxFollowUps,
         countries: clean,
         updatedBy: adminId || null,
       },
+      $unset: { maxFollowUpsPerCase: "" }, // old field (0 meant "no limit")
     },
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   ).lean();

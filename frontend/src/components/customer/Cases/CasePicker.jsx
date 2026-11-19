@@ -36,6 +36,7 @@ const caseNote = (c) => {
   }
   if (b.reason === "period_ended") return `Follow-up period ended on ${formatUtcDate(c.followUpUntil)} — regular price`;
   if (b.reason === "limit_reached") return "Follow-up limit reached for this case — regular price";
+  if (b.reason === "no_follow_ups") return "Follow-ups are charged the regular price";
   if (b.reason === "no_visit") return "No completed visit yet — regular price";
   const parts = [];
   if (c.lastVisitAt) parts.push(`Last visit ${formatUtcDate(c.lastVisitAt)}${c.lastDoctor?.fullName ? ` with ${c.lastDoctor.fullName}` : ""}`);
@@ -92,12 +93,13 @@ const CasePicker = ({ cases = [], prices, value, onChange, caseTitle, onTitleCha
 
   const newPrice = isFree ? null : quoteLabel(prices?.newFee);
   const followPrice = isFree ? null : quoteLabel(prices?.followUpFee);
+  const anyAtFollowUpPrice = open.some((c) => c.booking?.state === "follow_up");
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5">
       <p className="text-sm font-semibold text-gray-900">What is this appointment for?</p>
       <p className="text-xs text-gray-500 mt-0.5 mb-3">
-        A follow-up keeps your doctor's history for that problem together{followPrice ? " and costs less" : ""}.
+        A follow-up keeps your doctor's history for that problem together{followPrice && anyAtFollowUpPrice ? " and costs less" : ""}.
       </p>
 
       <div className="space-y-2" role="radiogroup" aria-label="What is this appointment for?">

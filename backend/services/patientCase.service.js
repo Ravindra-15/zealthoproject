@@ -9,7 +9,8 @@
  * Booking in an existing case:
  *  - the case must be open and have no other upcoming appointment
  *  - follow-up price once the case has had a visit, within the super admin's
- *    follow-up period / max follow-ups (0 = no limit) — otherwise it can
+ *    follow-up period (0 = no time limit) / follow-ups per case (0 = no
+ *    follow-up price at all) — otherwise it can
  *    still be booked in the same case, at the new-appointment price
  *
  * Everything about a case's visits is worked out from its appointments, so
@@ -84,7 +85,10 @@ const summarize = (caseDoc, appts, rules, now = Date.now()) => {
   if (caseDoc.status === "closed") state = "closed";
   else if (upcoming.length) state = "upcoming";
   else if (!visits.length) [state, reason] = ["regular", "no_visit"];
-  else if (rules.maxFollowUps > 0 && followUpsAtPrice >= rules.maxFollowUps) [state, reason] = ["regular", "limit_reached"];
+  // follow-ups per case at the follow-up price: 0 = none, N = the first N (missing → no cap)
+  else if (Number.isInteger(rules.maxFollowUps) && followUpsAtPrice >= rules.maxFollowUps) {
+    [state, reason] = ["regular", rules.maxFollowUps === 0 ? "no_follow_ups" : "limit_reached"];
+  }
   else if (followUpUntil && now > followUpUntil.getTime()) [state, reason] = ["regular", "period_ended"];
 
   return {

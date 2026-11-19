@@ -77,20 +77,28 @@ const consultationPricingSchema = new mongoose.Schema(
       max: 1000,
       default: null,
     },
-    // 🔁 follow-up rules — 0 = no limit
+    // 🔁 follow-up rules
     followUpWindowDays: {
+      // 0 = no time limit
       // days after the last visit that a follow-up gets the follow-up price
       type: Number,
       min: 0,
       max: 365,
       default: 0,
     },
-    maxFollowUpsPerCase: {
-      // follow-ups per case at the follow-up price
+    // follow-ups per case at the follow-up price: 0 = none (every visit at
+    // the new-appointment price), N = the first N follow-ups. 100 until changed.
+    followUpsPerCase: {
       type: Number,
       min: 0,
-      max: 50,
-      default: 0,
+      max: 1000,
+      default: 100,
+    },
+    // ⚠️ old setting (there 0 meant "no limit") — only read as a fallback
+    // until followUpsPerCase is saved; removed on the next save
+    maxFollowUpsPerCase: {
+      type: Number,
+      min: 0,
     },
     countries: {
       type: [countryPriceSchema],

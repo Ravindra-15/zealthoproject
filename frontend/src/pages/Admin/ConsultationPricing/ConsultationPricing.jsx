@@ -13,8 +13,9 @@
  *  - Follow-up price → for a follow-up in the same case (same health
  *                    problem). Blank = same as the new-appointment price
  *                    (country rows: blank = the default follow-up price).
- *  - Follow-up rules → how long after a visit, and how many follow-ups per
- *                    case, get the follow-up price (0 = no limit).
+ *  - Follow-up rules → how long after a visit (0 = no time limit), and how
+ *                    many follow-ups per case (0 = none, N = the first N;
+ *                    100 until changed, max 1000), get the follow-up price.
  *
  * PayPal charges USD, so each booking charges (and stores) the USD value of
  * the local price at that day's rate — revenue / margin reports keep working
@@ -63,11 +64,15 @@ const optional = (value, parse, max) => {
   return n !== null && (max === null || n <= max) ? { ok: true, value: n } : { ok: false, value: null };
 };
 
-// 0–max whole number ("" → 0)
-const parseCount = (value, max) => {
+// 🔁 follow-ups per case: 0 = none, N = the first N; 100 until changed, max 1000 — same as the server
+const DEFAULT_MAX_FOLLOW_UPS = 100;
+const MAX_FOLLOW_UPS_LIMIT = 1000;
+
+// 0–max whole number ("" → 0, or invalid when a number is required)
+const parseCount = (value, max, { allowEmpty = true } = {}) => {
   const s = String(value ?? "").trim();
-  if (s === "") return 0;
-  if (!/^\d{1,3}$/.test(s)) return null;
+  if (s === "") return allowEmpty ? 0 : null;
+  if (!/^\d{1,4}$/.test(s)) return null;
   const n = Number(s);
   return n <= max ? n : null;
 };
@@ -130,7 +135,7 @@ const CountInput = ({ value, onChange, invalid, label, suffix }) => (
       type="text"
       inputMode="numeric"
       value={value}
-      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 3))}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
       aria-label={label}
       className="min-w-0 flex-1 bg-transparent pl-3 pr-2 py-2 text-sm text-gray-900 focus:outline-none"
     />
@@ -146,7 +151,7 @@ const ConsultationPricing = () => {
   const [defaultPrice, setDefaultPrice] = useState("");
   const [defaultFollowUp, setDefaultFollowUp] = useState(""); // "" = same as default price
   const [windowDays, setWindowDays] = useState("0");
-  const [maxFollowUps, setMaxFollowUps] = useState("0");
+  const [maxFollowUps, setMaxFollowUps] = useState(String(DEFAULT_MAX_FOLLOW_UPS));
   const [rows, setRows] = useState([]); // [{ countryIso, countryName, price, followUp, currency, fromUsd }]
   const [newIso, setNewIso] = useState("");
   const [newPrice, setNewPrice] = useState("");
@@ -165,7 +170,7 @@ const ConsultationPricing = () => {
     setDefaultPrice(String(p.defaultPrice));
     setDefaultFollowUp(p.defaultFollowUpPrice == null ? "" : String(p.defaultFollowUpPrice));
     setWindowDays(String(p.followUpWindowDays ?? 0));
-    setMaxFollowUps(String(p.maxFollowUpsPerCase ?? 0));
+    setMaxFollowUps(String(p.maxFollowUpsPerCase ?? DEFAULT_MAX_FOLLOW_UPS));
     setRows(
       p.countries.map((c) => {
         const { currency, rate } = currencyOf(c.countryIso, tbl);
@@ -204,8 +209,10 @@ const ConsultationPricing = () => {
   const rateOf = (iso) => currencyOf(iso).rate;
   const parsedDefault = parseUsd(defaultPrice);
   const parsedDefaultFu = optional(defaultFollowUp, parseUsd, parsedDefault);
-  const parsedWindow = parseCount(windowDays, 365);
-  const parsedMax = parseCount(maxFollowUps, 50);
+  // required — an empty box must never quietly become 0 (= no time limit)
+  const parsedWindow = parseCount(windowDays, 365, { allowEmpty: false });
+  // required — an empty box must never quietly become 0 (= no follow-up price)
+  const parsedMax = parseCount(maxFollowUps, MAX_FOLLOW_UPS_LIMIT, { allowEmpty: false });
   const rowParsed = (r) => {
     const rate = rateOf(r.countryIso);
     const price = parseLocal(r.price, rate);
@@ -246,7 +253,7 @@ const ConsultationPricing = () => {
     (payload.defaultPrice !== saved.defaultPrice ||
       payload.defaultFollowUpPrice !== (saved.defaultFollowUpPrice ?? null) ||
       payload.followUpWindowDays !== (saved.followUpWindowDays ?? 0) ||
-      payload.maxFollowUpsPerCase !== (saved.maxFollowUpsPerCase ?? 0) ||
+      payload.maxFollowUpsPerCase !== (saved.maxFollowUpsPerCase ?? DEFAULT_MAX_FOLLOW_UPS) ||
       JSON.stringify(norm(rows)) !== JSON.stringify(norm(saved.countries)));
   const hasConverted = rows.some((r) => r.fromUsd !== null);
 
@@ -413,7 +420,7 @@ const ConsultationPricing = () => {
                 <p className="text-sm font-semibold text-gray-900">Follow-up rules</p>
                 <p className="text-xs text-gray-500">
                   When a follow-up gets the follow-up price. After that, the patient can still book in the same case
-                  at the new-appointment price. 0 = no limit.
+                  at the new-appointment price.
                 </p>
               </div>
             </div>
@@ -422,7 +429,19 @@ const ConsultationPricing = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-800">Follow-up period</p>
                   <p className="text-[11px] text-gray-400">
-                    Days after the last visit in a case. Patients get a reminder 3 days before it ends.
+                    Days after the last visit in a case. 0 = no time limit. Patients get a reminder 3 days before
+                    it ends.
+                  </p>
+                  {/* 🗣️ what the number means right now */}
+                  <p
+                    className={`text-[11px] font-medium mt-1 ${parsedWindow === null ? "text-red-600" : "text-indigo-600"}`}
+                    aria-live="polite"
+                  >
+                    {parsedWindow === null
+                      ? "Enter a whole number from 0 to 365."
+                      : parsedWindow === 0
+                        ? "Now: no time limit — a follow-up gets the follow-up price whenever it's booked."
+                        : `Now: a follow-up booked within ${parsedWindow} day${parsedWindow === 1 ? "" : "s"} of the last visit gets the follow-up price.`}
                   </p>
                 </div>
                 <CountInput
@@ -436,14 +455,30 @@ const ConsultationPricing = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium text-gray-800">Follow-ups per case</p>
-                  <p className="text-[11px] text-gray-400">How many follow-ups in one case get the follow-up price.</p>
+                  <p className="text-[11px] text-gray-400">
+                    How many follow-ups in one case get the follow-up price. 0 = none (every visit is charged the
+                    new-appointment price). Max {MAX_FOLLOW_UPS_LIMIT}.
+                  </p>
+                  {/* 🗣️ what the number means right now */}
+                  <p
+                    className={`text-[11px] font-medium mt-1 ${parsedMax === null ? "text-red-600" : "text-indigo-600"}`}
+                    aria-live="polite"
+                  >
+                    {parsedMax === null
+                      ? `Enter a whole number from 0 to ${MAX_FOLLOW_UPS_LIMIT}.`
+                      : parsedMax === 0
+                        ? "Now: no follow-up price — every visit is charged the new-appointment price."
+                        : parsedMax === 1
+                          ? "Now: only the first follow-up in each case gets the follow-up price."
+                          : `Now: the first ${parsedMax} follow-ups in each case get the follow-up price.`}
+                  </p>
                 </div>
                 <CountInput
                   value={maxFollowUps}
                   onChange={setMaxFollowUps}
                   invalid={parsedMax === null}
                   label="Follow-ups per case"
-                  suffix="MAX"
+                  suffix="PER CASE"
                 />
               </div>
             </div>
@@ -600,7 +635,7 @@ const ConsultationPricing = () => {
               <p className="mt-3 text-xs text-red-600">
                 Default price: ${MIN_PRICE}–${MAX_PRICE} (max 2 decimals). Country prices: a whole number in that
                 country's currency, worth ${MIN_PRICE}–${MAX_PRICE}. Follow-up prices: blank, or not more than the
-                new-appointment price. Follow-up period: 0–365 days; follow-ups per case: 0–50.
+                new-appointment price. Follow-up period: a whole number 0–365 days (0 = no time limit); follow-ups per case: a whole number 0–{MAX_FOLLOW_UPS_LIMIT} (0 = none).
               </p>
             )}
           </div>
