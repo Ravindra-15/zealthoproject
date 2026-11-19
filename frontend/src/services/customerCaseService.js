@@ -7,6 +7,7 @@
  *  PATCH /customer/cases/:id        → rename   { title }
  *  PATCH /customer/cases/:id/close  → close
  *  PATCH /customer/cases/:id/reopen → reopen
+ *  GET   /customer/cases/:id/file   → case file: every appointment (problem, prescription, reports)
  */
 
 import axios from "axios";
@@ -43,3 +44,6 @@ export const fetchMyCases = async () => {
 export const renameMyCase = async (id, title) => (await api.patch(`/customer/cases/${id}`, { title })).data?.data?.case;
 export const closeMyCase = async (id) => (await api.patch(`/customer/cases/${id}/close`)).data?.data?.case;
 export const reopenMyCase = async (id) => (await api.patch(`/customer/cases/${id}/reopen`)).data?.data?.case;
+
+// 📁 { case, patient, generatedAt, appointments: [...] }
+export const fetchCaseFile = async (id) => (await api.get(`/customer/cases/${id}/file`)).data?.data || null;

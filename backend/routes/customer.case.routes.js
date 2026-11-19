@@ -2,6 +2,7 @@
  * CUSTOMER MODULE — My Cases (health problems + their follow-ups)
  * Mount path: /api/customer/cases
  *  GET    /             → my cases, with follow-up price / rules (checkout + My Appointments)
+ *  GET    /:id/file     → case file: every appointment of the case (problem, prescription, reports)
  *  PATCH  /:id          → rename a case   Body: { title }
  *  PATCH  /:id/close    → close a case (problem resolved)
  *  PATCH  /:id/reopen   → reopen a closed case
@@ -41,6 +42,18 @@ router.get("/", readLimiter, async (req, res) => {
   } catch (err) {
     console.error("[MY CASES ERROR]:", err);
     return res.status(500).json({ success: false, message: "Failed to load your cases" });
+  }
+});
+
+// 📁 Case file — read-only, the patient's own case only
+router.get("/:id/file", readLimiter, async (req, res) => {
+  try {
+    const result = await svc.caseFileForUser(req.user.id, req.params.id);
+    if (result.error) return fail(res, result.error);
+    return res.status(200).json({ success: true, data: result.file });
+  } catch (err) {
+    console.error("[CASE FILE ERROR]:", err);
+    return res.status(500).json({ success: false, message: "Failed to load the case file" });
   }
 });
 

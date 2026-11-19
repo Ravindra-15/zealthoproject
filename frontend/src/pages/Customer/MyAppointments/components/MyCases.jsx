@@ -3,6 +3,8 @@
  * Each health problem with its visits: book a follow-up (at the follow-up
  * price), rename, close when resolved, reopen. Hidden until the patient has
  * a case — their first booking creates Case 1.
+ * "Case file" opens the case's folder: every appointment in it (first visit
+ * + follow-ups) with problem, prescription and reports, downloadable as a PDF.
  */
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -20,15 +22,21 @@ import {
 } from "../../../../services/customerCaseService";
 import { formatFee } from "../../../../hooks/useConsultationFee";
 import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
+import CaseFileModal from "./CaseFileModal";
 
 const TITLE_MAX = 60;
 const quoteLabel = (q) => (q ? formatFee(q.localFee, q.currency) : "");
+
+// 🎨 Case file colours + name on the PDF
+const CASE_THEME = { main: "#F97316", dark: "#EA580C", border: "#FED7AA", soft: "#FFF7ED" };
+const BRAND = "Zealtho";
 
 const CaseRow = ({ c, prices, onChanged }) => {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.title);
   const [busy, setBusy] = useState(null); // "rename" | "close" | "reopen"
+  const [fileOpen, setFileOpen] = useState(false); // 📁 case file
   const b = c.booking || {};
   const atFollowUp = b.state === "follow_up";
   const price = b.canBook ? quoteLabel(atFollowUp ? prices?.followUpFee : prices?.newFee) : "";
@@ -163,6 +171,14 @@ const CaseRow = ({ c, prices, onChanged }) => {
             )}
           </>
         )}
+        <button
+          type="button"
+          onClick={() => setFileOpen(true)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-orange-600 border border-orange-200 hover:bg-orange-50 transition-colors disabled:opacity-50"
+        >
+          <FolderOpen size={12} />
+          Case file
+        </button>
         {c.status === "open" && b.state !== "upcoming" && (
           <button
             type="button"
@@ -186,6 +202,10 @@ const CaseRow = ({ c, prices, onChanged }) => {
           </button>
         )}
       </div>
+
+      {fileOpen && (
+        <CaseFileModal caseId={c._id} caseLabel={c.label} theme={CASE_THEME} brand={BRAND} onClose={() => setFileOpen(false)} />
+      )}
     </li>
   );
 };

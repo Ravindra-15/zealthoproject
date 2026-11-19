@@ -412,6 +412,68 @@ const reopenCase = async (userId, caseId) => {
 };
 
 // ============================================
+// 📁 CASE FILE (patient) — the whole case in one place
+// ============================================
+// Every non-cancelled appointment of the case (first visit + follow-ups),
+// oldest first: date / time, doctor, the patient's problem, the doctor's
+// prescription once sent, and the reports. Read-only. Doctor's private
+// notes are never included (select:false on the model, not selected here).
+const CASE_FILE_FIELDS =
+  "case user doctor doctorName scheduledAt durationMinutes status visitType followUpPriced platform notes prescription prescriptionSentAt completedAt";
+
+const caseFileForUser = async (userId, caseId) => {
+  const { c, error } = await loadMine(userId, caseId);
+  if (error) return { error };
+
+  const [appts, rules, user] = await Promise.all([
+    Appointment.find({ case: c._id, user: userId, status: { $ne: "cancelled" } })
+      .select(CASE_FILE_FIELDS)
+      .populate("doctor", "fullName domain photo updatedAt")
+      .sort({ scheduledAt: 1 })
+      .lean(),
+    getFollowUpRules(),
+    User.findById(userId).select("fullName nickName").lean(),
+  ]);
+  const now = Date.now();
+  const doctorId = (a) => a.doctor?._id || a.doctor || null;
+  const summary = summarize(
+    c.toObject(),
+    appts.map((a) => ({ ...a, doctor: doctorId(a) })),
+    rules,
+    now
+  );
+  const reportMap = await reportsByAppointment(appts.map((a) => a._id));
+
+  return {
+    file: {
+      case: summary,
+      patient: { fullName: user?.fullName || user?.nickName || "" },
+      generatedAt: new Date(now),
+      appointments: appts.map((a, i) => ({
+        _id: a._id,
+        visitNumber: i + 1, // same numbering as the "Visit 2" case chip
+        scheduledAt: a.scheduledAt,
+        durationMinutes: a.durationMinutes || SLOT_DURATION_MINUTES,
+        status: a.status,
+        isUpcoming: isUpcoming(a, now),
+        visitType: a.visitType || "new",
+        followUpPriced: !!a.followUpPriced,
+        platform: a.platform || "zealtho",
+        doctorName: a.doctor?.fullName || a.doctorName || "",
+        doctor: a.doctor?._id
+          ? { _id: a.doctor._id, fullName: a.doctor.fullName, domain: a.doctor.domain || "", photo: a.doctor.photo || "", updatedAt: a.doctor.updatedAt }
+          : null,
+        notes: a.notes || "",
+        prescription: a.prescriptionSentAt ? a.prescription || "" : "",
+        prescriptionSentAt: a.prescriptionSentAt || null,
+        completedAt: a.completedAt || null,
+        reports: reportMap[String(a._id)] || [],
+      })),
+    },
+  };
+};
+
+// ============================================
 // 🔔 NOTIFICATIONS
 // ============================================
 const priceText = (q) => {
@@ -530,6 +592,7 @@ module.exports = {
   renameCase,
   closeCase,
   reopenCase,
+  caseFileForUser,
   notifyFollowUpAvailable,
   sendFollowUpEndingReminders,
   startCaseReminderCron,
