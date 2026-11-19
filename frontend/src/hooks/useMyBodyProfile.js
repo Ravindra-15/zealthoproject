@@ -11,6 +11,7 @@ import {
   upsertBodyProfile,
   completeBodyProfile,
 } from "../services/customerBodyProfileService";
+import { getBodyProfileProgress } from "../utils/bodyProfileProgress";
 
 const useMyBodyProfile = ({ autoLoad = true } = {}) => {
   const [profile, setProfile] = useState(null);
@@ -94,7 +95,8 @@ const useMyBodyProfile = ({ autoLoad = true } = {}) => {
   }, [saving]);
 
   // 🔍 Derived flag — used by banner logic
-  const isComplete = !!profile?.completedAt;
+  // complete = all 27 points answered (same rule as the checkout row / progress ring)
+  const isComplete = getBodyProfileProgress(profile).isDone;
 
   return {
     profile,

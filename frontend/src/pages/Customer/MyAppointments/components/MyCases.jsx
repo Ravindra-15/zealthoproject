@@ -32,7 +32,7 @@ const quoteLabel = (q) => (q ? formatFee(q.localFee, q.currency) : "");
 const CASE_THEME = { main: "#F97316", dark: "#EA580C", border: "#FED7AA", soft: "#FFF7ED" };
 const BRAND = "Zealtho";
 
-const CaseRow = ({ c, prices, onChanged }) => {
+export const CaseRow = ({ c, prices, onChanged }) => {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.title);
@@ -221,7 +221,8 @@ const CaseRow = ({ c, prices, onChanged }) => {
 
 const MyCases = ({ refreshKey = 0 }) => {
   const [data, setData] = useState(null);
-  const [showClosed, setShowClosed] = useState(false);
+  // "#closed-cases" (the link from checkout) opens the closed list
+  const [showClosed, setShowClosed] = useState(() => window.location.hash === "#closed-cases");
 
   const load = useCallback(async () => {
     try {
@@ -234,6 +235,16 @@ const MyCases = ({ refreshKey = 0 }) => {
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  // 📍 came from checkout's "View all closed cases" → scroll to them once loaded
+  const hasCases = !!data?.cases?.length;
+  useEffect(() => {
+    if (!hasCases || window.location.hash !== "#closed-cases") return undefined;
+    const go = () => document.getElementById("closed-cases")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    go();
+    const t = setTimeout(go, 900); // again once the cards above (appointments, body profile) have loaded
+    return () => clearTimeout(t);
+  }, [hasCases]);
 
   if (!data || !data.cases.length) return null;
   const open = data.cases.filter((c) => c.status === "open");
@@ -260,7 +271,7 @@ const MyCases = ({ refreshKey = 0 }) => {
       )}
 
       {closed.length > 0 && (
-        <div className="mt-4">
+        <div className="mt-4 scroll-mt-24" id="closed-cases">
           <button
             type="button"
             onClick={() => setShowClosed((v) => !v)}

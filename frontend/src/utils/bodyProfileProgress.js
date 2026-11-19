@@ -136,8 +136,9 @@ export const getBodyProfileProgress = (profile) => {
     filled,
     total,
     percent,
-    // "Done" pressed in the wizard, or every point answered
-    isDone: !!profile?.completedAt || filled === total,
+    // complete only when every one of the 27 points is answered —
+    // pressing "Done" in the wizard with points still empty doesn't count
+    isDone: filled === total,
     // where "Complete Profile" should open the wizard
     nextStep: (steps.find((s) => !s.done) || steps[0]).id,
     started: filled > 0,

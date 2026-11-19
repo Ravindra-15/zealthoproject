@@ -4,18 +4,25 @@
  *  ( ) A new problem          → a new case, new-appointment price
  *  ( ) Case 1 · Hair loss     → follow-up in that case, follow-up price
  *
- * Shown only when the patient already has an open case — first-time
- * patients see the checkout exactly as before (their first booking starts
- * Case 1 by itself). The server re-checks the case and works out the price
+ * Shown only when the patient already has a case — first-time patients see
+ * the checkout exactly as before (their first booking starts Case 1 by
+ * itself). Closed cases sit in a "N closed cases" section: the most recent
+ * ones with the same row as My Cases (Case file / Reopen) — a case reopened
+ * here becomes a follow-up option and is selected — plus a link to all of
+ * them in My Appointments. The server re-checks the case and works out the price
  * again, so nothing here decides what's charged.
  */
 
-import React from "react";
-import { FolderOpen, FolderPlus, Info } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { FolderOpen, FolderPlus, Lock, ChevronDown, ArrowRight } from "lucide-react";
+import { CaseRow } from "../../../pages/Customer/MyAppointments/components/MyCases";
 import { formatFee } from "../../../hooks/useConsultationFee";
 import { formatUtcDate } from "../../../utils/time";
 
 const TITLE_MAX = 60;
+const RECENT_CLOSED = 3; // closed cases shown here — the rest are in My Appointments
+const closedTime = (c) => new Date(c.closedAt || c.lastVisitAt || c.createdAt || 0).getTime();
 
 const quoteLabel = (q) => (q ? formatFee(q.localFee, q.currency) : "");
 
@@ -73,13 +80,18 @@ const Option = ({ checked, disabled, onSelect, icon: Icon, title, note, price, p
   </label>
 );
 
-const CasePicker = ({ cases = [], prices, value, onChange, caseTitle, onTitleChange, isFree = false }) => {
+const CasePicker = ({ cases = [], prices, value, onChange, caseTitle, onTitleChange, isFree = false, onCaseReopened }) => {
+  const [showClosed, setShowClosed] = useState(false);
   const open = cases.filter((c) => c.status === "open");
-  if (!open.length) return null;
+  // most recently closed first
+  const closed = useMemo(
+    () => cases.filter((c) => c.status === "closed").sort((a, b) => closedTime(b) - closedTime(a)),
+    [cases]
+  );
+  if (!open.length && !closed.length) return null;
 
   const newPrice = isFree ? null : quoteLabel(prices?.newFee);
   const followPrice = isFree ? null : quoteLabel(prices?.followUpFee);
-  const closedCount = cases.length - open.length;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5">
@@ -128,11 +140,51 @@ const CasePicker = ({ cases = [], prices, value, onChange, caseTitle, onTitleCha
         })}
       </div>
 
-      {closedCount > 0 && (
-        <p className="mt-2.5 flex items-start gap-1.5 text-[11px] text-gray-400">
-          <Info size={12} className="mt-px flex-shrink-0" />
-          {closedCount} closed case{closedCount > 1 ? "s" : ""} — reopen from My Appointments to book a follow-up.
-        </p>
+      {/* 🔒 Closed cases — expand to see the recent ones (Case file / Reopen) */}
+      {closed.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+          <button
+            type="button"
+            onClick={() => setShowClosed((v) => !v)}
+            aria-expanded={showClosed}
+            aria-controls="checkout-closed-cases"
+            className="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-gray-600 hover:text-gray-900"
+          >
+            <span className="flex items-center gap-1.5 min-w-0">
+              <Lock size={12} className="flex-shrink-0 text-gray-400" />
+              <span>
+                {closed.length} closed case{closed.length > 1 ? "s" : ""}
+                <span className="font-normal text-gray-400"> · reopen one to book a follow-up</span>
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1 flex-shrink-0 text-gray-500">
+              {showClosed ? "Hide" : "Show"}
+              <ChevronDown size={14} className={`transition-transform ${showClosed ? "rotate-180" : ""}`} />
+            </span>
+          </button>
+
+          {showClosed && (
+            <div id="checkout-closed-cases" className="mt-3">
+              {closed.length > RECENT_CLOSED && (
+                <p className="text-[11px] text-gray-400 mb-2">Most recent {RECENT_CLOSED} of {closed.length}</p>
+              )}
+              <ul className="space-y-2">
+                {closed.slice(0, RECENT_CLOSED).map((c) => (
+                  <CaseRow key={c._id} c={c} prices={prices} onChanged={() => onCaseReopened?.(c._id)} />
+                ))}
+              </ul>
+              {closed.length > RECENT_CLOSED && (
+                <Link
+                  to="/my-appointments#closed-cases"
+                  className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:underline"
+                >
+                  View all {closed.length} closed cases in My Appointments
+                  <ArrowRight size={12} />
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -82,10 +82,19 @@ const Checkout = () => {
   };
   const loadCases = async () => {
     try {
-      setCaseData(await fetchMyCases());
+      const data = await fetchMyCases();
+      setCaseData(data);
+      return data;
     } catch {
-      setCaseData({ cases: [], prices: null }); // soft fail — books as a new problem
+      setCaseData((cur) => cur || { cases: [], prices: null }); // soft fail — books as a new problem
+      return null;
     }
+  };
+  // 🔓 a closed case was reopened right here → refresh and pick it for this booking
+  const handleCaseReopened = async (id) => {
+    const data = await loadCases();
+    const c = data?.cases.find((x) => x._id === id);
+    if (c && c.status === "open" && c.booking?.canBook) setCaseId(id);
   };
   useEffect(() => {
     if (isCustomerLoggedIn()) loadCases();
@@ -349,6 +358,7 @@ const Checkout = () => {
                 caseTitle={caseTitle}
                 onTitleChange={setCaseTitle}
                 isFree={fee === 0}
+                onCaseReopened={handleCaseReopened}
               />
 
               {/* ============================================ */}
