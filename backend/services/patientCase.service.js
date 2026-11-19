@@ -382,6 +382,10 @@ const renameCase = async (userId, caseId, title) => {
   if (!clean) return { error: { status: 400, message: "Please enter a name for this case" } };
   const { c, error } = await loadMine(userId, caseId);
   if (error) return { error };
+  // 🔒 a closed case is read-only — reopen it first
+  if (c.status === "closed") {
+    return { error: { status: 400, code: "CASE_CLOSED", message: "This case is closed and can't be edited. Reopen it to make changes." } };
+  }
   c.title = clean;
   await c.save();
   return { case: c.toObject() };

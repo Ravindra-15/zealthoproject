@@ -2,7 +2,8 @@
  * CUSTOMER MODULE — My Cases (on My Appointments)
  * Each health problem with its visits: book a follow-up (at the follow-up
  * price), rename, close when resolved, reopen. Hidden until the patient has
- * a case — their first booking creates Case 1.
+ * a case — their first booking creates Case 1. A closed case is read-only
+ * (no rename) until it's reopened.
  * "Case file" opens the case's folder: every appointment in it (first visit
  * + follow-ups) with problem, prescription and reports, downloadable as a PDF.
  */
@@ -39,6 +40,7 @@ const CaseRow = ({ c, prices, onChanged }) => {
   const [fileOpen, setFileOpen] = useState(false); // 📁 case file
   const b = c.booking || {};
   const atFollowUp = b.state === "follow_up";
+  const canRename = c.status === "open"; // 🔒 closed case = read-only
   const price = b.canBook ? quoteLabel(atFollowUp ? prices?.followUpFee : prices?.newFee) : "";
 
   const run = async (kind, fn, ok) => {
@@ -51,6 +53,11 @@ const CaseRow = ({ c, prices, onChanged }) => {
       onChanged();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Couldn't update the case. Please try again.");
+      // closed meanwhile (another tab / device) → drop the editor and show the latest state
+      if (err?.response?.data?.code === "CASE_CLOSED") {
+        setEditing(false);
+        onChanged();
+      }
     } finally {
       setBusy(null);
     }
@@ -80,7 +87,7 @@ const CaseRow = ({ c, prices, onChanged }) => {
     <li className="rounded-xl border border-gray-100 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {editing ? (
+          {editing && canRename ? (
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-bold text-gray-900 flex-shrink-0">Case {c.caseNumber} ·</span>
               <input
@@ -116,17 +123,19 @@ const CaseRow = ({ c, prices, onChanged }) => {
             <div className="flex items-center gap-1.5 min-w-0">
               <FolderOpen size={15} className="text-orange-500 flex-shrink-0" />
               <p className="text-sm font-bold text-gray-900 break-words">{c.label}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(c.title);
-                  setEditing(true);
-                }}
-                aria-label={`Rename ${c.label}`}
-                className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 flex-shrink-0"
-              >
-                <Pencil size={12} />
-              </button>
+              {canRename && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(c.title);
+                    setEditing(true);
+                  }}
+                  aria-label={`Rename ${c.label}`}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 flex-shrink-0"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
             </div>
           )}
           <p className="text-xs text-gray-500 mt-1">
