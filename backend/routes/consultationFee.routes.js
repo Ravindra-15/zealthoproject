@@ -1,7 +1,8 @@
 /**
  * Consultation Fee Routes (customer-facing)
  * Mount path: /api/consultation-fee
- *  GET /     → default fee (public — logged-out pages)
+ *  GET /     → fee for logged-out pages (public) — ?tz=<device time zone>
+ *              guesses the country, else the default fee
  *  GET /me   → this patient's fee, from their profile country
  */
 

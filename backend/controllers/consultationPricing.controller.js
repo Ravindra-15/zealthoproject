@@ -2,11 +2,13 @@
  * Consultation Pricing Controller
  *  - Super admin: read / save the country price list
  *  - Customer: their own appointment fee (from their profile country)
- *  - Public: the default fee (logged-out pages)
+ *  - Public: the fee for logged-out pages (country guessed from the device
+ *    time zone, else the default fee)
  */
 
 const User = require("../models/User");
 const pricingService = require("../services/consultationPricing.service");
+const { countryForTimezone } = require("../utils/timezoneCountry");
 
 // GET /api/admin/consultation-pricing
 const getPricingForAdmin = async (req, res) => {
@@ -50,9 +52,17 @@ const getMyFee = async (req, res) => {
   }
 };
 
-// GET /api/consultation-fee  (public — default price only)
+// GET /api/consultation-fee?tz=Asia/Kolkata  (public — logged-out pages)
+// With a device time zone, guesses the visitor's country and returns that
+// country's price in its own currency (display only — a booking is always
+// priced from the profile country). No / unknown zone → the default price.
 const getDefaultFee = async (req, res) => {
   try {
+    const iso = countryForTimezone(typeof req.query?.tz === "string" ? req.query.tz : "");
+    if (iso) {
+      const fee = await pricingService.feeForUser({ countryIso: iso });
+      return res.status(200).json({ success: true, data: { ...fee, isGuess: true } });
+    }
     const { defaultPrice } = await pricingService.getPricing();
     return res.status(200).json({
       success: true,

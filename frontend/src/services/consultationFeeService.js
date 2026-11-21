@@ -3,7 +3,8 @@
  * CONSULTATION FEE SERVICE — the appointment fee for this visitor
  * ============================================
  * Logged in  → GET /consultation-fee/me (price for their profile country)
- * Logged out → GET /consultation-fee    (the default price, USD)
+ * Logged out → GET /consultation-fee?tz=… (country guessed from the device
+ *              time zone → that country's price, else the default USD price)
  *
  * Returns { fee, localFee, currency }:
  *   fee       → USD amount PayPal charges
@@ -28,6 +29,16 @@ const api = axios.create({ baseURL: BASE_URL, timeout: 10000 });
 let memo = null; // { fp, value, at }
 let inFlight = null; // { fp, promise }
 
+// 🌍 the device time zone — lets the server guess a logged-out visitor's country
+const guestParams = () => {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return tz ? { tz } : {};
+  } catch {
+    return {};
+  }
+};
+
 const readFee = (res) => {
   const d = res?.data?.data || {};
   const fee = Number(d.fee);
@@ -48,7 +59,7 @@ const load = async (token) => {
     }
   }
   try {
-    return readFee(await api.get("/consultation-fee")) || FALLBACK;
+    return readFee(await api.get("/consultation-fee", { params: guestParams() })) || FALLBACK;
   } catch {
     return FALLBACK;
   }

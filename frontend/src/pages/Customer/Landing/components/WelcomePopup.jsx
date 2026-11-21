@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useConsultationFee } from "../../../../hooks/useConsultationFee";
 
 export default function WelcomePopup() {
   const [open, setOpen] = useState(false);
+  // 💲 real consultation price, in the visitor's currency (country guessed from the device time zone)
+  const { label: feeLabel, ready: feeReady } = useConsultationFee();
 
   useEffect(() => {
     const token =
@@ -19,7 +22,7 @@ export default function WelcomePopup() {
     }
   }, []);
 
-  if (!open) return null;
+  if (!open || !feeReady) return null; // wait for the price — never flash a wrong one
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center px-4">
@@ -41,7 +44,7 @@ export default function WelcomePopup() {
         {/* text */}
         <p className="text-gray-600 text-sm leading-relaxed mb-8">
           Browse verified specialists and book a consultation for just
-          <span className="font-semibold text-orange-500"> $20</span>.
+          <span className="font-semibold text-orange-500"> {feeLabel}</span>.
           <br />
           Get instant access to Endocrinologists, Gynecologists,
           and more.
