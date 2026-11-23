@@ -1,7 +1,7 @@
 /**
  * Broadcast Message model — admin/superadmin sends a one-off announcement
- * (title + rich-text body + optional image) by email to every customer of
- * one program, or to all doctors platform-wide.
+ * (title + rich-text body + optional image) by email and/or WhatsApp to every
+ * customer of one program, or to all doctors platform-wide.
  *
  * One document per send — the actual per-recipient emails are NOT stored
  * individually (that's the whole point of "broadcast"); only a count and
@@ -61,6 +61,27 @@ const broadcastMessageSchema = new mongoose.Schema(
     failedCount: {
       type: Number,
       default: 0,
+    },
+
+    // 📨 how it was sent — older messages were email only
+    channels: {
+      type: [{ type: String, enum: ["email", "whatsapp"] }],
+      default: ["email"],
+    },
+
+    // 📱 WhatsApp side (recipientCount / failedCount above are email)
+    whatsappRecipientCount: {
+      type: Number,
+      default: 0,
+    },
+    whatsappFailedCount: {
+      type: Number,
+      default: 0,
+    },
+    // false while WhatsApp isn't connected yet (messages only logged)
+    whatsappLive: {
+      type: Boolean,
+      default: false,
     },
 
     sentBy: {

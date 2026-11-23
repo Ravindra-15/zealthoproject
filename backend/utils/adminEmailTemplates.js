@@ -111,14 +111,14 @@ const detailsCard = (title, rows) => `
   <tr><td style="height:10px;line-height:10px;font-size:0;">&nbsp;</td></tr>
 </table>`;
 
-const credentialsCard = ({ email, password }) => {
+const credentialsCard = ({ email, password, loginLabel = "Email" }) => {
   const t = TONES.primary;
   const box = (value) =>
     `<div style="background:#ffffff;border:1px solid ${t.edge};border-radius:8px;padding:10px 12px;font:600 14px 'Courier New',Courier,monospace;color:${BRAND.ink};word-break:break-all;">${esc(value)}</div>`;
   return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${t.bg};border:1px solid ${t.edge};border-radius:12px;margin:20px 0 6px;">
   <tr><td style="padding:16px 20px 4px;font:700 11px ${FONT};letter-spacing:1px;color:${t.fg};text-transform:uppercase;">Your sign-in details</td></tr>
-  <tr><td style="padding:10px 20px 4px;font:12px ${FONT};color:${BRAND.muted};">Email</td></tr>
+  <tr><td style="padding:10px 20px 4px;font:12px ${FONT};color:${BRAND.muted};">${esc(loginLabel)}</td></tr>
   <tr><td style="padding:0 20px 8px;">${box(email)}</td></tr>
   <tr><td style="padding:4px 20px 4px;font:12px ${FONT};color:${BRAND.muted};">Password</td></tr>
   <tr><td style="padding:0 20px 18px;">${box(password)}</td></tr>
@@ -148,6 +148,7 @@ const layout = ({
   body = "",
   cta,
   recipientEmail,
+  source = "Zealtho Admin Portal",
 }) => {
   const t = TONES[tone];
   return `<!DOCTYPE html>
@@ -214,7 +215,7 @@ const layout = ({
           <!-- 📎 Footer -->
           <tr>
             <td class="px" style="padding:20px 32px 26px;border-top:1px solid ${BRAND.line};background:${BRAND.card};">
-              <p style="margin:0 0 6px;font:12px/1.6 ${FONT};color:${BRAND.muted};">This is an automated message from the Zealtho Admin Portal${recipientEmail ? ` sent to <strong style="color:${BRAND.body};">${esc(recipientEmail)}</strong>` : ""}. Please don't reply to this email.</p>
+              <p style="margin:0 0 6px;font:12px/1.6 ${FONT};color:${BRAND.muted};">This is an automated message from the ${esc(source)}${recipientEmail ? ` sent to <strong style="color:${BRAND.body};">${esc(recipientEmail)}</strong>` : ""}. Please don't reply to this email.</p>
               <p style="margin:0;font:11px ${FONT};color:#9CA3AF;">© ${new Date().getFullYear()} Zealtho. All rights reserved.</p>
             </td>
           </tr>
@@ -509,7 +510,65 @@ const passwordResetEmail = ({ admin, password, includePassword, resetByName, pan
   return { subject, html, text };
 };
 
+// ============================================
+// 🩺 DOCTOR LOGIN DETAILS — sent when the admin onboards a doctor
+// (isReset = false) or resets the doctor's password (isReset = true).
+// ============================================
+const doctorCredentialsEmail = ({ doctor, username, password, loginUrl, byName, isReset = false, at }) => {
+  const first = firstName(doctor.fullName);
+  const subject = isReset ? "Your Zealtho doctor password was reset" : "Your Zealtho doctor account is ready";
+
+  const html = layout({
+    preheader: isReset
+      ? "Your Zealtho doctor password was reset — here are your new sign-in details."
+      : "Your Zealtho doctor account has been created — here are your sign-in details.",
+    icon: isReset ? "🔑" : "🩺",
+    tone: isReset ? "warning" : "success",
+    badge: isReset ? "Password reset" : "Account created",
+    heading: isReset ? "Your password was reset" : `Welcome to Zealtho, ${first}!`,
+    intro: isReset
+      ? `Hi ${esc(first)}, <strong>${esc(byName)}</strong> has reset the password for your Zealtho doctor account. Use the new temporary password below to sign in.`
+      : `<strong>${esc(byName)}</strong> has created your doctor account on Zealtho. Sign in with the details below — you'll be asked to set your own password and complete your profile.`,
+    body:
+      detailsCard("Account details", [
+        ["Name", esc(doctor.fullName)],
+        ["Username", esc(username)],
+        ["Email", esc(doctor.personalEmail || "—")],
+        ["Mobile", esc(doctor.phone || "—")],
+        [isReset ? "Reset" : "Created", esc(formatWhen(at))],
+      ]) +
+      credentialsCard({ email: username, password, loginLabel: "Username" }) +
+      noticeBox(
+        "warning",
+        "<strong>Keep this email private.</strong> This is a temporary password — you'll be asked to change it the first time you sign in."
+      ),
+    cta: { label: "Sign in to Doctor Portal", url: loginUrl },
+    recipientEmail: doctor.personalEmail,
+    source: "Zealtho Doctor Portal",
+  });
+
+  const text = [
+    isReset ? `Hi ${first},` : `Welcome to Zealtho, ${first}!`,
+    "",
+    isReset
+      ? `${byName} has reset the password for your Zealtho doctor account.`
+      : `${byName} has created your doctor account on Zealtho.`,
+    "",
+    `Username: ${username}`,
+    `Temporary password: ${password}`,
+    "",
+    "You'll be asked to change this password the first time you sign in. Keep this email private.",
+    "",
+    `Sign in: ${loginUrl}`,
+    "",
+    "— Zealtho Doctor Portal",
+  ].join("\n");
+
+  return { subject, html, text };
+};
+
 module.exports = {
+  doctorCredentialsEmail,
   createdEmail,
   updatedEmail,
   emailChangedOldAddressEmail,

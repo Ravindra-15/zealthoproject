@@ -8,7 +8,21 @@ import { Send, Loader2 } from "lucide-react";
 
 import ModalShell from "../../PortalUsers/components/ModalShell";
 
-const ConfirmSendModal = ({ isOpen, audienceLabel, recipientCount, loading, onConfirm, onClose }) => {
+const ConfirmSendModal = ({
+  isOpen,
+  audienceLabel,
+  recipientCount,
+  emailCount = null, // null = not sending by email
+  whatsappCount = null, // null = not sending on WhatsApp
+  whatsappLive = false,
+  loading,
+  onConfirm,
+  onClose,
+}) => {
+  const parts = [];
+  if (emailCount !== null) parts.push(`emailed to ${emailCount} recipient${emailCount === 1 ? "" : "s"}`);
+  if (whatsappCount !== null) parts.push(`sent on WhatsApp to ${whatsappCount} number${whatsappCount === 1 ? "" : "s"}`);
+
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} labelledBy="confirm-send-title" busy={loading}>
       <div className="px-6 pt-8 pb-5 text-center">
@@ -21,12 +35,14 @@ const ConfirmSendModal = ({ isOpen, audienceLabel, recipientCount, loading, onCo
         </h2>
 
         <p className="text-sm text-gray-500 leading-relaxed">
-          This will be emailed to{" "}
-          <span className="font-semibold text-gray-700">
-            {recipientCount} recipient{recipientCount === 1 ? "" : "s"}
-          </span>{" "}
-          — {audienceLabel}. This can't be undone once sent.
+          This will be <span className="font-semibold text-gray-700">{parts.join(" and ")}</span> —{" "}
+          {audienceLabel}. This can't be undone once sent.
         </p>
+        {whatsappCount !== null && !whatsappLive && (
+          <p className="mt-2 text-xs text-amber-700">
+            WhatsApp isn't connected yet, so the WhatsApp part is only recorded for now.
+          </p>
+        )}
       </div>
 
       <div className="px-6 pb-6 flex flex-col-reverse sm:flex-row gap-2.5 sm:justify-center">

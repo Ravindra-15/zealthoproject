@@ -1,20 +1,21 @@
 /**
  * ADMIN MODULE — User Profile Page
  *
- * Header card + tabs (27-Point Body Profile / Consultations).
+ * Header card + tabs (27-Point Body Profile / Consultations / Account History).
  * Fetches user details (with body profile + consultations) on mount.
  * Consultations tab is a temporary stub — real component lands in Batch 8E.
  */
 
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, MessageSquare, LineChart } from "lucide-react";
+import { ArrowLeft, ClipboardList, MessageSquare, LineChart, History } from "lucide-react";
 
 import { getUserDetails } from "../../../services/userService";
 import UserProfileHeader from "./components/UserProfileHeader";
 import BodyProfileTab from "./components/BodyProfileTab";
 import ConsultationsTab from "./components/ConsultationsTab";
 import ReportsTab from "./components/ReportsTab";
+import AccountHistoryTab from "./components/AccountHistoryTab";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 
 
@@ -22,6 +23,7 @@ import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 const BASE_TABS = [
   { id: "body", label: "27-Point Body Profile", icon: ClipboardList },
   { id: "consultations", label: "Consultations", icon: MessageSquare },
+  { id: "history", label: "Account History", icon: History },
 ];
 
 // Reports tab — only for child programs (Zealtho has no habits)
@@ -74,9 +76,19 @@ const UserProfile = () => {
     if (isZealtho && activeTab === "reports") setActiveTab("body");
   }, [isZealtho, activeTab]);
 
-  // 🔄 Update local state when status toggles (no refetch needed)
+  // 🔄 Update local state when status toggles, then quietly reload the
+  // account history so the new deactivation/reactivation shows right away
   const handleUserUpdated = (updatedUser) => {
     setData((prev) => (prev ? { ...prev, user: updatedUser } : prev));
+    getUserDetails(id)
+      .then((fresh) => {
+        if (isMountedRef.current && fresh) {
+          setData((prev) => (prev ? { ...prev, statusHistory: fresh.statusHistory || [] } : prev));
+        }
+      })
+      .catch(() => {
+        // soft fail — the tab refreshes on the next visit
+      });
   };
 
   // ============================================
@@ -133,7 +145,7 @@ const UserProfile = () => {
     );
   }
 
-  const { user, bodyProfile, consultations } = data;
+  const { user, bodyProfile, consultations, statusHistory = [] } = data;
 
   return (
     <div className="space-y-6">
@@ -198,6 +210,18 @@ const UserProfile = () => {
                   {consultations.length}
                 </span>
               )}
+              {tab.id === "history" && statusHistory.length > 0 && (
+                <span
+                  className={`
+                    inline-flex items-center justify-center
+                    min-w-[20px] h-5 px-1.5
+                    text-[10px] font-bold rounded-full
+                    ${isActive ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-600"}
+                  `}
+                >
+                  {statusHistory.length}
+                </span>
+              )}
             </button>
           );
         })}
@@ -213,6 +237,8 @@ const UserProfile = () => {
       )}
 
       {activeTab === "reports" && !isZealtho && <ReportsTab userId={user._id} />}
+
+      {activeTab === "history" && <AccountHistoryTab history={statusHistory} />}
     </div>
   );
 };

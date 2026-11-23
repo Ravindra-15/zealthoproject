@@ -47,6 +47,7 @@ const AddDoctor = () => {
       setCredentialsData({
         credentials: result.credentials,
         doctorName: result.doctor.fullName,
+        delivery: result.delivery,
       });
 
       toast.success("Doctor created successfully");
@@ -105,6 +106,7 @@ const AddDoctor = () => {
         submitLabel="Onboard Doctor"
         requireLicence
         showLocation
+        showContact
       />
 
       {/* 🎉 Credentials modal — only shown after successful creation */}
@@ -112,6 +114,7 @@ const AddDoctor = () => {
         isOpen={!!credentialsData}
         credentials={credentialsData?.credentials}
         doctorName={credentialsData?.doctorName}
+        delivery={credentialsData?.delivery}
         onClose={handleModalClose}
       />
     </div>

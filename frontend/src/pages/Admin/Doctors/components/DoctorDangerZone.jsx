@@ -52,6 +52,7 @@ const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
       setResetCredentials({
         credentials: result.credentials,
         doctorName: doctor.fullName,
+        delivery: result.delivery,
       });
 
       toast.success("Password reset successfully");
@@ -242,6 +243,8 @@ const DoctorDangerZone = ({ doctor, onStatusChange, onPasswordReset }) => {
         isOpen={!!resetCredentials}
         credentials={resetCredentials?.credentials}
         doctorName={resetCredentials?.doctorName}
+        delivery={resetCredentials?.delivery}
+        isReset
         onClose={() => setResetCredentials(null)}
       />
     </>

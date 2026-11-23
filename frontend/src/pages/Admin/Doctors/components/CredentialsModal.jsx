@@ -21,6 +21,7 @@ import {
   Check,
   AlertTriangle,
   X,
+  Mail,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -28,6 +29,8 @@ const CredentialsModal = ({
   isOpen,
   credentials,
   doctorName,
+  delivery = null, // { email: { status, to } } — was the login emailed to the doctor?
+  isReset = false, // opened after a password reset (not a new account)
   onClose,
 }) => {
   const [copiedField, setCopiedField] = useState(null);
@@ -131,7 +134,7 @@ const CredentialsModal = ({
             id="credentials-modal-title"
             className="text-lg font-bold text-gray-900 mb-1"
           >
-            Doctor Created Successfully
+            {isReset ? "Password Reset Successfully" : "Doctor Created Successfully"}
           </h2>
 
           {doctorName && (
@@ -141,6 +144,37 @@ const CredentialsModal = ({
             </p>
           )}
         </div>
+
+        {/* 📧 Was the login emailed to the doctor? */}
+        {delivery?.email && (
+          <div
+            className={`mx-6 mt-5 p-3 rounded-lg border flex items-start gap-2.5 ${
+              delivery.email.status === "sent"
+                ? "bg-emerald-50 border-emerald-100"
+                : "bg-red-50 border-red-100"
+            }`}
+          >
+            <Mail
+              size={16}
+              className={`flex-shrink-0 mt-0.5 ${delivery.email.status === "sent" ? "text-emerald-600" : "text-red-500"}`}
+            />
+            <p className={`text-xs leading-relaxed ${delivery.email.status === "sent" ? "text-emerald-800" : "text-red-700"}`}>
+              {delivery.email.status === "sent" ? (
+                <>
+                  Login details emailed to <span className="font-semibold break-all">{delivery.email.to}</span>.
+                </>
+              ) : delivery.email.status === "skipped" ? (
+                "This doctor has no email yet, so nothing was emailed — share the details below yourself."
+              ) : (
+                <>
+                  Couldn't email the login details
+                  {delivery.email.to ? <> to <span className="font-semibold break-all">{delivery.email.to}</span></> : null}.
+                  Share the details below with the doctor yourself.
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* ⚠️ Warning banner */}
         <div className="mx-6 mt-5 p-3 rounded-lg bg-amber-50 border border-amber-100 flex items-start gap-2.5">

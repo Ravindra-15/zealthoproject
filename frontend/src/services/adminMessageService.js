@@ -4,11 +4,12 @@
 
 import adminApi from "./adminService";
 
-export const sendMessage = async ({ title, body, image, audienceType, programId }) => {
+export const sendMessage = async ({ title, body, image, audienceType, programId, channels = ["email"] }) => {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("body", body);
   formData.append("audienceType", audienceType);
+  formData.append("channels", JSON.stringify(channels));
   if (audienceType === "customers") formData.append("programId", programId);
   if (image instanceof File) formData.append("image", image);
 
@@ -22,7 +23,13 @@ export const fetchRecipientCount = async ({ audienceType, programId }) => {
   const response = await adminApi.get("/admin/messages/recipient-count", {
     params: { audienceType, programId },
   });
-  return response.data.data.count;
+  // { email, whatsapp, whatsappLive } — older servers only send `count` (= email)
+  const d = response.data.data || {};
+  return {
+    email: Number.isFinite(d.email) ? d.email : Number(d.count) || 0,
+    whatsapp: Number.isFinite(d.whatsapp) ? d.whatsapp : 0,
+    whatsappLive: !!d.whatsappLive,
+  };
 };
 
 export const fetchMessages = async ({ page = 1, limit = 20 } = {}) => {

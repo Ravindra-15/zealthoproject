@@ -81,6 +81,19 @@ const createDoctor = async (doctorData, createdBy) => {
   // 🪪 No duplicate doctors — licence number must be unique
   await assertLicenceAvailable(doctorData.licenceNumber);
 
+  // 📧 …and the email the login details are sent to must be free too
+  if (doctorData.personalEmail) {
+    const taken = await Doctor.findOne({ personalEmail: doctorData.personalEmail })
+      .select("fullName")
+      .lean();
+    if (taken) {
+      const err = new Error("Email already used by another doctor");
+      err.code = "DUPLICATE_EMAIL";
+      err.existingDoctorName = taken.fullName;
+      throw err;
+    }
+  }
+
   // 🔐 Generate unique credentials
   const usernameExistsCheck = async (candidate) => {
     const exists = await Doctor.findOne({ username: candidate }).lean();
@@ -110,6 +123,9 @@ const createDoctor = async (doctorData, createdBy) => {
     ...(doctorData.timezone ? { timezone: doctorData.timezone } : {}),
     country: doctorData.country || "",
     countryIso: doctorData.countryIso || "",
+    // 📧📱 entered by the admin at onboarding; the doctor can edit both later
+    personalEmail: doctorData.personalEmail || null,
+    phone: doctorData.phone || null,
     username,
     password: plainPassword,
     mustChangePassword: true,

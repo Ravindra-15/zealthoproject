@@ -65,4 +65,8 @@ const sendWhatsApp = async ({ to, event, body }) => {
   }
 };
 
-module.exports = { sendWhatsApp, normalizePhone };
+// true once a real provider is set in .env (WHATSAPP_PROVIDER) — while it's
+// "mock", messages are only logged, so the admin panel says so
+const isWhatsAppLive = () => provider() !== "mock";
+
+module.exports = { sendWhatsApp, normalizePhone, isWhatsAppLive };

@@ -224,6 +224,28 @@ const validateCreateDoctor = (req, res, next) => {
   req.body.country = country;
   req.body.timezone = timezone;
 
+  // ============================================
+  // 📧📱 email + mobile (required at onboarding — the login details are
+  // emailed here, and the doctor can change both later in their profile)
+  // ============================================
+  const personalEmail = typeof req.body.personalEmail === "string" ? req.body.personalEmail.trim().toLowerCase() : "";
+  if (!personalEmail) {
+    return rejectCreate(req, res, "Email is required");
+  }
+  if (personalEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail)) {
+    return rejectCreate(req, res, "Enter a valid email address");
+  }
+  // "+<dial code> <number>", e.g. "+91 9876543210"
+  const phone = typeof req.body.phone === "string" ? req.body.phone.trim().replace(/\s+/g, " ") : "";
+  if (!phone) {
+    return rejectCreate(req, res, "Mobile number is required");
+  }
+  if (!/^\+\d{1,4} \d{4,14}$/.test(phone)) {
+    return rejectCreate(req, res, "Enter a valid mobile number");
+  }
+  req.body.personalEmail = personalEmail;
+  req.body.phone = phone;
+
   // ✅ All checks passed
   next();
 };

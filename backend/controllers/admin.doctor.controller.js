@@ -7,6 +7,7 @@
 const fs = require("fs");
 const path = require("path");
 const doctorService = require("../services/doctor.service");
+const { buildDoctorLoginUrl, notifyDoctorCredentials } = require("../services/doctorNotification.service");
 const { clearDoctorFlag } = require("../services/doctorFlag.service");
 const {
   DOCTOR_DOMAINS,
@@ -37,7 +38,7 @@ const createDoctor = async (req, res) => {
       uploadedLicencePath = `/uploads/doctors/${licenceFile.filename}`;
     }
 
-    const { fullName, domain, specializations, shortBio, licenceNumber, timezone, country, countryIso } = req.body;
+    const { fullName, domain, specializations, shortBio, licenceNumber, timezone, country, countryIso, personalEmail, phone } = req.body;
 
     const result = await doctorService.createDoctor(
       {
@@ -53,9 +54,19 @@ const createDoctor = async (req, res) => {
         timezone,
         country,
         countryIso,
+        personalEmail,
+        phone,
       },
       req.admin._id
     );
+
+    // 📧📱 send the login details to the doctor (never throws, ≤10s)
+    const delivery = await notifyDoctorCredentials({
+      doctor: result.doctor,
+      credentials: result.credentials,
+      loginUrl: buildDoctorLoginUrl(req),
+      byName: req.admin?.fullName,
+    });
 
     return res.status(201).json({
       success: true,
@@ -63,6 +74,7 @@ const createDoctor = async (req, res) => {
       data: {
         doctor: result.doctor,
         credentials: result.credentials, // ⚠️ Only returned ONCE — admin must save these
+        delivery, // { email: { status, to }, whatsapp: { status } }
       },
     });
   } catch (err) {
@@ -84,6 +96,14 @@ const createDoctor = async (req, res) => {
       return res.status(409).json({
         success: false,
         message: `This licence number is already registered to ${err.existingDoctorName || "another doctor"}. Duplicate doctor accounts aren't allowed.`,
+      });
+    }
+
+    // 📧 Email already belongs to another doctor
+    if (err.code === "DUPLICATE_EMAIL") {
+      return res.status(409).json({
+        success: false,
+        message: `This email is already used by ${err.existingDoctorName || "another doctor"}. Use a different email.`,
       });
     }
 
@@ -425,12 +445,22 @@ const resetPassword = async (req, res) => {
       });
     }
 
+    // 📧📱 email the new password to the doctor, if they have an email
+    const delivery = await notifyDoctorCredentials({
+      doctor: result.doctor,
+      credentials: result.credentials,
+      loginUrl: buildDoctorLoginUrl(req),
+      byName: req.admin?.fullName,
+      isReset: true,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Password reset successfully",
       data: {
         doctor: result.doctor,
         credentials: result.credentials, // ⚠️ Shown ONCE — admin must save
+        delivery,
       },
     });
   } catch (err) {

@@ -42,9 +42,10 @@ const CompleteProfile = () => {
   const navigate = useNavigate();
   const { doctor, logout, updateAuthFlags, updateDoctor } = useDoctorAuth();
 
+  // 📧📱 the admin enters these at onboarding — prefilled, the doctor can change them
   const [formData, setFormData] = useState({
-    personalEmail: "",
-    phone: "",
+    personalEmail: doctor?.personalEmail || "",
+    phone: doctor?.phone || "",
     qualifications: "",
     yearsOfExperience: "",
     licenceNumber: "",

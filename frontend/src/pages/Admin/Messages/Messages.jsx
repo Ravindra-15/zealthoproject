@@ -20,7 +20,7 @@ import toast from "react-hot-toast";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import DOMPurify from "dompurify";
-import { Mail, Users, Stethoscope, Loader2 } from "lucide-react";
+import { Mail, Users, Stethoscope, Loader2, MessageCircle, Check } from "lucide-react";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import MessageImageUploader from "./components/MessageImageUploader";
@@ -71,7 +71,9 @@ const Messages = () => {
   const [body, setBody] = useState("");
   const [image, setImage] = useState(null);
 
-  const [recipientCount, setRecipientCount] = useState(0);
+  // 📨 how to send — email and/or WhatsApp
+  const [channels, setChannels] = useState({ email: true, whatsapp: true });
+  const [counts, setCounts] = useState({ email: 0, whatsapp: 0, whatsappLive: false });
   const [countLoading, setCountLoading] = useState(false);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -85,11 +87,11 @@ const Messages = () => {
     let mounted = true;
     setCountLoading(true);
     fetchRecipientCount({ audienceType, programId })
-      .then((count) => {
-        if (mounted) setRecipientCount(count);
+      .then((c) => {
+        if (mounted) setCounts(c);
       })
       .catch(() => {
-        if (mounted) setRecipientCount(0);
+        if (mounted) setCounts({ email: 0, whatsapp: 0, whatsappLive: false });
       })
       .finally(() => {
         if (mounted) setCountLoading(false);
@@ -118,6 +120,11 @@ const Messages = () => {
 
   const visibleBodyLength = useMemo(() => countVisibleChars(body), [body]);
 
+  const chosenChannels = ["email", "whatsapp"].filter((c) => channels[c]);
+  const toggleChannel = (c) => setChannels((prev) => ({ ...prev, [c]: !prev[c] }));
+  // people reached on the chosen channels (Send is blocked at 0)
+  const reachCount = (channels.email ? counts.email : 0) + (channels.whatsapp ? counts.whatsapp : 0);
+
   const audienceLabel =
     audienceType === "doctors"
       ? "all doctors"
@@ -140,6 +147,10 @@ const Messages = () => {
       toast.error(`Body cannot exceed ${LIMITS.BODY_MAX} characters`);
       return false;
     }
+    if (chosenChannels.length === 0) {
+      toast.error("Pick at least one way to send: Email or WhatsApp");
+      return false;
+    }
     return true;
   };
 
@@ -158,6 +169,7 @@ const Messages = () => {
         image,
         audienceType,
         programId,
+        channels: chosenChannels,
       });
       toast.success(result.message || "Message sent");
       setConfirmOpen(false);
@@ -177,7 +189,7 @@ const Messages = () => {
     <div className="space-y-6">
       <AdminPageHeader
         title="Messages"
-        subtitle="Send an announcement by email to your customers or doctors"
+        subtitle="Send an announcement by email and WhatsApp to your customers or doctors"
       />
 
       {/* ============================================ */}
@@ -247,18 +259,69 @@ const Messages = () => {
             </div>
           )}
 
+          {/* 📨 Send via — Email and/or WhatsApp */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Send via</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: "email", label: "Email", Icon: Mail },
+                { id: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={channels[id]}
+                  onClick={() => toggleChannel(id)}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition-colors ${
+                    channels[id]
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center ${
+                      channels[id] ? "bg-indigo-600 border-indigo-600 text-white" : "border-gray-300 bg-white"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {channels[id] && <Check size={11} strokeWidth={3} />}
+                  </span>
+                  <Icon size={16} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            {channels.whatsapp && !counts.whatsappLive && !countLoading && (
+              <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                WhatsApp isn't connected yet — WhatsApp messages are recorded but won't reach phones until it's
+                connected. Email works as usual.
+              </p>
+            )}
+          </div>
+
           {/* Recipient count */}
           <p className="text-xs text-gray-500 -mt-2">
             {countLoading ? (
               <span className="inline-flex items-center gap-1.5">
                 <Loader2 size={12} className="animate-spin" /> Counting recipients...
               </span>
+            ) : chosenChannels.length === 0 ? (
+              <span className="text-red-600">Pick Email, WhatsApp or both.</span>
             ) : (
               <>
                 This will reach{" "}
-                <span className="font-semibold text-gray-700">
-                  {recipientCount} recipient{recipientCount === 1 ? "" : "s"}
-                </span>
+                {channels.email && (
+                  <span className="font-semibold text-gray-700">
+                    {counts.email} by email
+                  </span>
+                )}
+                {channels.email && channels.whatsapp && " and "}
+                {channels.whatsapp && (
+                  <span className="font-semibold text-gray-700">
+                    {counts.whatsapp} on WhatsApp
+                  </span>
+                )}
               </>
             )}
           </p>
@@ -335,7 +398,10 @@ const Messages = () => {
       <ConfirmSendModal
         isOpen={confirmOpen}
         audienceLabel={audienceLabel}
-        recipientCount={recipientCount}
+        recipientCount={reachCount}
+        emailCount={channels.email ? counts.email : null}
+        whatsappCount={channels.whatsapp ? counts.whatsapp : null}
+        whatsappLive={counts.whatsappLive}
         loading={sending}
         onConfirm={handleConfirmSend}
         onClose={() => !sending && setConfirmOpen(false)}

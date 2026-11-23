@@ -8,8 +8,10 @@
  */
 
 const User = require("../models/User");
+const Admin = require("../models/Admin");
 const BodyProfile = require("../models/BodyProfile");
 const Consultation = require("../models/Consultation");
+const AccountStatusLog = require("../models/AccountStatusLog");
 
 // ============================================
 // 📋 LIST USERS (paginated, searchable, filterable)
@@ -104,18 +106,65 @@ const getUserDetails = async (userId) => {
   const user = await User.findById(userId).select("-password").lean();
   if (!user) return null;
 
-  const [bodyProfile, consultations] = await Promise.all([
+  const [bodyProfile, consultations, statusHistory] = await Promise.all([
     BodyProfile.findOne({ user: userId }).lean(),
     Consultation.find({ user: userId })
       .sort({ consultedAt: -1 })
       .lean(),
+    getStatusHistory(user),
   ]);
 
   return {
     user,
     bodyProfile: bodyProfile || null,
     consultations: consultations || [],
+    statusHistory,
   };
+};
+
+// ============================================
+// 🕓 ACCOUNT HISTORY — every deactivation / reactivation, newest first
+// Accounts deactivated before this log existed have no rows yet — their
+// current flag (reason, time, who) is shown as one entry so the history is
+// never blank for an account that's deactivated right now.
+// ============================================
+const HISTORY_LIMIT = 200;
+
+const getStatusHistory = async (user) => {
+  const rows = await AccountStatusLog.find({ user: user._id })
+    .sort({ createdAt: -1 })
+    .limit(HISTORY_LIMIT)
+    .populate("by", "fullName role")
+    .lean();
+
+  const history = rows.map((r) => ({
+    _id: r._id,
+    action: r.action,
+    reasonLabel: r.reasonLabel || "",
+    description: r.description || "",
+    at: r.createdAt,
+    byName: r.by?.fullName || r.byName || "",
+    byRole: r.by?.role || r.byRole || "",
+  }));
+
+  if (history.length === 0 && user.flagged && user.flaggedAt) {
+    let by = null;
+    if (user.flaggedBy) {
+      by = await Admin.findById(user.flaggedBy).select("fullName role").lean();
+    }
+    history.push({
+      _id: `legacy-${user._id}`,
+      action: "deactivated",
+      reasonLabel: user.flagReason || "",
+      description: user.flagDescription || "",
+      at: user.flaggedAt,
+      byName: by?.fullName || "",
+      byRole: by?.role || "",
+      legacy: true,
+    });
+  }
+
+  return history;
 };
 
 // ============================================
@@ -193,7 +242,8 @@ const changeUserEmail = async (userId, nextEmail) => {
 // capture why, and that becomes the "flagged user" record on the account.
 // Cleared again on reactivation — a reactivated account isn't flagged.
 // ============================================
-const toggleUserStatus = async (userId, targetIsActive, flagInfo = {}) => {
+// `actor` — the admin doing it ({ _id, fullName, role }), saved in the history.
+const toggleUserStatus = async (userId, targetIsActive, flagInfo = {}, actor = null) => {
   const user = await User.findById(userId);
   if (!user) return null;
 
@@ -218,6 +268,25 @@ const toggleUserStatus = async (userId, targetIsActive, flagInfo = {}) => {
   }
 
   await user.save();
+
+  // 🕓 permanent history row — only when the status really changed. A
+  // logging problem must never undo or fail the status change itself.
+  if (changed) {
+    try {
+      await AccountStatusLog.create({
+        user: user._id,
+        action: nextIsActive ? "reactivated" : "deactivated",
+        reasonCode: nextIsActive ? "" : flagInfo.reasonCode || "",
+        reasonLabel: nextIsActive ? "" : flagInfo.reasonLabel || "",
+        description: nextIsActive ? "" : String(flagInfo.description || "").slice(0, 500),
+        by: actor?._id || null,
+        byName: actor?.fullName || "",
+        byRole: actor?.role || "",
+      });
+    } catch (err) {
+      console.error("[USER STATUS LOG ERROR]:", err.message);
+    }
+  }
 
   const obj = user.toObject();
   delete obj.password;

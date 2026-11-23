@@ -281,13 +281,14 @@ const toggleStatus = async (req, res) => {
     const flagInfo =
       isActive === false
         ? {
+            reasonCode,
             reasonLabel: getFlagReasonLabel(reasonCode),
             description: String(description || "").trim(),
             flaggedBy: req.admin?._id,
           }
         : {};
 
-    const result = await userService.toggleUserStatus(req.params.id, isActive, flagInfo);
+    const result = await userService.toggleUserStatus(req.params.id, isActive, flagInfo, req.admin);
 
     if (!result) {
       return res.status(404).json({

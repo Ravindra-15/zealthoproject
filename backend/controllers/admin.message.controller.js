@@ -14,7 +14,7 @@ const sendMessage = async (req, res) => {
   let uploadedImagePath = null;
 
   try {
-    const { title, body, audienceType, programId } = req.body;
+    const { title, body, audienceType, programId, channels } = req.body;
 
     let imageUrl = null;
     let imagePath = null;
@@ -31,13 +31,18 @@ const sendMessage = async (req, res) => {
       imagePath,
       audienceType,
       programId: audienceType === "customers" ? programId : null,
+      channels,
       sentBy: req.admin._id,
     });
 
+    const parts = [];
+    if (channels.includes("email")) parts.push(`${result.recipientCount} by email`);
+    if (channels.includes("whatsapp")) parts.push(`${result.whatsappCount} on WhatsApp`);
+
     return res.status(201).json({
       success: true,
-      message: `Sending to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}...`,
-      data: { message: result.message, recipientCount: result.recipientCount },
+      message: `Sending — ${parts.join(", ")}...`,
+      data: { message: result.message, recipientCount: result.recipientCount, whatsappCount: result.whatsappCount },
     });
   } catch (err) {
     if (uploadedImagePath) {
@@ -56,8 +61,9 @@ const sendMessage = async (req, res) => {
 const getRecipientCount = async (req, res) => {
   try {
     const { audienceType, programId } = req.query;
-    const count = await messageService.countRecipients({ audienceType, programId });
-    return res.status(200).json({ success: true, data: { count } });
+    const counts = await messageService.countRecipients({ audienceType, programId });
+    // `count` kept for older clients = email recipients
+    return res.status(200).json({ success: true, data: { count: counts.email, ...counts } });
   } catch (err) {
     console.error("[ADMIN RECIPIENT COUNT ERROR]:", err);
     return res.status(500).json({ success: false, message: "Failed to count recipients" });

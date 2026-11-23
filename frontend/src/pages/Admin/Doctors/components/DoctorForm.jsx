@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { User } from "lucide-react";
+import { User, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -25,6 +25,8 @@ import PhotoUploader from "./PhotoUploader";
 import LicenceUploader from "./LicenceUploader";
 import { loadCountriesWithTimezones } from "../../../../data/location";
 import ChipsInput from "./ChipsInput";
+import CountryCodeSelect from "../../../../components/common/CountryCodeSelect";
+import { COUNTRIES, DEFAULT_COUNTRY } from "../../../../data/countries";
 import { fetchDoctorOptions } from "../../../../services/doctorService";
 
 // 📏 Field constraints (mirror backend limits)
@@ -88,6 +90,7 @@ const DoctorForm = ({
   existingLicenceDocumentName = null,
   requireLicence = false, // Add Doctor: licence number + document mandatory
   showLocation = false, // Add Doctor: country + timezone fields
+  showContact = false, // Add Doctor: email + mobile (the login details are emailed there)
 }) => {
   // ============================================
   // 📝 FORM STATE
@@ -105,7 +108,13 @@ const DoctorForm = ({
     countryIso: "",
     country: "",
     timezone: "",
+    personalEmail: "",
+    phone: "", // national number, digits only
   });
+
+  // 📱 dial code for the mobile — follows the doctor's country until changed by hand
+  const [phoneCountry, setPhoneCountry] = useState(DEFAULT_COUNTRY);
+  const [phoneCountryTouched, setPhoneCountryTouched] = useState(false);
 
   // 🌍 Countries (+ their timezones) — only loaded on the onboarding form
   const [countries, setCountries] = useState([]);
@@ -135,6 +144,10 @@ const DoctorForm = ({
   // picking a country auto-selects its timezone when it has only one
   const handleCountry = (code) => {
     const c = countries.find((x) => x.code === code);
+    if (!phoneCountryTouched) {
+      const dial = COUNTRIES.find((x) => x.iso2 === code);
+      if (dial) setPhoneCountry(dial);
+    }
     setForm((prev) => ({
       ...prev,
       countryIso: code,
@@ -270,6 +283,29 @@ const DoctorForm = ({
       return false;
     }
 
+    // 📧📱 Email + mobile — mandatory when onboarding
+    if (showContact) {
+      const email = form.personalEmail.trim();
+      if (!email) {
+        toast.error("Email is required");
+        return false;
+      }
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast.error("Enter a valid email address");
+        return false;
+      }
+      if (!form.phone) {
+        toast.error("Mobile number is required");
+        return false;
+      }
+      const okLength = form.phone.length >= phoneCountry.min && form.phone.length <= phoneCountry.max;
+      const okPattern = phoneCountry.pattern ? new RegExp(phoneCountry.pattern).test(form.phone) : true;
+      if (!okLength || !okPattern) {
+        toast.error(`Enter a valid mobile number for ${phoneCountry.name}`);
+        return false;
+      }
+    }
+
     // 📄 Licence number — must fit the limit if provided
     if (form.licenceNumber.trim().length > LIMITS.LICENCE_NUMBER_MAX) {
       toast.error(`Licence number cannot exceed ${LIMITS.LICENCE_NUMBER_MAX} characters`);
@@ -301,6 +337,9 @@ const DoctorForm = ({
       licenceDocumentRemoved: form.licenceDocumentRemoved,
       ...(showLocation
         ? { countryIso: form.countryIso, country: form.country, timezone: form.timezone }
+        : {}),
+      ...(showContact
+        ? { personalEmail: form.personalEmail.trim().toLowerCase(), phone: `+${phoneCountry.dialCode} ${form.phone}` }
         : {}),
     });
   };
@@ -377,6 +416,60 @@ const DoctorForm = ({
               "
             />
           </div>
+
+          {/* 📧📱 Email + mobile (onboarding only) */}
+          {showContact && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="doctorEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="doctorEmail"
+                  type="email"
+                  autoComplete="off"
+                  value={form.personalEmail}
+                  onChange={(e) => handleField("personalEmail", e.target.value)}
+                  disabled={submitting}
+                  maxLength={254}
+                  placeholder="doctor@example.com"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                />
+                <p className="mt-1.5 text-xs text-gray-400 flex items-start gap-1">
+                  <Mail size={12} className="mt-0.5 flex-shrink-0" />
+                  The login details are emailed here.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="doctorPhone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-stretch gap-2">
+                  <CountryCodeSelect
+                    value={phoneCountry}
+                    onChange={(c) => {
+                      setPhoneCountry(c);
+                      setPhoneCountryTouched(true);
+                      setForm((prev) => ({ ...prev, phone: prev.phone.slice(0, c.max) }));
+                    }}
+                    buttonClassName="h-full px-3 border border-gray-200 rounded-xl bg-white flex items-center gap-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  />
+                  <input
+                    id="doctorPhone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={form.phone}
+                    onChange={(e) => handleField("phone", e.target.value.replace(/\D/g, "").slice(0, phoneCountry.max))}
+                    disabled={submitting}
+                    placeholder="Mobile number"
+                    className="flex-1 min-w-0 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-gray-400">The doctor can change both later in their profile.</p>
+              </div>
+            </div>
+          )}
 
           {/* 🏥 Domain */}
           <div>

@@ -69,13 +69,17 @@ export const createDoctor = async (data) => {
   if (data.country) formData.append("country", data.country);
   if (data.timezone) formData.append("timezone", data.timezone);
 
+  // 📧📱 Contact — the login details are emailed to personalEmail
+  if (data.personalEmail) formData.append("personalEmail", data.personalEmail);
+  if (data.phone) formData.append("phone", data.phone);
+
   const response = await adminApi.post("/admin/doctors", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
   });
 
-  return response.data.data; // { doctor, credentials }
+  return response.data.data; // { doctor, credentials, delivery }
 };
 
 // ============================================

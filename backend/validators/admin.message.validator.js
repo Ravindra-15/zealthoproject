@@ -74,6 +74,26 @@ const validateSendMessage = (req, res, next) => {
     });
   }
 
+  // 📨 channels — sent as a JSON array (multipart form) or a comma list;
+  // missing → email only (older clients)
+  let channels = req.body.channels;
+  if (typeof channels === "string") {
+    try {
+      channels = JSON.parse(channels);
+    } catch {
+      channels = channels.split(",");
+    }
+  }
+  if (channels === undefined) channels = ["email"];
+  if (!Array.isArray(channels) || channels.some((c) => !["email", "whatsapp"].includes(c))) {
+    return res.status(400).json({ success: false, message: "channels must be 'email' and/or 'whatsapp'" });
+  }
+  channels = [...new Set(channels)];
+  if (channels.length === 0) {
+    return res.status(400).json({ success: false, message: "Pick at least one way to send: Email or WhatsApp" });
+  }
+
+  req.body.channels = channels;
   req.body.title = title.trim();
   next();
 };

@@ -26,6 +26,34 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// 📨 "12 email · 9 WhatsApp" — older messages were email only
+const Reach = ({ m, inline = false }) => {
+  const channels = m.channels?.length ? m.channels : ["email"];
+  const items = [];
+  if (channels.includes("email")) {
+    items.push(
+      <span key="e">
+        {m.recipientCount} email
+        {m.failedCount > 0 && <span className="text-red-500"> ({m.failedCount} failed)</span>}
+      </span>
+    );
+  }
+  if (channels.includes("whatsapp")) {
+    items.push(
+      <span key="w" title={m.whatsappLive ? "" : "WhatsApp wasn't connected — recorded only"}>
+        {m.whatsappRecipientCount || 0} WhatsApp
+        {!m.whatsappLive && <span className="text-amber-600"> (not connected)</span>}
+        {m.whatsappFailedCount > 0 && <span className="text-red-500"> ({m.whatsappFailedCount} failed)</span>}
+      </span>
+    );
+  }
+  return (
+    <span className={inline ? "" : "inline-flex flex-col items-center gap-0.5"}>
+      {inline ? items.reduce((acc, el, i) => (i ? [...acc, " · ", el] : [el]), []) : items}
+    </span>
+  );
+};
+
 const audienceLabel = (m) =>
   m.audienceType === "doctors" ? "All doctors" : PROGRAM_LABELS[m.programId] || m.programId;
 
@@ -74,8 +102,7 @@ const MessageHistoryTable = ({ messages = [], loading = false }) => {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{audienceLabel(m)}</td>
                 <td className="px-6 py-4 text-center text-sm text-gray-700">
-                  {m.recipientCount}
-                  {m.failedCount > 0 && <span className="text-red-500"> ({m.failedCount} failed)</span>}
+                  <Reach m={m} />
                 </td>
                 <td className="px-6 py-4 text-center">
                   <StatusBadge status={m.status} />
@@ -97,7 +124,7 @@ const MessageHistoryTable = ({ messages = [], loading = false }) => {
               <p className="text-sm font-semibold text-gray-900 truncate">{m.title}</p>
               <StatusBadge status={m.status} />
             </div>
-            <p className="text-xs text-gray-500 mb-1">{audienceLabel(m)} · {m.recipientCount} recipients</p>
+            <p className="text-xs text-gray-500 mb-1">{audienceLabel(m)} · <Reach m={m} inline /></p>
             <p className="text-[11px] text-gray-400">
               {new Date(m.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · by {m.sentBy?.fullName || "Admin"}
             </p>
