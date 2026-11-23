@@ -40,6 +40,15 @@ export const fetchEnquiryThread = async (ticketNo, token) => {
   return response.data.data;
 };
 
+export const rateEnquiryThread = async (ticketNo, token, score, comment = "") => {
+  const response = await publicApi.post(`/customer/enquiries/thread/${encodeURIComponent(ticketNo)}/rating`, {
+    t: token,
+    score,
+    comment,
+  });
+  return response.data.data;
+};
+
 export const replyToEnquiryThread = async (ticketNo, token, message) => {
   const response = await publicApi.post(`/customer/enquiries/thread/${encodeURIComponent(ticketNo)}`, {
     t: token,

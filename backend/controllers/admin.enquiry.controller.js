@@ -10,6 +10,10 @@ const { successResponse, errorResponse } = require("../utils/responseHandler");
 const { toCsv } = require("../utils/csv.util");
 const { isSuperAdmin, maskEmail, maskPhone } = require("../utils/adminAccess");
 const desk = require("../services/enquiryDesk.service");
+const sla = require("../services/enquirySla.service");
+const stats = require("../services/enquiryStats.service");
+const EnquiryTemplate = require("../models/EnquiryTemplate");
+const { CATEGORIES } = require("../models/EnquiryTemplate");
 
 // 🫥 Portal admins see masked email/phone — same rule as User Directory.
 const maskEnquiryContact = (enquiry) => ({
@@ -92,8 +96,9 @@ const buildEnquiryQuery = ({ search, startDate, endDate, source, status, view, a
   return query;
 };
 
-// queue → oldest first (first come, first served); everything else newest first
-const sortFor = (view) => (view === "queue" || view === "mine" || view === "open" ? { createdAt: 1 } : { createdAt: -1 });
+// queue / my / open → priority, then nearest deadline, then oldest;
+// everything else newest first
+const sortFor = (view) => (view === "queue" || view === "mine" || view === "open" ? sla.QUEUE_SORT : { createdAt: -1 });
 
 const listEnquiries = async (req, res) => {
   try {
@@ -161,6 +166,14 @@ const exportEnquiriesCsv = async (req, res) => {
       "Resolved At",
       "Minutes To Resolve",
       "Reopened",
+      "Priority",
+      "Category",
+      "First Reply Due",
+      "First Reply On Time",
+      "Resolve Due",
+      "Resolved On Time",
+      "Rating",
+      "Rating Comment",
     ];
 
     const rows = enquiries.map((e) => [
@@ -180,6 +193,14 @@ const exportEnquiriesCsv = async (req, res) => {
       e.resolvedAt ? new Date(e.resolvedAt).toISOString() : "",
       fmtMinutes(e.createdAt, e.resolvedAt),
       String(e.reopenCount || 0),
+      e.priority || "",
+      e.category || "",
+      e.firstReplyDueAt ? new Date(e.firstReplyDueAt).toISOString() : "",
+      e.firstReplyDueAt && e.firstResponseAt ? (e.firstResponseAt <= e.firstReplyDueAt ? "Yes" : "No") : "",
+      e.resolveDueAt ? new Date(e.resolveDueAt).toISOString() : "",
+      e.resolveDueAt && e.resolvedAt ? (e.resolvedAt <= e.resolveDueAt ? "Yes" : "No") : "",
+      e.rating?.score ? String(e.rating.score) : "",
+      e.rating?.comment || "",
     ]);
 
     const csv = toCsv(headers, rows);
@@ -229,8 +250,8 @@ const takeEnquiry = async (req, res) => {
 const assignEnquiry = async (req, res) => {
   try {
     const { adminId = null } = req.body || {};
-    await desk.assign(req.params.id, adminId || null, req.admin);
-    return await sendDetail(req, res, adminId ? "Enquiry assigned" : "Enquiry put back in the queue");
+    const { warnings = [] } = await desk.assign(req.params.id, adminId || null, req.admin);
+    return await sendDetail(req, res, adminId ? "Enquiry assigned" : "Enquiry put back in the queue", { warnings });
   } catch (err) {
     return fail(res, err, "Failed to assign the enquiry");
   }
@@ -296,7 +317,164 @@ const listAssignees = async (req, res) => {
   }
 };
 
+// ============================================
+// ⏭️ phase 2
+// ============================================
+const takeNextEnquiry = async (req, res) => {
+  try {
+    const enquiry = await desk.takeNext(req.admin);
+    req.params.id = String(enquiry._id);
+    return await sendDetail(req, res, `ENQ-${enquiry.ticketNo} is now yours`);
+  } catch (err) {
+    return fail(res, err, "Failed to take the next enquiry");
+  }
+};
+
+const triageEnquiry = async (req, res) => {
+  try {
+    const { priority, category } = req.body || {};
+    await desk.triage(req.params.id, req.admin, { priority, category });
+    return await sendDetail(req, res, "Updated");
+  } catch (err) {
+    return fail(res, err, "Failed to update the enquiry");
+  }
+};
+
+const getMyDesk = async (req, res) => {
+  try {
+    return successResponse(res, await desk.myDesk(req.admin), "Desk fetched", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to load your desk");
+  }
+};
+
+const setMyAvailability = async (req, res) => {
+  try {
+    const { deskStatus, releaseOpen } = req.body || {};
+    const result = await desk.setAvailability(req.admin, { deskStatus, releaseOpen: releaseOpen === true });
+    return successResponse(res, { ...(await desk.myDesk(req.admin)), released: result.released }, deskStatus === "away" ? "You're set to Away" : "You're available", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to update your status");
+  }
+};
+
+const getMyStats = async (req, res) => {
+  try {
+    return successResponse(res, await stats.myStats(req.admin, { days: req.query.days }), "Stats fetched", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to load your stats");
+  }
+};
+
+const getBoard = async (req, res) => {
+  try {
+    return successResponse(res, await stats.board({ days: req.query.days }), "Board fetched", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to load the board");
+  }
+};
+
+const getDeskSettings = async (req, res) => {
+  try {
+    const s = await sla.getSettings({ fresh: true });
+    const { lastDigestDate, ...settings } = s;
+    return successResponse(res, { settings }, "Settings fetched", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to load settings");
+  }
+};
+
+const updateDeskSettings = async (req, res) => {
+  try {
+    const s = await sla.updateSettings(req.body || {}, req.admin);
+    const { lastDigestDate, ...settings } = s;
+    return successResponse(res, { settings }, "Settings saved", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to save settings");
+  }
+};
+
+// ---------- ready replies ----------
+const cleanTemplate = (body = {}) => {
+  const title = String(body.title || "").replace(/\s+/g, " ").trim();
+  const text = String(body.body || "").trim();
+  const category = body.category ? String(body.category) : "";
+  if (!title) return { error: "Give the ready reply a title" };
+  if (title.length > 80) return { error: "Title can be at most 80 characters" };
+  if (!text) return { error: "Write the reply text" };
+  if (text.length > 5000) return { error: "Reply text can be at most 5000 characters" };
+  if (category && !CATEGORIES.includes(category)) return { error: "Choose a valid category" };
+  return { value: { title, body: text, category, ...(typeof body.isActive === "boolean" ? { isActive: body.isActive } : {}) } };
+};
+
+const listTemplates = async (req, res) => {
+  try {
+    const all = isSuperAdmin(req.admin) && req.query.all === "1";
+    const templates = await EnquiryTemplate.find(all ? {} : { isActive: true }).sort({ category: 1, title: 1 }).lean();
+    return successResponse(res, { templates }, "Ready replies fetched", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to load ready replies");
+  }
+};
+
+const createTemplate = async (req, res) => {
+  try {
+    const { error, value } = cleanTemplate(req.body);
+    if (error) return res.status(400).json({ success: false, message: error });
+    const template = await EnquiryTemplate.create({ ...value, createdBy: req.admin._id, updatedBy: req.admin._id });
+    return successResponse(res, { template }, "Ready reply added", 201);
+  } catch (err) {
+    return fail(res, err, "Failed to add the ready reply");
+  }
+};
+
+const updateTemplate = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.tid)) return res.status(404).json({ success: false, message: "Ready reply not found" });
+    const { error, value } = cleanTemplate(req.body);
+    if (error) return res.status(400).json({ success: false, message: error });
+    const template = await EnquiryTemplate.findByIdAndUpdate(req.params.tid, { $set: { ...value, updatedBy: req.admin._id } }, { returnDocument: "after" }).lean();
+    if (!template) return res.status(404).json({ success: false, message: "Ready reply not found" });
+    return successResponse(res, { template }, "Ready reply saved", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to save the ready reply");
+  }
+};
+
+const deleteTemplate = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.tid)) return res.status(404).json({ success: false, message: "Ready reply not found" });
+    const r = await EnquiryTemplate.deleteOne({ _id: req.params.tid });
+    if (!r.deletedCount) return res.status(404).json({ success: false, message: "Ready reply not found" });
+    return successResponse(res, {}, "Ready reply deleted", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to delete the ready reply");
+  }
+};
+
+const useTemplate = async (req, res) => {
+  try {
+    if (mongoose.isValidObjectId(req.params.tid)) await EnquiryTemplate.updateOne({ _id: req.params.tid }, { $inc: { useCount: 1 } });
+    return successResponse(res, {}, "OK", 200);
+  } catch (err) {
+    return fail(res, err, "Failed");
+  }
+};
+
 module.exports = {
+  takeNextEnquiry,
+  triageEnquiry,
+  getMyDesk,
+  setMyAvailability,
+  getMyStats,
+  getBoard,
+  getDeskSettings,
+  updateDeskSettings,
+  listTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  useTemplate,
   listEnquiries,
   exportEnquiriesCsv,
   getEnquiry,

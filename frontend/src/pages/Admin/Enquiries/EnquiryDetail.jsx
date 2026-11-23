@@ -31,6 +31,8 @@ import {
   Ban,
   Archive,
   RefreshCw,
+  Star,
+  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -45,11 +47,14 @@ import {
   addEnquiryNote,
   setEnquiryStatus,
   listEnquiryAssignees,
+  triageEnquiry,
+  listReadyReplies,
+  markReadyReplyUsed,
 } from "../../../services/adminEnquiryService";
 import { formatUtcDateTime12h } from "../../../utils/time";
 import ModalShell from "../PortalUsers/components/ModalShell";
 import StatusPill from "./EnquiryStatusPill";
-import { PROGRAMS, ticketLabel, formatDuration, initials } from "./enquiryUi";
+import { PROGRAMS, PRIORITY, CATEGORIES, ticketLabel, formatDuration, initials, dueInfo, DUE_TONE } from "./enquiryUi";
 
 const MAX = 5000;
 const OPEN = ["new", "assigned", "in_progress", "waiting", "contacted"];
@@ -105,13 +110,33 @@ const describe = (e) => {
       return `${a} replied`;
     case "marked_spam":
       return `${a} marked it as spam`;
+    case "auto_assigned":
+      return `Given automatically to ${e.to}`;
+    case "priority_changed":
+      return `${a} changed the priority: ${e.from} → ${e.to}`;
+    case "category_changed":
+      return `${a} changed the category: ${e.from} → ${e.to}`;
+    case "sla_warning":
+      return `Warning: ${(e.note || "time limit is close").toLowerCase()}`;
+    case "sla_breached":
+      return `Late: ${(e.note || "time limit passed").toLowerCase()}`;
+    case "nudged":
+      return "Reminder emailed to the customer";
+    case "auto_resolved":
+      return "Resolved automatically — the customer didn't answer";
+    case "merged":
+      return `${a} sent another enquiry — added here`;
+    case "rated":
+      return `${a} rated the help ${e.to}`;
+    case "resolved_email":
+      return "Customer emailed that it's resolved (with a rating request)";
     default:
       return e.type;
   }
 };
 
 // these events' notes only repeat the sentence above them
-const QUIET_NOTE = new Set(["acknowledged", "replied", "reply_resent", "reply_failed"]);
+const QUIET_NOTE = new Set(["acknowledged", "replied", "reply_resent", "reply_failed", "sla_warning", "sla_breached", "nudged", "auto_resolved", "merged", "resolved_email", "auto_assigned"]);
 
 const DOT = {
   created: "bg-sky-500",
@@ -126,6 +151,12 @@ const DOT = {
   marked_spam: "bg-red-500",
   returned: "bg-amber-500",
   note_added: "bg-amber-400",
+  sla_warning: "bg-amber-500",
+  sla_breached: "bg-red-500",
+  auto_assigned: "bg-indigo-400",
+  rated: "bg-yellow-400",
+  merged: "bg-sky-400",
+  auto_resolved: "bg-emerald-400",
 };
 
 // ============================================
@@ -206,6 +237,7 @@ const EnquiryDetail = () => {
   const [assignTo, setAssignTo] = useState("");
   const [dialog, setDialog] = useState(null); // { kind: "release" | "close" | "spam" | "reopen" | "unassign" }
   const [reason, setReason] = useState("");
+  const [readyReplies, setReadyReplies] = useState([]);
   const threadEnd = useRef(null);
   const mounted = useRef(true);
 
@@ -255,6 +287,12 @@ const EnquiryDetail = () => {
       .then(setAssignees)
       .catch(() => {});
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    listReadyReplies()
+      .then(setReadyReplies)
+      .catch(() => {});
+  }, []);
 
   const enquiry = data?.enquiry;
   const perms = data?.permissions || {};
@@ -321,6 +359,21 @@ const EnquiryDetail = () => {
     }
   };
 
+  // 📋 ready reply → fill {name} {ticket} {program}, add to the reply box
+  const insertReadyReply = (tid) => {
+    const t = readyReplies.find((x) => x._id === tid);
+    if (!t || !data?.enquiry) return;
+    const e = data.enquiry;
+    const filled = t.body
+      .replaceAll("{name}", String(e.name || "there").split(" ")[0])
+      .replaceAll("{ticket}", ticketLabel(e))
+      .replaceAll("{program}", PROGRAMS[e.source] || "Zealtho");
+    setText((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${filled}` : filled).slice(0, MAX));
+    markReadyReplyUsed(tid);
+  };
+
+  const changeTriage = (changes) => run("triage", () => triageEnquiry(id, changes), "Updated");
+
   // ---------- states ----------
   if (loading && !data) {
     return (
@@ -359,6 +412,7 @@ const EnquiryDetail = () => {
         : "";
 
   const timings = data.timings || {};
+  const slaInfo = data.sla || {};
   const busyIcon = (key, Icon) => (busy === key ? <Loader2 size={15} className="animate-spin" /> : <Icon size={15} />);
   const btn = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -375,7 +429,11 @@ const EnquiryDetail = () => {
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="text-sm font-bold text-indigo-700 tabular-nums">{ticketLabel(enquiry)}</span>
               <StatusPill status={enquiry.status} />
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ring-1 ring-inset ${(PRIORITY[enquiry.priority] || PRIORITY.normal).cls}`}>
+                {(PRIORITY[enquiry.priority] || PRIORITY.normal).label} priority
+              </span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{PROGRAMS[enquiry.source] || enquiry.source}</span>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{CATEGORIES[enquiry.category] || "General"}</span>
               {enquiry.reopenCount > 0 && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">Reopened {enquiry.reopenCount}×</span>
               )}
@@ -460,7 +518,8 @@ const EnquiryDetail = () => {
                 .map((a) => (
                   <option key={a._id} value={a._id}>
                     {a.fullName}
-                    {a.role === "super_admin" ? " (super admin)" : ""}
+                    {a.role === "super_admin" ? " (super admin)" : ""} — {a.openCount} open{a.cap ? ` of ${a.cap}` : ""}
+                    {a.deskStatus === "away" ? " · Away" : ""}
                   </option>
                 ))}
             </select>
@@ -470,7 +529,13 @@ const EnquiryDetail = () => {
                 disabled={!assignTo || !!busy}
                 onClick={async () => {
                   const r = await run("assign", () => assignEnquiry(id, assignTo), enquiry.assignedTo ? "Enquiry reassigned" : "Enquiry assigned");
-                  if (r) setAssignTo("");
+                  if (r) {
+                    setAssignTo("");
+                    (r.warnings || []).forEach((w) => toast(w, { icon: "⚠️" }));
+                    listEnquiryAssignees()
+                      .then(setAssignees)
+                      .catch(() => {});
+                  }
                 }}
                 className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`}
               >
@@ -504,6 +569,7 @@ const EnquiryDetail = () => {
                         <span className="text-xs font-semibold text-gray-800">
                           {enquiry.name}
                           {m.original && <span className="ml-1.5 font-normal text-gray-400">· original enquiry</span>}
+                          {m.via === "merge" && <span className="ml-1.5 font-normal text-gray-400">· sent the form again</span>}
                         </span>
                         <span className="text-[11px] text-gray-400">{formatUtcDateTime12h(m.createdAt)}</span>
                       </>
@@ -608,6 +674,27 @@ const EnquiryDetail = () => {
               </div>
             ) : (
               <>
+                {tab === "reply" && readyReplies.length > 0 && (
+                  <div className="mb-2 flex items-center gap-2">
+                    <Zap size={14} className="text-indigo-500 shrink-0" />
+                    <select
+                      aria-label="Insert a ready reply"
+                      value=""
+                      onChange={(e) => insertReadyReply(e.target.value)}
+                      className="flex-1 min-w-0 sm:flex-none sm:w-80 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="">Insert a ready reply…</option>
+                      {[...readyReplies]
+                        .sort((a, b) => (b.category === enquiry.category) - (a.category === enquiry.category) || a.title.localeCompare(b.title))
+                        .map((t) => (
+                          <option key={t._id} value={t._id}>
+                            {t.title}
+                            {t.category === enquiry.category ? " ★" : ""}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
                 <label htmlFor="enq-text" className="sr-only">
                   {tab === "note" ? "Internal note" : "Reply"}
                 </label>
@@ -676,15 +763,87 @@ const EnquiryDetail = () => {
                 </span>
               </Row>
               <Row label="Program">{PROGRAMS[enquiry.source] || enquiry.source}</Row>
+              <Row label="Priority">
+                {perms.canTriage ? (
+                  <select
+                    aria-label="Priority"
+                    value={enquiry.priority || "normal"}
+                    disabled={!!busy}
+                    onChange={(e) => changeTriage({ priority: e.target.value })}
+                    className="px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500"
+                  >
+                    {Object.entries(PRIORITY).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  (PRIORITY[enquiry.priority] || PRIORITY.normal).label
+                )}
+                {enquiry.priorityReason && <span className="block text-[11px] text-gray-400">{enquiry.priorityReason}</span>}
+              </Row>
+              <Row label="Category">
+                {perms.canTriage ? (
+                  <select
+                    aria-label="Category"
+                    value={enquiry.category || "general"}
+                    disabled={!!busy}
+                    onChange={(e) => changeTriage({ category: e.target.value })}
+                    className="px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500"
+                  >
+                    {Object.entries(CATEGORIES).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  CATEGORIES[enquiry.category] || "General"
+                )}
+              </Row>
               <Row label="Type">{enquiry.type === "subscription" ? "Subscription callback" : "Website enquiry"}</Row>
               <Row label="Received">{formatUtcDateTime12h(enquiry.createdAt)}</Row>
               <Row label="Owner">
                 {enquiry.assignedTo ? `${isMine ? "You" : enquiry.assignedTo.fullName}${enquiry.assignedTo.isActive === false ? " (inactive)" : ""}` : "Nobody"}
               </Row>
-              <Row label="First reply">{enquiry.firstResponseAt ? `after ${formatDuration(timings.firstResponseMinutes)}` : "Not yet"}</Row>
+              <Row label="First reply">
+                {enquiry.firstResponseAt ? (
+                  <>
+                    after {formatDuration(timings.firstResponseMinutes)}
+                    {enquiry.firstResponseBy && <span className="text-gray-500"> by {enquiry.firstResponseBy.fullName}</span>}
+                    {slaInfo.firstReplyMet === true && <span className="block text-[11px] text-emerald-600 font-semibold">On time</span>}
+                    {slaInfo.firstReplyMet === false && <span className="block text-[11px] text-red-600 font-semibold">Late</span>}
+                  </>
+                ) : slaInfo.tracked ? (
+                  <span className={DUE_TONE[dueInfo(enquiry).tone]}>{dueInfo(enquiry).text}</span>
+                ) : (
+                  "Not yet"
+                )}
+              </Row>
+              {slaInfo.tracked && enquiry.resolveDueAt && OPEN.includes(enquiry.status) && (
+                <Row label="Resolve by">
+                  {slaInfo.paused ? (
+                    <span className="text-gray-500">Paused — waiting on the customer</span>
+                  ) : (
+                    <span className={slaInfo.resolveLate ? "text-red-600 font-semibold" : ""}>
+                      {formatUtcDateTime12h(enquiry.resolveDueAt)}
+                      {slaInfo.resolveLate && " (late)"}
+                    </span>
+                  )}
+                </Row>
+              )}
+              {enquiry.rating?.score && (
+                <Row label="Customer rating">
+                  <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
+                    <Star size={13} className="text-yellow-500 fill-yellow-400" /> {enquiry.rating.score} / 5
+                  </span>
+                  {enquiry.rating.comment && <span className="block text-[11px] text-gray-500 mt-0.5">“{enquiry.rating.comment}”</span>}
+                </Row>
+              )}
               <Row label="Resolved">
                 {enquiry.resolvedAt
-                  ? `after ${formatDuration(timings.resolveMinutes)}${enquiry.resolvedBy ? ` by ${enquiry.resolvedBy.fullName}` : ""}`
+                  ? `after ${formatDuration(timings.resolveMinutes)}${enquiry.resolvedBy ? ` by ${enquiry.resolvedBy.fullName}` : " (automatically)"}${slaInfo.resolveMet === true ? " · on time" : slaInfo.resolveMet === false ? " · late" : ""}`
                   : enquiry.status === "closed"
                     ? `Closed after ${formatDuration(timings.resolveMinutes)}`
                     : "Not yet"}

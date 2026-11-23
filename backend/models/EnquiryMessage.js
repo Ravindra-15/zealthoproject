@@ -28,6 +28,10 @@ const enquiryMessageSchema = new mongoose.Schema(
 
     body: { type: String, required: true, trim: true, maxlength: MESSAGE_MAX },
 
+    // customer messages: "link" (answered on their private page) or
+    // "merge" (sent the form again within 24h — added here)
+    via: { type: String, enum: ["link", "merge", ""], default: "" },
+
     // replies only: did the email reach the mail server?
     emailStatus: { type: String, enum: ["pending", "sent", "failed", null], default: null },
     emailError: { type: String, default: "" },

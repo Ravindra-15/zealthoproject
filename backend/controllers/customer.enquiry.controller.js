@@ -6,6 +6,7 @@
 const Enquiry = require("../models/Enquiry");
 const User = require("../models/User");
 const desk = require("../services/enquiryDesk.service");
+const sla = require("../services/enquirySla.service");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
 // ============================================
@@ -80,7 +81,24 @@ const createEnquiry = async (req, res) => {
       }
     }
 
+    // 🔁 same customer, open enquiry in the last 24h → add to it instead
+    if (finalType === "general") {
+      const merged = await desk.mergeIntoOpen({ email: finalEmail, source: finalSource, name: name.trim(), message });
+      if (merged) {
+        return successResponse(
+          res,
+          { enquiry: { _id: merged._id, ticketNo: merged.ticketNo, status: merged.status, source: merged.source, createdAt: merged.createdAt }, merged: true },
+          "Added to your open enquiry",
+          200
+        );
+      }
+    }
+
+    // 🛑 spam guard — kept (never deleted) but marked spam, no email/bell
+    const spam = finalType === "general" ? await sla.spamReason({ name, message: message || "" }) : "";
+
     const enquiry = await Enquiry.create({
+      ...(spam ? { status: "spam", autoSpamReason: spam } : {}),
       name: name.trim(),
       email: finalEmail,
       phone: phone.trim(),
@@ -171,6 +189,15 @@ const getThread = async (req, res) => {
   }
 };
 
+const rateThread = async (req, res) => {
+  try {
+    const data = await desk.customerRate(req.params.ticketNo, req.body?.t, { score: req.body?.score, comment: req.body?.comment });
+    return successResponse(res, data, "Thanks for your rating", 200);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
 const replyThread = async (req, res) => {
   try {
     const data = await desk.customerReply(req.params.ticketNo, req.body?.t, req.body?.message);
@@ -180,4 +207,4 @@ const replyThread = async (req, res) => {
   }
 };
 
-module.exports = { createEnquiry, checkSubscriptionCallback, getThread, replyThread };
+module.exports = { createEnquiry, checkSubscriptionCallback, getThread, replyThread, rateThread };

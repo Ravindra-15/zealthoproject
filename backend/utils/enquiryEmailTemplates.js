@@ -65,6 +65,24 @@ const quoteBox = (label, text) =>
     <div style="font:14px/1.6 ${FONT};color:#374151;">${textToHtml(text)}</div>
   </div>`;
 
+// ⭐ "How did we do?" — 5 links that open the private page with the score
+// picked; the customer confirms there (mail scanners that open links can't
+// rate on their behalf)
+const ratingBlock = (brand, link) => {
+  const labels = ["Very poor", "Poor", "Okay", "Good", "Excellent"];
+  const cells = [1, 2, 3, 4, 5]
+    .map(
+      (n) =>
+        `<td style="padding:0 3px;"><a href="${esc(`${link}&rate=${n}`)}" title="${labels[n - 1]}" style="display:inline-block;min-width:44px;text-align:center;padding:8px 0;border:1px solid #E5E7EB;border-radius:8px;text-decoration:none;font:600 14px ${FONT};color:${brand.accent};">${n}&#9733;</a></td>`
+    )
+    .join("");
+  return `<div style="margin:18px 0 6px;padding:14px;background:#F9FAFB;border-radius:10px;">
+    <div style="font:600 14px ${FONT};color:#111827;margin-bottom:8px;">How did we do?</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${cells}</tr></table>
+    <div style="font:12px ${FONT};color:#6B7280;margin-top:8px;">1 = very poor · 5 = excellent</div>
+  </div>`;
+};
+
 // ============================================
 // 📨 "We've received your enquiry"
 // ============================================
@@ -115,7 +133,8 @@ const replyEmail = ({ source, name, ticketNo, body, link, status }) => {
     heading: `Hi ${firstName(name)},`,
     bodyHtml:
       `<div style="margin:0 0 6px;">${textToHtml(body)}</div>` +
-      `<p style="margin:14px 0 12px;font-size:14px;color:#4B5563;">${closing}</p>`,
+      `<p style="margin:14px 0 12px;font-size:14px;color:#4B5563;">${closing}</p>` +
+      (resolved ? ratingBlock(brand, link) : ""),
     cta: { label: resolved ? "I still need help" : "Reply to this enquiry", url: link },
     footerNote: `${esc(brand.name)} Support · Enquiry ${esc(ticket)}`,
   });
@@ -134,4 +153,79 @@ const replyEmail = ({ source, name, ticketNo, body, link, status }) => {
   return { subject, html, text, fromName: `${brand.name} Support` };
 };
 
-module.exports = { ackEmail, replyEmail, brandFor, ticketLabel, BRANDS };
+// ============================================
+// ✅ resolved without a written reply (status change) — with rating
+// ============================================
+const resolvedEmail = ({ source, name, ticketNo, link, autoCloseDays = 3 }) => {
+  const brand = brandFor(source);
+  const ticket = ticketLabel(ticketNo);
+  const html = layout({
+    brand,
+    preheader: `We've resolved your enquiry ${ticket}.`,
+    heading: `Hi ${firstName(name)}, your enquiry is resolved`,
+    bodyHtml:
+      `<p style="margin:0 0 12px;">We've marked your enquiry <strong>${esc(ticket)}</strong> as resolved. If you still need help, use the button below within ${autoCloseDays} days and it will reopen.</p>` +
+      ratingBlock(brand, link),
+    cta: { label: "I still need help", url: link },
+    footerNote: `${esc(brand.name)} Support · Enquiry ${esc(ticket)}`,
+  });
+  const text = [
+    `Hi ${firstName(name)},`,
+    "",
+    `We've marked your enquiry ${ticket} as resolved. If you still need help, open the link below within ${autoCloseDays} days and it will reopen.`,
+    link,
+    "",
+    `${brand.name} Support`,
+  ].join("\n");
+  return { subject: `Your enquiry ${ticket} is resolved`, html, text, fromName: `${brand.name} Support` };
+};
+
+// ============================================
+// ⏳ waiting on the customer too long — one polite nudge
+// ============================================
+const nudgeEmail = ({ source, name, ticketNo, link, autoCloseDays = 3 }) => {
+  const brand = brandFor(source);
+  const ticket = ticketLabel(ticketNo);
+  const html = layout({
+    brand,
+    preheader: `Do you still need help with ${ticket}?`,
+    heading: `Hi ${firstName(name)}, do you still need help?`,
+    bodyHtml: `<p style="margin:0 0 12px;">We're waiting for your answer on enquiry <strong>${esc(ticket)}</strong>. If you still need help, reply using the button below. If we don't hear from you within ${autoCloseDays} days, we'll mark it as resolved.</p>`,
+    cta: { label: "Reply to this enquiry", url: link },
+    footerNote: `${esc(brand.name)} Support · Enquiry ${esc(ticket)}`,
+  });
+  const text = [
+    `Hi ${firstName(name)},`,
+    "",
+    `We're waiting for your answer on enquiry ${ticket}. If you still need help, reply here: ${link}`,
+    `If we don't hear from you within ${autoCloseDays} days, we'll mark it as resolved.`,
+    "",
+    `${brand.name} Support`,
+  ].join("\n");
+  return { subject: `Still need help with ${ticket}?`, html, text, fromName: `${brand.name} Support` };
+};
+
+// ============================================
+// 🔁 a second enquiry within 24h — added to the open one
+// ============================================
+const mergedEmail = ({ source, name, ticketNo, link }) => {
+  const brand = brandFor(source);
+  const ticket = ticketLabel(ticketNo);
+  const html = layout({
+    brand,
+    preheader: `We've added your message to ${ticket}.`,
+    heading: `Thanks, ${firstName(name)} — we've added your message`,
+    bodyHtml: `<p style="margin:0 0 12px;">You already have an open enquiry with us, <strong>${esc(ticket)}</strong>, so we've added your new message to it. The same team will reply — no need to send it again.</p>`,
+    cta: { label: "View your enquiry", url: link },
+    footerNote: `${esc(brand.name)} Support · Enquiry ${esc(ticket)}`,
+  });
+  const text = [
+    `Thanks, ${firstName(name)} — we've added your message to your open enquiry ${ticket}.`,
+    `View it: ${link}`,
+    "",
+    `${brand.name} Support`,
+  ].join("\n");
+  return { subject: `We've added your message to ${ticket}`, html, text, fromName: `${brand.name} Support` };
+};
+
+module.exports = { ackEmail, replyEmail, resolvedEmail, nudgeEmail, mergedEmail, brandFor, ticketLabel, BRANDS };

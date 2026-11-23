@@ -67,6 +67,8 @@ import AppointmentLog from "./pages/Admin/Appointments/AppointmentLog";
 
 import Enquiries from "./pages/Admin/Enquiries/Enquiries";
 import EnquiryDetail from "./pages/Admin/Enquiries/EnquiryDetail";
+import EnquiryBoard from "./pages/Admin/Enquiries/EnquiryBoard";
+import EnquiryDeskSettings from "./pages/Admin/Enquiries/EnquiryDeskSettings";
 import SupportEnquiry from "./pages/Customer/Support/SupportEnquiry";
 import ReportedIssues from "./pages/Admin/Issues/ReportedIssues";
 import Messages from "./pages/Admin/Messages/Messages";
@@ -277,6 +279,22 @@ function App() {
             }
           />
           <Route path="enquiries" element={<Enquiries />} />
+          <Route
+            path="enquiries/board"
+            element={
+              <SuperAdminRoute>
+                <EnquiryBoard />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="enquiries/settings"
+            element={
+              <SuperAdminRoute>
+                <EnquiryDeskSettings />
+              </SuperAdminRoute>
+            }
+          />
           <Route path="enquiries/:id" element={<EnquiryDetail />} />
           <Route path="messages" element={<Messages />} />
           <Route path="issues" element={<ReportedIssues />} />

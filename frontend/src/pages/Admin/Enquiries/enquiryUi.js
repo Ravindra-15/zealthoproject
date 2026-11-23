@@ -14,6 +14,48 @@ export const STATUS = {
   spam: { label: "Spam", cls: "bg-red-50 text-red-600 ring-red-200" },
 };
 
+export const PRIORITY = {
+  high: { label: "High", cls: "bg-red-50 text-red-700 ring-red-200", dot: "bg-red-500" },
+  normal: { label: "Normal", cls: "bg-slate-50 text-slate-700 ring-slate-200", dot: "bg-slate-400" },
+  low: { label: "Low", cls: "bg-gray-50 text-gray-500 ring-gray-200", dot: "bg-gray-300" },
+};
+
+export const CATEGORIES = {
+  general: "General",
+  payment: "Payment",
+  refund: "Refund",
+  subscription: "Subscription",
+  booking: "Booking",
+  login: "Login / account",
+  technical: "Technical problem",
+  feedback: "Feedback",
+};
+
+// next deadline of an enquiry → { text, tone } for a "Due" cell
+// tone: late | soon | ok | paused | done | none
+export const dueInfo = (e) => {
+  if (!e) return { text: "—", tone: "none" };
+  if (["resolved", "closed", "spam"].includes(e.status)) return { text: "—", tone: "done" };
+  if (e.status === "waiting") return { text: "Paused", tone: "paused" };
+  const due = !e.firstResponseAt ? e.firstReplyDueAt : e.resolveDueAt;
+  if (!due) return { text: "No time limit", tone: "none" };
+  const kind = !e.firstResponseAt ? "reply" : "resolve";
+  const mins = Math.round((new Date(due).getTime() - Date.now()) / 60000);
+  const span = (m) => (m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h`);
+  if (mins < 0) return { text: `Late by ${span(-mins)}`, tone: "late", kind };
+  if (mins <= 60) return { text: `${kind === "reply" ? "Reply" : "Resolve"} in ${span(mins)}`, tone: "soon", kind };
+  return { text: `${kind === "reply" ? "Reply" : "Resolve"} in ${span(mins)}`, tone: "ok", kind };
+};
+
+export const DUE_TONE = {
+  late: "text-red-600 font-semibold",
+  soon: "text-amber-600 font-semibold",
+  ok: "text-gray-600",
+  paused: "text-gray-400",
+  done: "text-gray-400",
+  none: "text-gray-400",
+};
+
 export const PROGRAMS = {
   zealtho: "Zealtho",
   yogat20: "YogaT20",

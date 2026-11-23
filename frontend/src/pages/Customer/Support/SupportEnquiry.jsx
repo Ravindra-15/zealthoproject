@@ -10,9 +10,9 @@
 
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Loader2, Send, CheckCircle2, Clock, Lock, MessageSquare } from "lucide-react";
+import { Loader2, Send, CheckCircle2, Clock, Lock, MessageSquare, Star } from "lucide-react";
 import toast from "react-hot-toast";
-import { fetchEnquiryThread, replyToEnquiryThread } from "../../../services/customerEnquiryService";
+import { fetchEnquiryThread, replyToEnquiryThread, rateEnquiryThread } from "../../../services/customerEnquiryService";
 import { formatUtcDateTime12h } from "../../../utils/time";
 
 const BRANDS = {
@@ -28,7 +28,7 @@ const MAX = 2000;
 const STATUS_TEXT = {
   open: { icon: Clock, text: "Our team is working on it — we'll reply by email." },
   waiting: { icon: MessageSquare, text: "We're waiting for your answer — please reply below." },
-  resolved: { icon: CheckCircle2, text: "Marked as resolved. Still need help? Reply below within 3 days and it will reopen." },
+  resolved: { icon: CheckCircle2, text: "Marked as resolved. Still need help? Reply below and it will reopen." },
   closed: { icon: Lock, text: "This enquiry is closed." },
 };
 
@@ -57,6 +57,14 @@ export default function SupportEnquiry() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  // ⭐ rating — the email's star links open this page with ?rate=N picked;
+  // the customer still confirms (so email link-scanners can't rate)
+  const fromLink = Number(params.get("rate"));
+  const [stars, setStars] = useState(Number.isInteger(fromLink) && fromLink >= 1 && fromLink <= 5 ? fromLink : 0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [rating, setRating] = useState(false);
+  const [editingRating, setEditingRating] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -114,6 +122,24 @@ export default function SupportEnquiry() {
     );
   }
 
+  const submitRating = async (e) => {
+    e.preventDefault();
+    if (!stars || rating) return;
+    try {
+      setRating(true);
+      const d = await rateEnquiryThread(ticketNo, token, stars, comment.trim());
+      setThread(d);
+      setEditingRating(false);
+      toast.success("Thanks for your rating!");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Couldn't save your rating. Please try again.");
+    } finally {
+      setRating(false);
+    }
+  };
+
+  const showRatingForm = thread.canRate && (!thread.rating || editingRating);
+
   const st = STATUS_TEXT[thread.status] || STATUS_TEXT.open;
   const StIcon = st.icon;
   const items = [
@@ -152,6 +178,84 @@ export default function SupportEnquiry() {
             </div>
           ))}
         </div>
+
+        {/* ⭐ RATING */}
+        {thread.canRate && thread.rating && !editingRating && (
+          <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800">Thanks for your rating</p>
+              <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} size={16} className={n <= thread.rating.score ? "fill-yellow-400 text-yellow-400" : "text-gray-300"} />
+                ))}
+                <span className="ml-1">{thread.rating.score} / 5</span>
+              </p>
+              {thread.rating.comment && <p className="text-xs text-gray-500 mt-1 break-words">“{thread.rating.comment}”</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setStars(thread.rating.score);
+                setComment(thread.rating.comment || "");
+                setEditingRating(true);
+              }}
+              className="shrink-0 text-sm font-semibold"
+              style={{ color: brand.accent }}
+            >
+              Change
+            </button>
+          </div>
+        )}
+        {showRatingForm && (
+          <form onSubmit={submitRating} className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5" id="rate">
+            <p className="text-sm font-semibold text-gray-800 mb-2">How did we do?</p>
+            <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={stars === n}
+                  aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                  onClick={() => setStars(n)}
+                  onMouseEnter={() => setHover(n)}
+                  onMouseLeave={() => setHover(0)}
+                  className="p-1"
+                >
+                  <Star size={30} className={n <= (hover || stars) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"} />
+                </button>
+              ))}
+              <span className="ml-2 text-sm text-gray-500">{["", "Very poor", "Poor", "Okay", "Good", "Excellent"][hover || stars] || "Tap a star"}</span>
+            </div>
+            <label htmlFor="rate-comment" className="block text-xs font-semibold text-gray-600 mt-3 mb-1.5">
+              Anything to add? (optional)
+            </label>
+            <textarea
+              id="rate-comment"
+              rows={2}
+              value={comment}
+              onChange={(e) => setComment(e.target.value.slice(0, 1000))}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none"
+              placeholder="Tell us what went well or what we can do better"
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              {editingRating && (
+                <button type="button" onClick={() => setEditingRating(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100">
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={!stars || rating}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                style={{ background: brand.accent }}
+              >
+                {rating && <Loader2 size={14} className="animate-spin" />}
+                {editingRating ? "Update rating" : "Send rating"}
+              </button>
+            </div>
+          </form>
+        )}
 
         {thread.canReply ? (
           <form onSubmit={send} className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5">

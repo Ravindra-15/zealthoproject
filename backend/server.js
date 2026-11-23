@@ -4,7 +4,7 @@ const { startExchangeRateCron } = require("./services/exchangeRate.service");
 const { startPaymentReconcileCron } = require("./services/paymentReconcile.service");
 const { startMedicalReportCleanupCron } = require("./services/medicalReport.service");
 const { startCaseReminderCron } = require("./services/patientCase.service");
-const { startEnquiryDeskCron } = require("./services/enquiryDesk.service");
+const { startEnquirySlaCron } = require("./services/enquirySla.service");
 const app = require("./app");
 const connectDB = require("./config/db");
 
@@ -21,7 +21,7 @@ const startServer = async () => {
       startPaymentReconcileCron();
       startMedicalReportCleanupCron();
       startCaseReminderCron();
-      startEnquiryDeskCron();
+      startEnquirySlaCron();
 
       // setTimeout(() => {
       //   const reminderService = require("./services/reminder.service");

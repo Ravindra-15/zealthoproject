@@ -98,12 +98,55 @@ const enquirySchema = new mongoose.Schema(
 
     // 🔐 Bumping this invalidates every reply link already emailed
     replyLinkVersion: { type: Number, default: 1 },
+
+    // ============ Phase 2: queue, priorities, time limits ============
+    // 🏷️ set automatically on arrival (owner / super admin can change)
+    category: {
+      type: String,
+      enum: ["general", "payment", "refund", "subscription", "booking", "login", "technical", "feedback"],
+      default: "general",
+    },
+    priority: { type: String, enum: ["high", "normal", "low"], default: "normal" },
+    priorityRank: { type: Number, default: 1, index: true }, // high 0 · normal 1 · low 2 (for sorting)
+    priorityReason: { type: String, default: "" },
+
+    // ⏱️ time limits (working hours). Unset on enquiries from before phase 2
+    // → those are never counted as late.
+    firstReplyDueAt: { type: Date, default: null },
+    firstReplyWarnAt: { type: Date, default: null },
+    resolveDueAt: { type: Date, default: null },
+    resolveWarnAt: { type: Date, default: null },
+    slaFlags: {
+      firstWarned: { type: Boolean, default: false },
+      firstBreached: { type: Boolean, default: false },
+      resolveWarned: { type: Boolean, default: false },
+      resolveBreached: { type: Boolean, default: false },
+    },
+    firstResponseBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+
+    // ⏸️ the resolve clock pauses while we wait on the customer
+    waitingSince: { type: Date, default: null },
+    nudgedAt: { type: Date, default: null }, // "is this still needed?" sent for this wait
+
+    // 🔁 later enquiries from the same customer within 24h merged into this one
+    mergedCount: { type: Number, default: 0 },
+
+    // ⭐ customer's rating after it was resolved
+    rating: {
+      score: { type: Number, min: 1, max: 5, default: null },
+      comment: { type: String, default: "", maxlength: 1000 },
+      at: { type: Date, default: null },
+      forAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null }, // who resolved it
+    },
+    autoSpamReason: { type: String, default: "" },
   },
   { timestamps: true }
 );
 
 enquirySchema.index({ createdAt: -1 });
 enquirySchema.index({ status: 1, assignedTo: 1, createdAt: 1 });
+enquirySchema.index({ status: 1, assignedTo: 1, priorityRank: 1, firstReplyDueAt: 1 });
+enquirySchema.index({ email: 1, createdAt: -1 });
 enquirySchema.index({ name: "text", phone: "text" });
 
 module.exports = mongoose.model("Enquiry", enquirySchema);

@@ -1,20 +1,34 @@
 /**
  * ADMIN MODULE — Enquiries (enquiry desk)
  *
- * Every enquiry is a ticket (ENQ-1042). Tabs:
- *  - Queue        → nobody owns it yet, oldest first (first come, first served)
- *  - My enquiries → open enquiries I own, oldest first
- *  - All open     → every open enquiry
- *  - Resolved & closed
- *  - All
- * "Take" claims an enquiry from the queue (first admin wins). Click a row
- * to open the conversation. Portal admins see contacts masked; replies
- * are emailed by the system.
+ * Every enquiry is a ticket (ENQ-1042) with a priority and time limits.
+ * Tabs:
+ *  - Queue        → nobody owns it yet (priority → nearest deadline → oldest)
+ *  - My enquiries → open enquiries I own, same order
+ *  - All open / Resolved & closed / All
+ * "Take next" claims the next enquiry in the queue; "Take" claims one row.
+ * Available / Away decides whether auto-assign gives you new enquiries.
+ * Portal admins see contacts masked; replies are emailed by the system.
  */
 
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Calendar, ChevronLeft, ChevronRight, Download, Loader2, Inbox, Hand, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Search,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  Inbox,
+  Hand,
+  RefreshCw,
+  SkipForward,
+  BarChart3,
+  Settings2,
+  Coffee,
+  CircleDot,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
@@ -22,11 +36,16 @@ import {
   listEnquiries,
   exportEnquiriesCsv,
   takeEnquiry,
+  takeNextEnquiry,
   listEnquiryAssignees,
+  getMyDesk,
+  setMyAvailability,
+  getMyEnquiryStats,
 } from "../../../services/adminEnquiryService";
 import { formatUtcDate, formatUtcTime12h } from "../../../utils/time";
 import StatusPill from "./EnquiryStatusPill";
-import { PROGRAMS, ticketLabel, timeAgo } from "./enquiryUi";
+import { PROGRAMS, PRIORITY, ticketLabel, dueInfo, DUE_TONE, formatDuration } from "./enquiryUi";
+import ModalShell from "../PortalUsers/components/ModalShell";
 
 const TABS = [
   { id: "queue", label: "Queue", countKey: "queue" },
@@ -51,6 +70,18 @@ const inputCls =
 
 const formatDateTime = (date) => (date ? `${formatUtcDate(date)} · ${formatUtcTime12h(date)}` : "—");
 
+const PriorityPill = ({ priority }) => {
+  const p = PRIORITY[priority] || PRIORITY.normal;
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap ${p.cls}`}>{p.label}</span>;
+};
+
+const Stat = ({ label, value }) => (
+  <div>
+    <p className="text-[11px] text-gray-500 whitespace-nowrap">{label}</p>
+    <p className="text-sm font-bold text-gray-900 tabular-nums whitespace-nowrap">{value}</p>
+  </div>
+);
+
 const Enquiries = () => {
   const navigate = useNavigate();
   const { isSuperAdmin, admin: me } = useAdminAuth();
@@ -72,10 +103,30 @@ const Enquiries = () => {
   const [assignees, setAssignees] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [takingId, setTakingId] = useState(null);
+  const [takingNext, setTakingNext] = useState(false);
+  const [desk, setDesk] = useState(null); // { deskStatus, openCount, cap, autoAssign }
+  const [myStats, setMyStats] = useState(null);
+  const [awayOpen, setAwayOpen] = useState(false);
+  const [handBack, setHandBack] = useState(false);
+  const [savingDesk, setSavingDesk] = useState(false);
 
   const filters = { search, startDate, endDate, source, status, view, assignee };
 
-  // super admin: owner filter options
+  const loadDesk = useCallback(() => {
+    getMyDesk()
+      .then(setDesk)
+      .catch(() => {});
+    if (!isSuperAdmin) {
+      getMyEnquiryStats(7)
+        .then(setMyStats)
+        .catch(() => {});
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    loadDesk();
+  }, [loadDesk, reloadKey]);
+
   useEffect(() => {
     if (!isSuperAdmin) return;
     listEnquiryAssignees()
@@ -111,6 +162,12 @@ const Enquiries = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, startDate, endDate, source, status, view, assignee, page, reloadKey]);
+
+  // 🔄 keep the queue fresh while the page is open
+  useEffect(() => {
+    const t = setInterval(() => document.visibilityState === "visible" && setReloadKey((k) => k + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   const changeFilter = (setter) => (value) => {
     setter(value);
@@ -152,14 +209,55 @@ const Enquiries = () => {
     }
   };
 
+  const handleTakeNext = async () => {
+    if (takingNext) return;
+    try {
+      setTakingNext(true);
+      const r = await takeNextEnquiry();
+      toast.success(r.message || "Next enquiry is yours");
+      navigate(`/admin/enquiries/${r.enquiry._id}`);
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Couldn't take the next enquiry";
+      if (err?.response?.data?.code === "QUEUE_EMPTY") toast(msg, { icon: "✅" });
+      else toast.error(msg);
+      setReloadKey((k) => k + 1);
+    } finally {
+      setTakingNext(false);
+    }
+  };
+
+  const saveAvailability = async (deskStatus, releaseOpen = false) => {
+    if (savingDesk) return;
+    try {
+      setSavingDesk(true);
+      const r = await setMyAvailability(deskStatus, releaseOpen);
+      setDesk(r);
+      setAwayOpen(false);
+      setHandBack(false);
+      toast.success(
+        deskStatus === "away"
+          ? r.released
+            ? `You're Away — ${r.released} enquir${r.released === 1 ? "y" : "ies"} handed back to the queue`
+            : "You're Away — you won't get new enquiries"
+          : "You're Available"
+      );
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Couldn't change your status");
+    } finally {
+      setSavingDesk(false);
+    }
+  };
+
   const open = (enq) => navigate(`/admin/enquiries/${enq._id}`);
   const isOpenStatus = (s) => ["new", "assigned", "in_progress", "waiting", "contacted"].includes(s);
+  const myId = String(me?._id || me?.id || "");
+  const atCap = desk?.cap && desk.openCount >= desk.cap;
+  const away = desk?.deskStatus === "away";
 
   const OwnerCell = ({ enq }) =>
     enq.assignedTo ? (
-      <span className="text-sm text-gray-700">
-        {String(enq.assignedTo._id) === String(me?._id || me?.id) ? "You" : enq.assignedTo.fullName}
-      </span>
+      <span className="text-sm text-gray-700">{String(enq.assignedTo._id) === myId ? "You" : enq.assignedTo.fullName}</span>
     ) : isOpenStatus(enq.status) ? (
       <button
         type="button"
@@ -174,9 +272,14 @@ const Enquiries = () => {
       <span className="text-sm text-gray-400">—</span>
     );
 
+  const DueCell = ({ enq }) => {
+    const d = dueInfo(enq);
+    return <span className={`text-xs whitespace-nowrap ${DUE_TONE[d.tone]}`}>{d.text}</span>;
+  };
+
   const emptyText = {
     queue: "The queue is empty — every open enquiry has an owner.",
-    mine: "You have no open enquiries. Take one from the queue.",
+    mine: "You have no open enquiries. Press “Take next” to get one.",
     open: "No open enquiries.",
     done: "No resolved or closed enquiries yet.",
     all: "No enquiries found.",
@@ -186,9 +289,19 @@ const Enquiries = () => {
     <div className="space-y-6">
       <AdminPageHeader
         title="Enquiries"
-        subtitle="Take enquiries from the queue, reply by email and track every step"
+        subtitle="Take enquiries in order, reply by email and track every step"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isSuperAdmin && (
+              <>
+                <Link to="/admin/enquiries/board" className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50">
+                  <BarChart3 size={15} /> Board
+                </Link>
+                <Link to="/admin/enquiries/settings" className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50">
+                  <Settings2 size={15} /> Desk settings
+                </Link>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setReloadKey((k) => k + 1)}
@@ -202,7 +315,7 @@ const Enquiries = () => {
               type="button"
               onClick={handleExport}
               disabled={exporting}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
               {exporting ? "Exporting..." : "Export CSV"}
@@ -210,6 +323,66 @@ const Enquiries = () => {
           </div>
         }
       />
+
+      {/* MY DESK — availability, load, take next */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <div className="inline-flex p-1 bg-gray-50 rounded-xl" role="group" aria-label="Your availability">
+            <button
+              type="button"
+              onClick={() => away && saveAvailability("available")}
+              disabled={savingDesk}
+              aria-pressed={!away}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${!away ? "bg-white text-emerald-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              <CircleDot size={14} /> Available
+            </button>
+            <button
+              type="button"
+              onClick={() => !away && (desk?.openCount ? setAwayOpen(true) : saveAvailability("away"))}
+              disabled={savingDesk}
+              aria-pressed={away}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${away ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              <Coffee size={14} /> Away
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 min-w-0">
+            {desk ? (
+              <>
+                <span className="font-semibold text-gray-700">{desk.openCount}</span>
+                {desk.cap ? ` of ${desk.cap}` : ""} open enquiries
+                {desk.autoAssign ? (away ? " · auto-assign skips you" : " · auto-assign is on") : ""}
+              </>
+            ) : (
+              "Loading…"
+            )}
+          </p>
+        </div>
+
+        {!isSuperAdmin && myStats && (
+          <div className="flex flex-wrap gap-x-6 gap-y-2 lg:ml-auto lg:pr-5 lg:border-r lg:border-gray-100" title="Your last 7 days">
+            <Stat label="Resolved (7 days)" value={myStats.resolved} />
+            <Stat label="Avg first reply" value={myStats.avgFirstReplyMinutes === null ? "—" : formatDuration(myStats.avgFirstReplyMinutes)} />
+            <Stat label="Replied on time" value={myStats.firstReplyOnTimePct === null ? "—" : `${myStats.firstReplyOnTimePct}%`} />
+            <Stat label="Rating" value={myStats.avgRating ? `${myStats.avgRating} / 5` : "—"} />
+          </div>
+        )}
+
+        <div className={`flex flex-col sm:flex-row sm:items-center gap-2 ${isSuperAdmin || !myStats ? "lg:ml-auto" : ""}`}>
+          {atCap && <span className="text-xs text-amber-700">You're at your limit — resolve some first.</span>}
+          <button
+            type="button"
+            onClick={handleTakeNext}
+            disabled={takingNext || !!atCap || counts.queue === 0}
+            title={counts.queue === 0 ? "The queue is empty" : "Take the most urgent enquiry in the queue"}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors whitespace-nowrap"
+          >
+            {takingNext ? <Loader2 size={15} className="animate-spin" /> : <SkipForward size={15} />}
+            Take next{counts.queue ? ` (${counts.queue} waiting)` : ""}
+          </button>
+        </div>
+      </div>
 
       {/* TABS */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-1.5 flex gap-1 overflow-x-auto">
@@ -308,8 +481,8 @@ const Enquiries = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/40">
-                {["Ticket", "Customer", "Program", "Status", "Owner", "Received", "Last activity"].map((h) => (
-                  <th key={h} className="px-5 py-3.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                {["Ticket", "Customer", "Priority", "Status", "Owner", "Due", "Received"].map((h) => (
+                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -331,25 +504,28 @@ const Enquiries = () => {
                 </tr>
               ) : (
                 enquiries.map((enq) => (
-                  <tr
-                    key={enq._id}
-                    onClick={() => open(enq)}
-                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
-                  >
-                    <td className="px-5 py-4 text-sm font-semibold text-indigo-700 whitespace-nowrap tabular-nums">{ticketLabel(enq)}</td>
-                    <td className="px-5 py-4 max-w-[220px]">
+                  <tr key={enq._id} onClick={() => open(enq)} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer">
+                    <td className="px-4 py-4 text-sm font-semibold text-indigo-700 whitespace-nowrap tabular-nums">{ticketLabel(enq)}</td>
+                    <td className="px-4 py-4 max-w-[240px]">
                       <p className="text-sm font-medium text-gray-900 truncate">{enq.name}</p>
-                      {enq.message && <p className="text-xs text-gray-500 truncate">{enq.message}</p>}
+                      <p className="text-xs text-gray-500 truncate">
+                        {PROGRAMS[enq.source] || enq.source}
+                        {enq.message ? ` · ${enq.message}` : ""}
+                      </p>
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-700 whitespace-nowrap">{PROGRAMS[enq.source] || enq.source}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4">
+                      <PriorityPill priority={enq.priority} />
+                    </td>
+                    <td className="px-4 py-4">
                       <StatusPill status={enq.status} />
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <OwnerCell enq={enq} />
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-700 whitespace-nowrap">{formatDateTime(enq.createdAt)}</td>
-                    <td className="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{timeAgo(enq.lastActivityAt || enq.createdAt)}</td>
+                    <td className="px-4 py-4">
+                      <DueCell enq={enq} />
+                    </td>
+                    <td className="px-4 py-4 text-xs text-gray-600 whitespace-nowrap">{formatDateTime(enq.createdAt)}</td>
                   </tr>
                 ))
               )}
@@ -381,12 +557,15 @@ const Enquiries = () => {
                     <p className="text-xs font-semibold text-indigo-700 tabular-nums">{ticketLabel(enq)}</p>
                     <p className="font-semibold text-gray-900 text-sm truncate">{enq.name}</p>
                   </div>
-                  <StatusPill status={enq.status} />
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusPill status={enq.status} />
+                    <PriorityPill priority={enq.priority} />
+                  </div>
                 </div>
                 {enq.message && <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{enq.message}</p>}
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-[11px] text-gray-400">
-                    {PROGRAMS[enq.source] || enq.source} · {timeAgo(enq.createdAt)}
+                  <span className="text-[11px] text-gray-400 min-w-0 truncate">
+                    {PROGRAMS[enq.source] || enq.source} · <DueCell enq={enq} />
                   </span>
                   <OwnerCell enq={enq} />
                 </div>
@@ -423,6 +602,37 @@ const Enquiries = () => {
           </div>
         </div>
       )}
+
+      {/* GOING AWAY */}
+      <ModalShell isOpen={awayOpen} onClose={() => !savingDesk && setAwayOpen(false)} labelledBy="away-title" busy={savingDesk}>
+        <div className="px-6 pt-7 pb-4">
+          <h2 id="away-title" className="text-lg font-bold text-gray-900 mb-1.5">
+            Set yourself to Away?
+          </h2>
+          <p className="text-sm text-gray-500 leading-relaxed">You won't get new enquiries. You have {desk?.openCount || 0} open — they stay yours unless you hand them back.</p>
+          <label className="mt-4 flex items-start gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50/60 cursor-pointer">
+            <input type="checkbox" checked={handBack} onChange={(e) => setHandBack(e.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-600" />
+            <span className="text-sm text-gray-700">
+              Hand my open enquiries back to the queue
+              <span className="block text-xs text-gray-500 mt-0.5">Choose this if you're leaving for the day, so customers aren't kept waiting.</span>
+            </span>
+          </label>
+        </div>
+        <div className="px-6 pb-6 flex flex-col-reverse sm:flex-row gap-2.5 sm:justify-end">
+          <button type="button" onClick={() => setAwayOpen(false)} disabled={savingDesk} className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => saveAvailability("away", handBack)}
+            disabled={savingDesk}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-60"
+          >
+            {savingDesk && <Loader2 size={15} className="animate-spin" />}
+            Set Away
+          </button>
+        </div>
+      </ModalShell>
     </div>
   );
 };

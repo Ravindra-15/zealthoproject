@@ -1,11 +1,13 @@
 /**
- * One-time: give ticket numbers (ENQ-…) to enquiries created before the
- * enquiry desk existed, oldest first, so the list shows a number for all.
+ * One-time: tidy enquiries created before the enquiry desk existed.
+ *  - gives each a ticket number (ENQ-…), oldest first
+ *  - gives each a category + priority (so the queue sorts properly)
  *
- * Optional — without it, an old enquiry simply gets its number the first
- * time someone opens it. Safe to run repeatedly: only enquiries that have
- * no number are touched, and numbers come from the same counter the app
- * uses, so they never clash with new enquiries.
+ * Time limits are NOT added to old enquiries — they'd all be "late" and
+ * spoil the on-time numbers. Only new enquiries are timed.
+ *
+ * Optional — without it, an old enquiry gets its number the first time
+ * someone opens it. Safe to run repeatedly (only touches what's missing).
  *
  *   node scripts/backfillEnquiryTickets.js           # dry run (read-only)
  *   node scripts/backfillEnquiryTickets.js --apply   # actually writes
@@ -15,7 +17,8 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const Enquiry = require("../models/Enquiry");
 const Counter = require("../models/Counter");
-const { TICKET_BASE } = require("../services/enquiryDesk.service");
+const { TICKET_BASE, PRIORITY_RANK } = require("../services/enquiryDeskCommon");
+const { categorize } = require("../services/enquirySla.service");
 
 const APPLY = process.argv.includes("--apply");
 
@@ -28,22 +31,36 @@ const APPLY = process.argv.includes("--apply");
   await mongoose.connect(uri);
   console.log(`✅ Connected to: ${mongoose.connection.name}`);
 
-  const missing = await Enquiry.find({ ticketNo: { $exists: false } }).sort({ createdAt: 1 }).select("_id createdAt").lean();
-  console.log(`Enquiries without a ticket number: ${missing.length}`);
+  const noNumber = await Enquiry.find({ ticketNo: { $exists: false } }).sort({ createdAt: 1 }).select("_id").lean();
+  const noPriority = await Enquiry.find({ priorityRank: { $exists: false } }).select("_id message type").lean();
+  console.log(`Without a ticket number: ${noNumber.length}`);
+  console.log(`Without a category/priority: ${noPriority.length}`);
 
   if (!APPLY) {
-    console.log("Dry run — nothing written. Run again with --apply to number them.");
+    console.log("Dry run — nothing written. Run again with --apply to update them.");
     await mongoose.disconnect();
     return;
   }
 
-  let done = 0;
-  for (const e of missing) {
+  let numbered = 0;
+  for (const e of noNumber) {
     const ticketNo = TICKET_BASE + (await Counter.next("enquiry"));
     const res = await Enquiry.updateOne({ _id: e._id, ticketNo: { $exists: false } }, { $set: { ticketNo } });
-    if (res.modifiedCount) done++;
+    if (res.modifiedCount) numbered++;
   }
-  console.log(`Numbered ${done} enquiries.`);
+
+  let sorted = 0;
+  for (const e of noPriority) {
+    const category = categorize({ message: e.message || "", type: e.type });
+    const priority = ["payment", "refund", "subscription"].includes(category) ? "high" : category === "feedback" ? "low" : "normal";
+    const res = await Enquiry.updateOne(
+      { _id: e._id, priorityRank: { $exists: false } },
+      { $set: { category, priority, priorityRank: PRIORITY_RANK[priority], priorityReason: "Set for an older enquiry" } }
+    );
+    if (res.modifiedCount) sorted++;
+  }
+
+  console.log(`Numbered ${numbered}, sorted ${sorted}.`);
   await mongoose.disconnect();
 })().catch(async (err) => {
   console.error("❌", err.message);

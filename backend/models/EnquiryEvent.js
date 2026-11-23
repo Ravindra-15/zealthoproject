@@ -28,6 +28,17 @@ const EVENT_TYPES = [
   "closed",
   "customer_replied",
   "marked_spam",
+  // phase 2
+  "auto_assigned", // the system gave it to an available admin
+  "priority_changed",
+  "category_changed",
+  "sla_warning", // getting close to a time limit
+  "sla_breached", // a time limit passed
+  "nudged", // "is this still needed?" emailed while waiting
+  "auto_resolved", // no answer from the customer after the nudge
+  "merged", // the customer sent another enquiry, added here
+  "rated", // customer rated the help
+  "resolved_email", // "we've resolved your enquiry" emailed
 ];
 
 const enquiryEventSchema = new mongoose.Schema(

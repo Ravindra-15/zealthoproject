@@ -17,6 +17,19 @@ const {
   addEnquiryNote,
   setEnquiryStatus,
   listAssignees,
+  takeNextEnquiry,
+  triageEnquiry,
+  getMyDesk,
+  setMyAvailability,
+  getMyStats,
+  getBoard,
+  getDeskSettings,
+  updateDeskSettings,
+  listTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  useTemplate,
 } = require("../controllers/admin.enquiry.controller");
 
 const router = express.Router();
@@ -31,6 +44,20 @@ const writeLimiter = rateLimit({
 
 router.get("/export", protectAdmin, exportEnquiriesCsv);
 router.get("/assignees", protectAdmin, requireSuperAdmin, listAssignees);
+
+// phase 2 — fixed paths first (before "/:id")
+router.get("/me", protectAdmin, getMyDesk);
+router.patch("/me/availability", protectAdmin, writeLimiter, setMyAvailability);
+router.get("/stats/me", protectAdmin, getMyStats);
+router.get("/board", protectAdmin, requireSuperAdmin, getBoard);
+router.get("/settings", protectAdmin, requireSuperAdmin, getDeskSettings);
+router.put("/settings", protectAdmin, requireSuperAdmin, writeLimiter, updateDeskSettings);
+router.get("/templates", protectAdmin, listTemplates);
+router.post("/templates", protectAdmin, requireSuperAdmin, writeLimiter, createTemplate);
+router.put("/templates/:tid", protectAdmin, requireSuperAdmin, writeLimiter, updateTemplate);
+router.delete("/templates/:tid", protectAdmin, requireSuperAdmin, writeLimiter, deleteTemplate);
+router.post("/templates/:tid/use", protectAdmin, useTemplate);
+router.post("/next", protectAdmin, writeLimiter, takeNextEnquiry);
 router.get("/", protectAdmin, listEnquiries);
 router.get("/:id", protectAdmin, getEnquiry);
 
@@ -41,5 +68,6 @@ router.post("/:id/reply", protectAdmin, writeLimiter, replyToEnquiry);
 router.post("/:id/messages/:messageId/resend", protectAdmin, writeLimiter, resendReply);
 router.post("/:id/notes", protectAdmin, writeLimiter, addEnquiryNote);
 router.post("/:id/status", protectAdmin, writeLimiter, setEnquiryStatus);
+router.post("/:id/triage", protectAdmin, writeLimiter, triageEnquiry);
 
 module.exports = router;

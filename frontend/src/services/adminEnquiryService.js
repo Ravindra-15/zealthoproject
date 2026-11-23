@@ -117,3 +117,41 @@ export const setEnquiryStatus = async (id, status) =>
   data(await adminApi.post(`/admin/enquiries/${id}/status`, { status }));
 
 export const listEnquiryAssignees = async () => data(await adminApi.get("/admin/enquiries/assignees")).admins || [];
+
+// adminId → { ...detail, warnings: [] } (e.g. over the cap / admin is away)
+export const assignEnquiryWithWarnings = assignEnquiry;
+
+// ============================================
+// ⏭️ PHASE 2 — queue, availability, time limits, board, settings, ready replies
+// ============================================
+export const takeNextEnquiry = async () => {
+  const response = await adminApi.post("/admin/enquiries/next");
+  return { ...response.data.data, message: response.data.message };
+};
+
+// { priority?, category? }
+export const triageEnquiry = async (id, changes) => data(await adminApi.post(`/admin/enquiries/${id}/triage`, changes));
+
+export const getMyDesk = async () => data(await adminApi.get("/admin/enquiries/me"));
+
+export const setMyAvailability = async (deskStatus, releaseOpen = false) =>
+  data(await adminApi.patch("/admin/enquiries/me/availability", { deskStatus, releaseOpen }));
+
+export const getMyEnquiryStats = async (days = 7) => data(await adminApi.get("/admin/enquiries/stats/me", { params: { days } }));
+
+export const getEnquiryBoard = async (days = 7) => data(await adminApi.get("/admin/enquiries/board", { params: { days } }));
+
+export const getEnquiryDeskSettings = async () => data(await adminApi.get("/admin/enquiries/settings")).settings;
+
+export const saveEnquiryDeskSettings = async (settings) => data(await adminApi.put("/admin/enquiries/settings", settings)).settings;
+
+export const listReadyReplies = async ({ all = false } = {}) =>
+  data(await adminApi.get("/admin/enquiries/templates", { params: all ? { all: 1 } : {} })).templates || [];
+
+export const createReadyReply = async (t) => data(await adminApi.post("/admin/enquiries/templates", t)).template;
+
+export const updateReadyReply = async (id, t) => data(await adminApi.put(`/admin/enquiries/templates/${id}`, t)).template;
+
+export const deleteReadyReply = async (id) => adminApi.delete(`/admin/enquiries/templates/${id}`);
+
+export const markReadyReplyUsed = async (id) => adminApi.post(`/admin/enquiries/templates/${id}/use`).catch(() => {});
