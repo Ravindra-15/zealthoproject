@@ -11,10 +11,10 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2, Save, Plus, Trash2, Pencil, X, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Plus, Trash2, Pencil, X, Zap, Sparkles, PlugZap, CheckCircle2, CircleDashed } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  getEnquiryDeskSettings,
+  getEnquiryDeskSetup,
   saveEnquiryDeskSettings,
   listReadyReplies,
   createReadyReply,
@@ -66,12 +66,14 @@ const EnquiryDeskSettings = () => {
   const [replies, setReplies] = useState([]);
   const [editing, setEditing] = useState(null); // { _id?, title, body, category, isActive }
   const [savingReply, setSavingReply] = useState(false);
+  const [connections, setConnections] = useState(null);
 
   const dayLen = form ? Math.max(60, hm(form.workEnd) - hm(form.workStart)) : 600;
 
   useEffect(() => {
-    getEnquiryDeskSettings()
-      .then((s) => {
+    getEnquiryDeskSetup()
+      .then(({ settings: s, connections: c }) => {
+        setConnections(c || null);
         setForm(s);
         const len = Math.max(60, hm(s.workEnd) - hm(s.workStart));
         setLimits(
@@ -329,6 +331,51 @@ const EnquiryDeskSettings = () => {
             ))}
           </select>
         </label>
+      </div>
+
+      {/* AI + CONNECTIONS */}
+      <div className={`${card} p-5 space-y-4`}>
+        <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <Sparkles size={15} className="text-fuchsia-500" /> AI reply drafts
+        </h2>
+        <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" checked={!!form.aiDrafts} onChange={(e) => set("aiDrafts", e.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-600" />
+          <span className="text-sm text-gray-800">
+            Let admins ask the AI for a draft reply
+            <span className="block text-xs text-gray-500 mt-0.5">
+              The AI suggests a reply from the conversation and your ready replies; the admin always reads and edits it before sending. Email addresses and phone numbers are removed before anything is sent to the AI.
+            </span>
+            {form.aiDrafts && connections && !connections.ai && (
+              <span className="block text-xs text-amber-700 mt-1">The server has no AI key yet (ANTHROPIC_API_KEY), so the button stays hidden until it's added.</span>
+            )}
+          </span>
+        </label>
+
+        {connections && (
+          <div>
+            <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+              <PlugZap size={13} /> Connections (set up on the server)
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[
+                ["WhatsApp messages", connections.whatsapp, "Replies marked “Also send on WhatsApp” are recorded until a WhatsApp provider is connected."],
+                ["Customers reply by email", connections.replyByEmail, "Until connected, customers answer through the private link in our emails."],
+                ["Masked calling", connections.calls, "“Call customer” is recorded but not placed until a calling provider is connected."],
+                ["AI drafts", connections.ai, "Needs an AI key on the server."],
+              ].map(([label, on, hint]) => (
+                <div key={label} className="flex items-start gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/60">
+                  {on ? <CheckCircle2 size={16} className="text-emerald-600 mt-0.5 shrink-0" /> : <CircleDashed size={16} className="text-gray-400 mt-0.5 shrink-0" />}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">
+                      {label} <span className={`text-xs font-semibold ${on ? "text-emerald-700" : "text-gray-500"}`}>{on ? "Connected" : "Not connected"}</span>
+                    </p>
+                    {!on && <p className="text-xs text-gray-500">{hint}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* READY REPLIES */}

@@ -100,8 +100,8 @@ export const releaseEnquiry = async (id, reason) =>
   data(await adminApi.post(`/admin/enquiries/${id}/release`, { reason }));
 
 // nextStatus: "in_progress" | "waiting" | "resolved"
-export const replyToEnquiry = async (id, body, nextStatus = "in_progress") => {
-  const response = await adminApi.post(`/admin/enquiries/${id}/reply`, { body, nextStatus });
+export const replyToEnquiry = async (id, body, nextStatus = "in_progress", alsoWhatsApp = false) => {
+  const response = await adminApi.post(`/admin/enquiries/${id}/reply`, { body, nextStatus, alsoWhatsApp });
   return { ...response.data.data, message: response.data.message };
 };
 
@@ -142,6 +142,18 @@ export const getMyEnquiryStats = async (days = 7) => data(await adminApi.get("/a
 export const getEnquiryBoard = async (days = 7) => data(await adminApi.get("/admin/enquiries/board", { params: { days } }));
 
 export const getEnquiryDeskSettings = async () => data(await adminApi.get("/admin/enquiries/settings")).settings;
+
+// { settings, connections: { whatsapp, replyByEmail, calls, ai } }
+export const getEnquiryDeskSetup = async () => data(await adminApi.get("/admin/enquiries/settings"));
+
+// 📞 masked call — rings the admin first, then the customer
+export const callEnquiryCustomer = async (id) => {
+  const response = await adminApi.post(`/admin/enquiries/${id}/call`);
+  return { ...response.data.data, message: response.data.message };
+};
+
+// 🤖 → { draft }
+export const aiDraftEnquiry = async (id) => data(await adminApi.post(`/admin/enquiries/${id}/ai-draft`, {}, { timeout: 90000 }));
 
 export const saveEnquiryDeskSettings = async (settings) => data(await adminApi.put("/admin/enquiries/settings", settings)).settings;
 

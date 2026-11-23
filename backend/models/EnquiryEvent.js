@@ -39,6 +39,11 @@ const EVENT_TYPES = [
   "merged", // the customer sent another enquiry, added here
   "rated", // customer rated the help
   "resolved_email", // "we've resolved your enquiry" emailed
+  // phase 3
+  "call_started", // masked call: admin and customer connected (numbers hidden)
+  "call_failed",
+  "ai_draft", // an admin asked the AI for a draft reply
+  "inbound_rejected", // an email/WhatsApp reply that couldn't be matched safely
 ];
 
 const enquiryEventSchema = new mongoose.Schema(

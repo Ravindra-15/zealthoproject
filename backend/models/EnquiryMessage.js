@@ -30,7 +30,11 @@ const enquiryMessageSchema = new mongoose.Schema(
 
     // customer messages: "link" (answered on their private page) or
     // "merge" (sent the form again within 24h — added here)
-    via: { type: String, enum: ["link", "merge", ""], default: "" },
+    // ("email" = replied to our email, "whatsapp" = answered on WhatsApp)
+    via: { type: String, enum: ["link", "merge", "email", "whatsapp", ""], default: "" },
+
+    // replies: was it also sent on WhatsApp? (mock = WhatsApp not connected yet)
+    whatsappStatus: { type: String, enum: ["sent", "mock", "failed", "skipped", null], default: null },
 
     // replies only: did the email reach the mail server?
     emailStatus: { type: String, enum: ["pending", "sent", "failed", null], default: null },

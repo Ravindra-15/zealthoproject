@@ -7,6 +7,7 @@ const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { notifyAllAdmins } = require("../services/admin.notification.service");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
+const desk = require("../services/enquiryDesk.service");
 
 const MAX_REPORTS_PER_DAY = 5; // spam guard per customer
 
@@ -37,8 +38,19 @@ const createIssueReport = async (req, res) => {
 
     const issue = await IssueReport.create({ user: userId, platform, category, subject, description });
 
-    // 🔔 Admin alert (no contact details in the alert itself)
+    // 🎫 every reported issue is also an Enquiry Desk ticket (same queue,
+    // time limits and history); the desk's "new enquiry" alert replaces the
+    // old one — only if the ticket can't be made does the old alert go out
+    let ticketed = false;
     try {
+      await desk.createFromIssue(issue);
+      ticketed = true;
+    } catch (err) {
+      console.error("[ISSUE → DESK ERROR]:", err.message);
+    }
+
+    // 🔔 Admin alert (no contact details in the alert itself)
+    if (!ticketed) try {
       const user = await User.findById(userId).select("fullName nickName").lean();
       await notifyAllAdmins({
         type: "issue_reported",

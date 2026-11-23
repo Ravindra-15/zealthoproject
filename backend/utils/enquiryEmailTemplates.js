@@ -86,7 +86,7 @@ const ratingBlock = (brand, link) => {
 // ============================================
 // 📨 "We've received your enquiry"
 // ============================================
-const ackEmail = ({ source, name, ticketNo, message, link }) => {
+const ackEmail = ({ source, name, ticketNo, message, link, replyByEmail = false }) => {
   const brand = brandFor(source);
   const ticket = ticketLabel(ticketNo);
   const subject = `We've received your enquiry ${ticket}`;
@@ -97,7 +97,7 @@ const ackEmail = ({ source, name, ticketNo, message, link }) => {
     bodyHtml:
       `<p style="margin:0 0 12px;">Your enquiry number is <strong>${esc(ticket)}</strong>. Our support team will reply to you by email — you don't need to do anything else.</p>` +
       (message ? quoteBox("Your message", message) : "") +
-      `<p style="margin:0 0 12px;">You can check its progress or add more details any time:</p>`,
+      `<p style="margin:0 0 12px;">You can check its progress or add more details any time${replyByEmail ? " — just reply to this email, or use the button" : ""}:</p>`,
     cta: { label: "View your enquiry", url: link },
     footerNote: `Please keep this email — the button above is your private link to this enquiry. ${esc(brand.name)} Support`,
   });
@@ -117,7 +117,7 @@ const ackEmail = ({ source, name, ticketNo, message, link }) => {
 // ============================================
 // 💬 An admin's reply
 // ============================================
-const replyEmail = ({ source, name, ticketNo, body, link, status }) => {
+const replyEmail = ({ source, name, ticketNo, body, link, status, replyByEmail = false }) => {
   const brand = brandFor(source);
   const ticket = ticketLabel(ticketNo);
   const resolved = status === "resolved";
@@ -126,7 +126,9 @@ const replyEmail = ({ source, name, ticketNo, body, link, status }) => {
     ? `We've marked this enquiry as <strong>resolved</strong>. If you still need help, use the button below within 3 days and it will reopen.`
     : status === "waiting"
       ? `We need a little more information from you — please answer using the button below.`
-      : `To answer, use the button below — please don't reply to this email directly.`;
+      : replyByEmail
+        ? `To answer, just reply to this email — or use the button below.`
+        : `To answer, use the button below — please don't reply to this email directly.`;
   const html = layout({
     brand,
     preheader: String(body).slice(0, 120),
@@ -145,7 +147,9 @@ const replyEmail = ({ source, name, ticketNo, body, link, status }) => {
     "",
     resolved
       ? "We've marked this enquiry as resolved. If you still need help, open the link below within 3 days and it will reopen."
-      : "To answer, open the link below — please don't reply to this email directly.",
+      : replyByEmail
+        ? "To answer, just reply to this email — or open the link below."
+        : "To answer, open the link below — please don't reply to this email directly.",
     link,
     "",
     `${brand.name} Support · Enquiry ${ticket}`,

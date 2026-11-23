@@ -24,15 +24,23 @@ const enquirySchema = new mongoose.Schema(
 
     phone: {
       type: String,
-      required: [true, "Phone is required"],
+      // issue reports come from logged-in customers who may have no phone
+      required: [
+        function () {
+          return this.type !== "issue";
+        },
+        "Phone is required",
+      ],
+      default: "",
       trim: true,
-      match: [/^\+?[0-9\s-]{7,20}$/, "Invalid phone number"],
+      match: [/^(\+?[0-9\s-]{7,20})?$/, "Invalid phone number"],
     },
 
     message: {
       type: String,
       trim: true,
-      maxlength: [500, "Message too long"],
+      // the public form allows 500; issue reports (subject + description) up to 1200
+      maxlength: [1200, "Message too long"],
       default: "",
     },
 
@@ -50,7 +58,8 @@ const enquirySchema = new mongoose.Schema(
     //  - "subscription" → logged-in subscription tenure callback (one per user/program)
     type: {
       type: String,
-      enum: ["general", "subscription"],
+      // "issue" → raised from "Report an Issue" on the customer's profile
+      enum: ["general", "subscription", "issue"],
       default: "general",
       index: true,
     },
@@ -95,6 +104,9 @@ const enquirySchema = new mongoose.Schema(
     reopenCount: { type: Number, default: 0 },
     lastActivityAt: { type: Date, default: null },
     lastCustomerMessageAt: { type: Date, default: null },
+
+    // 🧩 the Reported Issue this ticket was created from (type "issue")
+    issueReport: { type: mongoose.Schema.Types.ObjectId, ref: "IssueReport", default: null },
 
     // 🔐 Bumping this invalidates every reply link already emailed
     replyLinkVersion: { type: Number, default: 1 },

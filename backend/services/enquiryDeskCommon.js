@@ -104,9 +104,37 @@ const tokenMatches = (enquiry, token) => {
 
 const replyLink = (enquiry) => `${siteBase()}/support/enquiry/${enquiry.ticketNo}?t=${replyToken(enquiry)}`;
 
+// ============================================
+// ✉️ REPLY BY EMAIL (phase 3)
+// With INBOUND_EMAIL_DOMAIN set (e.g. "reply.zealtho.com", routed to the
+// inbound webhook by the mail provider), every customer email gets a
+// Reply-To like reply+1042.3f9a0c1b2d4e@reply.zealtho.com — the ticket plus
+// a signature, so a reply lands on the right ticket and can't be forged.
+// Lowercase hex: some mail systems lowercase the address.
+// ============================================
+const inboundDomain = () => String(process.env.INBOUND_EMAIL_DOMAIN || "").trim().toLowerCase();
+
+const inboundSig = (ticketNo) =>
+  crypto.createHmac("sha256", linkSecret()).update(`inbound:${ticketNo}`).digest("hex").slice(0, 12);
+
+const inboundAddress = (enquiry) =>
+  inboundDomain() && enquiry?.ticketNo ? `reply+${enquiry.ticketNo}.${inboundSig(enquiry.ticketNo)}@${inboundDomain()}` : null;
+
+// "Name <reply+1042.abc@domain>" → ticketNo (or null if it isn't ours / bad signature)
+const parseInboundAddress = (value) => {
+  const list = String(value || "").toLowerCase().match(/reply\+(\d{4,9})\.([0-9a-f]{12})@[^\s,>]+/g) || [];
+  for (const addr of list) {
+    const [, n, sig] = addr.match(/reply\+(\d{4,9})\.([0-9a-f]{12})@/);
+    const ticketNo = Number(n);
+    const expected = Buffer.from(inboundSig(ticketNo));
+    if (expected.length === sig.length && crypto.timingSafeEqual(expected, Buffer.from(sig))) return ticketNo;
+  }
+  return null;
+};
+
 const sendEmail = async (mail, to) => {
   await Promise.race([
-    sendRawEmail({ to, subject: mail.subject, html: mail.html, text: mail.text, fromName: mail.fromName }),
+    sendRawEmail({ to, subject: mail.subject, html: mail.html, text: mail.text, fromName: mail.fromName, replyTo: mail.replyTo || undefined }),
     new Promise((_, reject) => setTimeout(() => reject(new Error("Email timed out")), EMAIL_TIMEOUT_MS)),
   ]);
 };
@@ -127,6 +155,27 @@ const ensureTicketNo = async (enquiry) => {
 
 const ownerName = async (adminId) =>
   adminId ? (await Admin.findById(adminId).select("fullName").lean())?.fullName || "another admin" : "";
+
+// 🧩 a ticket made from a Reported Issue keeps the issue's status in step:
+// resolved / closed / spam → issue resolved; open again → issue open
+const syncIssue = async (enquiryId) => {
+  try {
+    const e = await Enquiry.findById(enquiryId).select("issueReport status resolvedAt resolvedBy closedAt").lean();
+    if (!e?.issueReport) return;
+    const IssueReport = require("../models/IssueReport");
+    const done = DONE_STATUSES.includes(e.status);
+    await IssueReport.updateOne(
+      { _id: e.issueReport },
+      {
+        $set: done
+          ? { status: "resolved", resolvedAt: e.resolvedAt || e.closedAt || new Date(), resolvedBy: e.resolvedBy || null }
+          : { status: "open", resolvedAt: null, resolvedBy: null },
+      }
+    );
+  } catch (err) {
+    console.error("[ENQUIRY ISSUE SYNC ERROR]:", err.message);
+  }
+};
 
 const minutesBetween = (a, b) => (a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000)) : null);
 
@@ -151,8 +200,12 @@ module.exports = {
   replyToken,
   tokenMatches,
   replyLink,
+  inboundDomain,
+  inboundAddress,
+  parseInboundAddress,
   sendEmail,
   ensureTicketNo,
   ownerName,
+  syncIssue,
   minutesBetween,
 };

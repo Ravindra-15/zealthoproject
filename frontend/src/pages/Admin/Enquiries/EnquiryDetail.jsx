@@ -33,6 +33,10 @@ import {
   RefreshCw,
   Star,
   Zap,
+  PhoneCall,
+  Sparkles,
+  MessageCircle,
+  LifeBuoy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -50,6 +54,8 @@ import {
   triageEnquiry,
   listReadyReplies,
   markReadyReplyUsed,
+  callEnquiryCustomer,
+  aiDraftEnquiry,
 } from "../../../services/adminEnquiryService";
 import { formatUtcDateTime12h } from "../../../utils/time";
 import ModalShell from "../PortalUsers/components/ModalShell";
@@ -130,13 +136,21 @@ const describe = (e) => {
       return `${a} rated the help ${e.to}`;
     case "resolved_email":
       return "Customer emailed that it's resolved (with a rating request)";
+    case "call_started":
+      return `${a} called the customer`;
+    case "call_failed":
+      return `${a}'s call couldn't be started`;
+    case "ai_draft":
+      return `${a} asked the AI for a draft`;
+    case "inbound_rejected":
+      return "A reply couldn't be added";
     default:
       return e.type;
   }
 };
 
 // these events' notes only repeat the sentence above them
-const QUIET_NOTE = new Set(["acknowledged", "replied", "reply_resent", "reply_failed", "sla_warning", "sla_breached", "nudged", "auto_resolved", "merged", "resolved_email", "auto_assigned"]);
+const QUIET_NOTE = new Set(["acknowledged", "replied", "reply_resent", "reply_failed", "sla_warning", "sla_breached", "nudged", "auto_resolved", "merged", "resolved_email", "auto_assigned", "ai_draft"]);
 
 const DOT = {
   created: "bg-sky-500",
@@ -155,6 +169,10 @@ const DOT = {
   sla_breached: "bg-red-500",
   auto_assigned: "bg-indigo-400",
   rated: "bg-yellow-400",
+  call_started: "bg-teal-500",
+  call_failed: "bg-red-500",
+  ai_draft: "bg-fuchsia-400",
+  inbound_rejected: "bg-red-400",
   merged: "bg-sky-400",
   auto_resolved: "bg-emerald-400",
 };
@@ -238,6 +256,8 @@ const EnquiryDetail = () => {
   const [dialog, setDialog] = useState(null); // { kind: "release" | "close" | "spam" | "reopen" | "unassign" }
   const [reason, setReason] = useState("");
   const [readyReplies, setReadyReplies] = useState([]);
+  const [alsoWhatsApp, setAlsoWhatsApp] = useState(false);
+  const [beforeAi, setBeforeAi] = useState(null); // text before the AI draft (for Undo)
   const threadEnd = useRef(null);
   const mounted = useRef(true);
 
@@ -334,11 +354,14 @@ const EnquiryDetail = () => {
       if (r) setText("");
       return;
     }
-    const r = await run(`reply-${nextStatus}`, () => replyToEnquiry(id, body, nextStatus));
+    const whatsappOnly = !data.enquiry.hasEmail;
+    const r = await run(`reply-${nextStatus}`, () => replyToEnquiry(id, body, nextStatus, whatsappOnly || alsoWhatsApp));
     if (r) {
       setText("");
-      if (r.emailStatus === "sent") toast.success(nextStatus === "resolved" ? "Reply sent and enquiry resolved" : "Reply emailed to the customer");
-      else toast.error("Reply saved, but the email couldn't be sent. Use “Send again”.");
+      setBeforeAi(null);
+      if (r.emailStatus === "failed") toast.error("Reply saved, but the email couldn't be sent. Use “Send again”.");
+      else if (r.emailStatus === "skipped") toast.success(r.whatsappStatus === "sent" ? "Reply sent on WhatsApp" : "Reply saved — WhatsApp isn't connected yet");
+      else toast.success(nextStatus === "resolved" ? "Reply sent and enquiry resolved" : "Reply emailed to the customer");
       setTimeout(() => threadEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
     }
   };
@@ -353,6 +376,7 @@ const EnquiryDetail = () => {
     else if (kind === "close") ok = await run("status", () => setEnquiryStatus(id, "closed"), "Enquiry closed");
     else if (kind === "spam") ok = await run("status", () => setEnquiryStatus(id, "spam"), "Marked as spam");
     else if (kind === "reopen") ok = await run("status", () => setEnquiryStatus(id, "reopen"), "Enquiry reopened");
+    else if (kind === "call") ok = await run("call", () => callEnquiryCustomer(id), (r) => r?.message || "Calling…");
     if (ok) {
       setDialog(null);
       setReason("");
@@ -373,6 +397,23 @@ const EnquiryDetail = () => {
   };
 
   const changeTriage = (changes) => run("triage", () => triageEnquiry(id, changes), "Updated");
+
+  // 🤖 AI draft → into the reply box (the admin reads and edits before sending)
+  const askAi = async () => {
+    if (busy) return;
+    setBusy("ai");
+    try {
+      const { draft } = await aiDraftEnquiry(id);
+      setBeforeAi(text);
+      setText(draft.slice(0, MAX));
+      toast.success("Draft ready — read and edit it before sending");
+      load({ quiet: true });
+    } catch (err) {
+      toast.error(errMsg(err, "The AI couldn't write a draft right now"));
+    } finally {
+      if (mounted.current) setBusy("");
+    }
+  };
 
   // ---------- states ----------
   if (loading && !data) {
@@ -401,8 +442,10 @@ const EnquiryDetail = () => {
   }
 
   // why the reply box is locked (if it is)
-  const replyBlock = !enquiry.hasEmail
-    ? "This enquiry has no email address, so it can't be answered by email." + (isSuperAdmin ? " Call the customer on the number shown, then add a note." : " A super admin can see the customer's number and call them.")
+  const features = data.features || {};
+  const whatsappOnly = !enquiry.hasEmail && !!features.whatsapp?.canSend;
+  const replyBlock = !enquiry.hasEmail && !features.whatsapp?.canSend
+    ? "This enquiry has no email address or usable mobile number, so it can't be answered here."
     : ["closed", "spam"].includes(enquiry.status)
       ? isSuperAdmin
         ? "This enquiry is closed. Reopen it to reply."
@@ -434,6 +477,11 @@ const EnquiryDetail = () => {
               </span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{PROGRAMS[enquiry.source] || enquiry.source}</span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{CATEGORIES[enquiry.category] || "General"}</span>
+              {enquiry.type === "issue" && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 inline-flex items-center gap-1">
+                  <LifeBuoy size={11} /> Reported issue
+                </span>
+              )}
               {enquiry.reopenCount > 0 && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">Reopened {enquiry.reopenCount}×</span>
               )}
@@ -457,6 +505,11 @@ const EnquiryDetail = () => {
             <button type="button" onClick={() => load({ quiet: true })} className={`${btn} bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 !px-2.5`} aria-label="Refresh" title="Refresh">
               <RefreshCw size={15} />
             </button>
+            {perms.canCall && (
+              <button type="button" disabled={!!busy} onClick={() => setDialog({ kind: "call" })} className={`${btn} bg-white border border-teal-200 text-teal-700 hover:bg-teal-50`}>
+                {busyIcon("call", PhoneCall)} Call customer
+              </button>
+            )}
             {perms.canTake && (
               <button type="button" disabled={!!busy} onClick={() => run("take", () => takeEnquiry(id), "This enquiry is now yours")} className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`}>
                 {busyIcon("take", Hand)} Take enquiry
@@ -570,6 +623,8 @@ const EnquiryDetail = () => {
                           {enquiry.name}
                           {m.original && <span className="ml-1.5 font-normal text-gray-400">· original enquiry</span>}
                           {m.via === "merge" && <span className="ml-1.5 font-normal text-gray-400">· sent the form again</span>}
+                          {m.via === "email" && <span className="ml-1.5 font-normal text-gray-400">· replied by email</span>}
+                          {m.via === "whatsapp" && <span className="ml-1.5 font-normal text-gray-400">· on WhatsApp</span>}
                         </span>
                         <span className="text-[11px] text-gray-400">{formatUtcDateTime12h(m.createdAt)}</span>
                       </>
@@ -615,6 +670,21 @@ const EnquiryDetail = () => {
                           </span>
                         )}
                         {m.emailStatus === "pending" && <span className="text-gray-500">Sending…</span>}
+                        {m.whatsappStatus === "sent" && (
+                          <span className="inline-flex items-center gap-1 text-emerald-700">
+                            <MessageCircle size={11} /> Sent on WhatsApp
+                          </span>
+                        )}
+                        {m.whatsappStatus === "mock" && (
+                          <span className="inline-flex items-center gap-1 text-amber-700">
+                            <MessageCircle size={11} /> WhatsApp not connected — recorded only
+                          </span>
+                        )}
+                        {m.whatsappStatus === "failed" && (
+                          <span className="inline-flex items-center gap-1 text-red-600">
+                            <MessageCircle size={11} /> WhatsApp failed
+                          </span>
+                        )}
                         {m.emailStatus === "failed" && (
                           <>
                             <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
@@ -674,6 +744,40 @@ const EnquiryDetail = () => {
               </div>
             ) : (
               <>
+                {tab === "reply" && (features.aiDrafts || features.whatsapp?.canSend) && (
+                  <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {features.aiDrafts && (
+                      <button
+                        type="button"
+                        onClick={askAi}
+                        disabled={!!busy}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-fuchsia-700 bg-fuchsia-50 hover:bg-fuchsia-100 disabled:opacity-50"
+                      >
+                        {busy === "ai" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                        {busy === "ai" ? "Writing a draft…" : "Draft with AI"}
+                      </button>
+                    )}
+                    {beforeAi !== null && (
+                      <button type="button" onClick={() => { setText(beforeAi); setBeforeAi(null); }} className="text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
+                        Undo AI draft
+                      </button>
+                    )}
+                    {features.whatsapp?.canSend && (
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={whatsappOnly || alsoWhatsApp}
+                          disabled={whatsappOnly}
+                          onChange={(e) => setAlsoWhatsApp(e.target.checked)}
+                          className="h-4 w-4 accent-emerald-600"
+                        />
+                        <MessageCircle size={14} className="text-emerald-600" />
+                        {whatsappOnly ? "WhatsApp only (no email on file)" : "Also send on WhatsApp"}
+                        {!features.whatsapp.live && <span className="text-[11px] text-amber-700">· not connected yet, recorded only</span>}
+                      </label>
+                    )}
+                  </div>
+                )}
                 {tab === "reply" && readyReplies.length > 0 && (
                   <div className="mb-2 flex items-center gap-2">
                     <Zap size={14} className="text-indigo-500 shrink-0" />
@@ -706,7 +810,7 @@ const EnquiryDetail = () => {
                   placeholder={
                     tab === "note"
                       ? "Only staff can see this. e.g. Called the customer, will follow up tomorrow."
-                      : `Write your reply to ${enquiry.name.split(" ")[0]}. It's emailed from ${PROGRAMS[enquiry.source] || "Zealtho"} Support — your name and the customer's email stay private.`
+                      : `Write your reply to ${enquiry.name.split(" ")[0]}. It's sent from ${PROGRAMS[enquiry.source] || "Zealtho"} Support — your name and the customer's contact details stay private.${features.aiDrafts ? " Or press “Draft with AI” — always read and edit before sending." : ""}`
                   }
                   className={`w-full px-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-400 resize-y min-h-[120px] focus:outline-none focus:ring-1 transition-colors ${
                     tab === "note" ? "bg-amber-50/40 border-amber-200 focus:border-amber-400 focus:ring-amber-400" : "bg-white border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
@@ -919,6 +1023,19 @@ const EnquiryDetail = () => {
         confirmLabel="Mark as spam"
         danger
         busy={busy === "status"}
+        onConfirm={confirmDialog}
+        onClose={() => !busy && setDialog(null)}
+      />
+      <ConfirmDialog
+        open={dialog?.kind === "call"}
+        title="Call the customer?"
+        body={
+          features.calls?.live
+            ? "Your phone rings first. When you answer, we connect the customer. Neither of you sees the other's number."
+            : "Calling isn't connected yet. The call will be recorded on this enquiry but not placed."
+        }
+        confirmLabel="Call now"
+        busy={busy === "call"}
         onConfirm={confirmDialog}
         onClose={() => !busy && setDialog(null)}
       />

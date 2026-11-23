@@ -268,14 +268,21 @@ const releaseEnquiry = async (req, res) => {
 
 const replyToEnquiry = async (req, res) => {
   try {
-    const { body, nextStatus } = req.body || {};
-    const { emailStatus } = await desk.reply(req.params.id, req.admin, { body, nextStatus: nextStatus || "in_progress" });
-    return await sendDetail(
-      req,
-      res,
-      emailStatus === "sent" ? "Reply sent to the customer" : "Reply saved, but the email couldn't be sent",
-      { emailStatus }
-    );
+    const { body, nextStatus, alsoWhatsApp } = req.body || {};
+    const { emailStatus, whatsappStatus } = await desk.reply(req.params.id, req.admin, {
+      body,
+      nextStatus: nextStatus || "in_progress",
+      alsoWhatsApp: alsoWhatsApp === true,
+    });
+    const msg =
+      emailStatus === "failed"
+        ? "Reply saved, but the email couldn't be sent"
+        : emailStatus === "skipped"
+          ? whatsappStatus === "sent"
+            ? "Reply sent on WhatsApp"
+            : "Reply saved for WhatsApp"
+          : "Reply sent to the customer";
+    return await sendDetail(req, res, msg, { emailStatus, whatsappStatus });
   } catch (err) {
     return fail(res, err, "Failed to send the reply");
   }
@@ -374,11 +381,24 @@ const getBoard = async (req, res) => {
   }
 };
 
+// which outside services are connected (no secrets — just yes/no)
+const connections = () => {
+  const { isWhatsAppLive } = require("../services/whatsapp.service");
+  const { isCallsLive } = require("../services/callBridge.service");
+  const ai = require("../services/enquiryAi.service");
+  return {
+    whatsapp: isWhatsAppLive(),
+    replyByEmail: !!process.env.INBOUND_EMAIL_DOMAIN && !!process.env.INBOUND_WEBHOOK_SECRET,
+    calls: isCallsLive(),
+    ai: ai.isConfigured(),
+  };
+};
+
 const getDeskSettings = async (req, res) => {
   try {
     const s = await sla.getSettings({ fresh: true });
     const { lastDigestDate, ...settings } = s;
-    return successResponse(res, { settings }, "Settings fetched", 200);
+    return successResponse(res, { settings, connections: connections() }, "Settings fetched", 200);
   } catch (err) {
     return fail(res, err, "Failed to load settings");
   }
@@ -461,7 +481,30 @@ const useTemplate = async (req, res) => {
   }
 };
 
+// ============================================
+// 📞🤖 phase 3
+// ============================================
+const callEnquiryCustomer = async (req, res) => {
+  try {
+    const { status } = await desk.callCustomer(req.params.id, req.admin);
+    return await sendDetail(req, res, status === "mock" ? "Calling isn't connected yet — the call was recorded" : "Calling you now, then the customer", { callStatus: status });
+  } catch (err) {
+    return fail(res, err, "Failed to start the call");
+  }
+};
+
+const aiDraftEnquiry = async (req, res) => {
+  try {
+    const { draft } = await desk.aiDraft(req.params.id, req.admin);
+    return successResponse(res, { draft }, "Draft ready — read and edit it before sending", 200);
+  } catch (err) {
+    return fail(res, err, "Failed to draft a reply");
+  }
+};
+
 module.exports = {
+  callEnquiryCustomer,
+  aiDraftEnquiry,
   takeNextEnquiry,
   triageEnquiry,
   getMyDesk,

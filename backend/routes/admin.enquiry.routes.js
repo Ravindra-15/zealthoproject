@@ -30,6 +30,8 @@ const {
   updateTemplate,
   deleteTemplate,
   useTemplate,
+  callEnquiryCustomer,
+  aiDraftEnquiry,
 } = require("../controllers/admin.enquiry.controller");
 
 const router = express.Router();
@@ -69,5 +71,13 @@ router.post("/:id/messages/:messageId/resend", protectAdmin, writeLimiter, resen
 router.post("/:id/notes", protectAdmin, writeLimiter, addEnquiryNote);
 router.post("/:id/status", protectAdmin, writeLimiter, setEnquiryStatus);
 router.post("/:id/triage", protectAdmin, writeLimiter, triageEnquiry);
+
+// 📞 masked call (rings the admin, then the customer)
+const callLimiter = rateLimit({ windowMs: 60 * 1000, max: 6, standardHeaders: true, legacyHeaders: false, message: { success: false, message: "Too many calls in a minute. Please wait." } });
+router.post("/:id/call", protectAdmin, callLimiter, callEnquiryCustomer);
+
+// 🤖 AI draft (each one is a paid AI request)
+const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { success: false, message: "Too many AI drafts in a minute. Please wait." } });
+router.post("/:id/ai-draft", protectAdmin, aiLimiter, aiDraftEnquiry);
 
 module.exports = router;

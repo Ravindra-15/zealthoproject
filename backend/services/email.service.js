@@ -476,7 +476,7 @@ const sendTrialRejectedEmail = async ({ to, recipientName, reason }) => {
 // Unlike the helpers above this THROWS on failure, so the caller can
 // report whether the email was really delivered.
 // ============================================
-const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho", attachments }) => {
+const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho", attachments, replyTo }) => {
   await transporter.sendMail({
     from: `"${fromName}" <${process.env.EMAIL_USER}>`,
     to,
@@ -484,6 +484,7 @@ const sendRawEmail = async ({ to, subject, html, text, fromName = "Zealtho", att
     html,
     text,
     ...(attachments ? { attachments } : {}),
+    ...(replyTo ? { replyTo } : {}),
   });
 };
 

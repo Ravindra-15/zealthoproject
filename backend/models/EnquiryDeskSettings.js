@@ -34,6 +34,7 @@ const DEFAULTS = {
   autoCloseDays: 3,
   digestEnabled: true,
   digestHour: 9,
+  aiDrafts: false, // AI reply drafts — off until a super admin turns them on
 };
 
 const enquiryDeskSettingsSchema = new mongoose.Schema(
@@ -56,6 +57,8 @@ const enquiryDeskSettingsSchema = new mongoose.Schema(
     autoCloseDays: { type: Number, min: 1, max: 60, default: DEFAULTS.autoCloseDays },
     digestEnabled: { type: Boolean, default: DEFAULTS.digestEnabled },
     digestHour: { type: Number, min: 0, max: 23, default: DEFAULTS.digestHour },
+    // 🤖 AI reply drafts (needs ANTHROPIC_API_KEY on the server)
+    aiDrafts: { type: Boolean, default: DEFAULTS.aiDrafts },
     lastDigestDate: { type: String, default: "" }, // "YYYY-MM-DD" in `timezone` — one digest a day
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
   },

@@ -34,6 +34,14 @@ const { CATEGORIES } = require("../models/EnquiryTemplate");
 const { ackEmail, replyEmail, resolvedEmail, mergedEmail } = require("../utils/enquiryEmailTemplates");
 const C = require("./enquiryDeskCommon");
 const sla = require("./enquirySla.service");
+const EnquiryTemplate = require("../models/EnquiryTemplate");
+const { sendWhatsApp, normalizePhone, isWhatsAppLive } = require("./whatsapp.service");
+const { connectCall, isCallsLive } = require("./callBridge.service");
+const ai = require("./enquiryAi.service");
+
+const PROGRAM_NAMES = { zealtho: "Zealtho", yogat20: "YogaT20", diabmukt: "Diabmukt", mommyfit: "MommyFit", slimfitter: "Slimfitter" };
+const replyByEmail = (enquiry) => !!C.inboundAddress(enquiry);
+const withReplyTo = (mail, enquiry) => ({ ...mail, replyTo: C.inboundAddress(enquiry) });
 
 const { OPEN_STATUSES, DONE_STATUSES, STATUS_LABELS, TICKET_BASE } = C;
 
@@ -59,7 +67,10 @@ const onEnquiryCreated = async (enquiryDoc) => {
     if (enquiry.email) {
       try {
         await C.sendEmail(
-          ackEmail({ source: enquiry.source, name: enquiry.name, ticketNo: enquiry.ticketNo, message: enquiry.message, link: C.replyLink(enquiry) }),
+          withReplyTo(
+            ackEmail({ source: enquiry.source, name: enquiry.name, ticketNo: enquiry.ticketNo, message: enquiry.message, link: C.replyLink(enquiry), replyByEmail: replyByEmail(enquiry) }),
+            enquiry
+          ),
           enquiry.email
         );
         await C.logEvent(enquiry._id, "acknowledged", C.SYSTEM, { note: "Confirmation email sent to the customer" });
@@ -103,7 +114,7 @@ const mergeIntoOpen = async ({ email, source, name, message }) => {
     enquiry: existing,
     ...(existing.assignedTo ? { targetAdmin: existing.assignedTo } : {}),
   });
-  C.sendEmail(mergedEmail({ source: existing.source, name: existing.name, ticketNo: existing.ticketNo, link: C.replyLink(existing) }), existing.email).catch(() => {});
+  C.sendEmail(withReplyTo(mergedEmail({ source: existing.source, name: existing.name, ticketNo: existing.ticketNo, link: C.replyLink(existing) }), existing), existing.email).catch(() => {});
   return existing;
 };
 
@@ -250,15 +261,33 @@ const release = async (id, admin, reason) => {
 // ============================================
 const REPLY_NEXT = ["in_progress", "waiting", "resolved"];
 
-const deliverReply = async (enquiry, message) => {
-  const mail = replyEmail({
-    source: enquiry.source,
-    name: enquiry.name,
-    ticketNo: enquiry.ticketNo,
-    body: message.body,
-    link: C.replyLink(enquiry),
-    status: enquiry.status,
+// 💬 the same reply on WhatsApp (plain text + the private link). Passwords /
+// secrets never go here — it's only the admin's reply text.
+const deliverWhatsApp = async (enquiry, message) => {
+  const brand = PROGRAM_NAMES[enquiry.source] || "Zealtho";
+  const r = await sendWhatsApp({
+    to: enquiry.phone,
+    event: "enquiry_reply",
+    body: `${brand} Support — enquiry ${C.ticketText(enquiry.ticketNo)}\n\n${message.body}\n\nView or reply: ${C.replyLink(enquiry)}`.slice(0, 4000),
   });
+  await EnquiryMessage.updateOne({ _id: message._id }, { $set: { whatsappStatus: r.status } });
+  return r.status;
+};
+
+const deliverReply = async (enquiry, message) => {
+  if (!enquiry.email) return "skipped"; // WhatsApp-only reply (no email on file)
+  const mail = withReplyTo(
+    replyEmail({
+      source: enquiry.source,
+      name: enquiry.name,
+      ticketNo: enquiry.ticketNo,
+      body: message.body,
+      link: C.replyLink(enquiry),
+      status: enquiry.status,
+      replyByEmail: replyByEmail(enquiry),
+    }),
+    enquiry
+  );
   try {
     await C.sendEmail(mail, enquiry.email);
     await EnquiryMessage.updateOne({ _id: message._id }, { $set: { emailStatus: "sent", emailError: "" }, $inc: { emailAttempts: 1 } });
@@ -272,7 +301,7 @@ const deliverReply = async (enquiry, message) => {
   }
 };
 
-const reply = async (id, admin, { body, nextStatus = "in_progress" }) => {
+const reply = async (id, admin, { body, nextStatus = "in_progress", alsoWhatsApp = false }) => {
   let enquiry = await loadEnquiry(id);
   const text = String(body || "").trim();
   if (!text) throw C.httpError(400, "Write a reply first");
@@ -281,7 +310,11 @@ const reply = async (id, admin, { body, nextStatus = "in_progress" }) => {
   if (["closed", "spam"].includes(enquiry.status)) {
     throw C.httpError(409, C.isSuper(admin) ? "Reopen this enquiry before replying" : "This enquiry is closed. Ask a super admin to reopen it.");
   }
-  if (!enquiry.email) throw C.httpError(409, "This enquiry has no email address, so it can't be answered by email.", { code: "NO_EMAIL" });
+  const canWhatsApp = !!normalizePhone(enquiry.phone);
+  if (alsoWhatsApp && !canWhatsApp) throw C.httpError(409, "This enquiry has no usable mobile number for WhatsApp.", { code: "NO_PHONE" });
+  if (!enquiry.email && !alsoWhatsApp) {
+    throw C.httpError(409, "This enquiry has no email address, so it can't be answered by email.", { code: "NO_EMAIL" });
+  }
 
   // replying to an unowned enquiry takes it first (atomic, capped)
   if (!enquiry.assignedTo) enquiry = await take(id, admin);
@@ -296,7 +329,7 @@ const reply = async (id, admin, { body, nextStatus = "in_progress" }) => {
     authorName: admin.fullName,
     authorRole: admin.role,
     body: text,
-    emailStatus: "pending",
+    emailStatus: enquiry.email ? "pending" : null,
   });
 
   const fromStatus = enquiry.status;
@@ -308,8 +341,15 @@ const reply = async (id, admin, { body, nextStatus = "in_progress" }) => {
   enquiry = { ...enquiry, ...set };
 
   const emailStatus = await deliverReply(enquiry, message);
-  await C.logEvent(enquiry._id, emailStatus === "sent" ? "replied" : "reply_failed", C.adminActor(admin), {
-    note: emailStatus === "sent" ? "Reply emailed to the customer" : "Reply saved but the email could not be sent",
+  const whatsappStatus = alsoWhatsApp ? await deliverWhatsApp(enquiry, message) : null;
+  const channels = [
+    emailStatus === "sent" && "emailed",
+    whatsappStatus === "sent" && "sent on WhatsApp",
+    whatsappStatus === "mock" && "recorded for WhatsApp (not connected yet)",
+  ].filter(Boolean);
+  const failed = emailStatus === "failed" || whatsappStatus === "failed";
+  await C.logEvent(enquiry._id, failed && !channels.length ? "reply_failed" : "replied", C.adminActor(admin), {
+    note: channels.length ? `Reply ${channels.join(" and ")}${failed ? " (one channel failed)" : ""}` : "Reply saved but couldn't be delivered",
   });
   if (fromStatus !== nextStatus) {
     await C.logEvent(enquiry._id, nextStatus === "resolved" ? "resolved" : "status_changed", C.adminActor(admin), {
@@ -317,7 +357,8 @@ const reply = async (id, admin, { body, nextStatus = "in_progress" }) => {
       to: STATUS_LABELS[nextStatus],
     });
   }
-  return { enquiry: await Enquiry.findById(enquiry._id).lean(), emailStatus };
+  await C.syncIssue(enquiry._id);
+  return { enquiry: await Enquiry.findById(enquiry._id).lean(), emailStatus, whatsappStatus };
 };
 
 // 🔁 re-send a reply whose email failed
@@ -362,7 +403,7 @@ const sendResolvedEmail = async (enquiry, admin) => {
   try {
     const settings = await sla.getSettings();
     await C.ensureTicketNo(enquiry);
-    await C.sendEmail(resolvedEmail({ source: enquiry.source, name: enquiry.name, ticketNo: enquiry.ticketNo, link: C.replyLink(enquiry), autoCloseDays: settings.autoCloseDays }), enquiry.email);
+    await C.sendEmail(withReplyTo(resolvedEmail({ source: enquiry.source, name: enquiry.name, ticketNo: enquiry.ticketNo, link: C.replyLink(enquiry), autoCloseDays: settings.autoCloseDays }), enquiry), enquiry.email);
     await C.logEvent(enquiry._id, "resolved_email", C.adminActor(admin), { note: "Customer told it's resolved and asked to rate the help" });
   } catch (err) {
     await C.logEvent(enquiry._id, "resolved_email", C.adminActor(admin), { note: "Couldn't email the customer that it's resolved" });
@@ -390,6 +431,7 @@ const setStatus = async (id, admin, target) => {
     await Enquiry.updateOne({ _id: enquiry._id }, { $set: set, $inc: { reopenCount: 1 } });
     await C.logEvent(enquiry._id, "reopened", C.adminActor(admin), { from: STATUS_LABELS[from], to: STATUS_LABELS[to] });
     if (!enquiry.assignedTo) sla.drainQueue().catch(() => {});
+    await C.syncIssue(enquiry._id);
     return Enquiry.findById(enquiry._id).lean();
   }
 
@@ -403,6 +445,7 @@ const setStatus = async (id, admin, target) => {
   const type = target === "resolved" ? "resolved" : target === "closed" ? "closed" : target === "spam" ? "marked_spam" : "status_changed";
   await C.logEvent(enquiry._id, type, C.adminActor(admin), { from: STATUS_LABELS[from], to: STATUS_LABELS[target] });
   if (target === "resolved") await sendResolvedEmail({ ...enquiry, ...set }, admin);
+  await C.syncIssue(enquiry._id);
   return Enquiry.findById(enquiry._id).lean();
 };
 
@@ -486,14 +529,23 @@ const detail = async (id, admin) => {
       canTake: !enquiry.assignedTo && !DONE_STATUSES.includes(enquiry.status),
       canWork: C.isSuper(admin) || C.sameId(enquiry.assignedTo, admin._id),
       canReply:
-        !!enquiry.email &&
+        (!!enquiry.email || !!normalizePhone(enquiry.phone)) &&
         !["closed", "spam"].includes(enquiry.status) &&
         (C.isSuper(admin) || !enquiry.assignedTo || C.sameId(enquiry.assignedTo, admin._id)),
       canRelease: C.sameId(enquiry.assignedTo, admin._id),
       canAssign: C.isSuper(admin),
       canClose: C.isSuper(admin),
       canTriage: !["closed", "spam"].includes(enquiry.status) && (C.isSuper(admin) || C.sameId(enquiry.assignedTo, admin._id)),
+      canCall: !!normalizePhone(enquiry.phone) && !["closed", "spam"].includes(enquiry.status) && (C.isSuper(admin) || C.sameId(enquiry.assignedTo, admin._id)),
     },
+    features: {
+      whatsapp: { canSend: !!normalizePhone(enquiry.phone), live: isWhatsAppLive() },
+      replyByEmail: replyByEmail(enquiry),
+      calls: { live: isCallsLive() },
+      aiDrafts: settings.aiDrafts && ai.isConfigured(),
+      aiDraftsReason: !settings.aiDrafts ? "off" : !ai.isConfigured() ? "no_key" : "",
+    },
+    issueReport: enquiry.issueReport || null,
   };
 };
 
@@ -578,6 +630,13 @@ const CUSTOMER_MAX = 2000;
 
 const customerReply = async (ticketNo, token, body) => {
   const enquiry = await loadForCustomer(ticketNo, token);
+  await applyCustomerMessage(enquiry, body, "link");
+  return customerThread(ticketNo, token);
+};
+
+// 📥 one customer message (private link, email reply or WhatsApp) — reopens a
+// resolved ticket, wakes a waiting one, alerts the owner. Used by every channel.
+const applyCustomerMessage = async (enquiry, body, via = "link") => {
   const text = String(body || "").trim();
   if (!text) throw C.httpError(400, "Write your message first");
   if (text.length > CUSTOMER_MAX) throw C.httpError(400, `Message can't be longer than ${CUSTOMER_MAX} characters`);
@@ -590,7 +649,7 @@ const customerReply = async (ticketNo, token, body) => {
   if (recent >= 10) throw C.httpError(429, "You've sent several messages already — our team will get back to you soon.");
 
   const now = new Date();
-  await EnquiryMessage.create({ enquiry: enquiry._id, kind: "customer", via: "link", authorName: enquiry.name, body: text });
+  await EnquiryMessage.create({ enquiry: enquiry._id, kind: "customer", via, authorName: enquiry.name, body: text });
 
   const from = enquiry.status;
   let to = from;
@@ -607,7 +666,7 @@ const customerReply = async (ticketNo, token, body) => {
   }
   await Enquiry.updateOne({ _id: enquiry._id }, update);
 
-  await C.logEvent(enquiry._id, "customer_replied", C.CUSTOMER(enquiry));
+  await C.logEvent(enquiry._id, "customer_replied", C.CUSTOMER(enquiry), via === "email" ? { note: "Replied by email" } : via === "whatsapp" ? { note: "Replied on WhatsApp" } : {});
   if (from === "resolved") {
     await C.logEvent(enquiry._id, "reopened", C.CUSTOMER(enquiry), { from: STATUS_LABELS.resolved, to: STATUS_LABELS[to], note: "Customer replied after it was resolved" });
   } else if (to !== from) {
@@ -622,8 +681,7 @@ const customerReply = async (ticketNo, token, body) => {
     ...(enquiry.assignedTo ? { targetAdmin: enquiry.assignedTo } : {}),
   });
   if (to === "new") sla.drainQueue().catch(() => {});
-
-  return customerThread(ticketNo, token);
+  await C.syncIssue(enquiry._id);
 };
 
 // ⭐ customer rates the help (1–5 + optional comment); can change it until reopened
@@ -647,6 +705,81 @@ const customerRate = async (ticketNo, token, { score, comment }) => {
     if (who) await C.notify({ type: "enquiry_low_rating", title: `Low rating on ${C.ticketText(enquiry.ticketNo)}`, body, enquiry, targetAdmin: who });
   }
   return customerThread(ticketNo, token);
+};
+
+// ============================================
+// 📞 MASKED CALL — rings the admin's phone, then the customer; numbers hidden
+// ============================================
+const callCustomer = async (id, admin) => {
+  const enquiry = await loadEnquiry(id);
+  if (["closed", "spam"].includes(enquiry.status)) throw C.httpError(409, "Reopen this enquiry before calling");
+  if (!enquiry.assignedTo && !C.isSuper(admin)) throw C.httpError(409, "Take this enquiry first", { code: "NOT_TAKEN" });
+  await assertCanWork(enquiry, admin);
+  if (!normalizePhone(enquiry.phone)) throw C.httpError(409, "This enquiry has no usable mobile number.", { code: "NO_PHONE" });
+  const me = await Admin.findById(admin._id).select("phone").lean();
+  if (!normalizePhone(me?.phone)) {
+    throw C.httpError(409, "Add your own mobile number to your admin account first — the call rings you, then connects the customer.", { code: "NO_AGENT_PHONE" });
+  }
+  await C.ensureTicketNo(enquiry);
+  const r = await connectCall({ agentPhone: me.phone, customerPhone: enquiry.phone, reference: C.ticketText(enquiry.ticketNo) });
+  if (r.status === "failed") {
+    await C.logEvent(enquiry._id, "call_failed", C.adminActor(admin), { note: "The call couldn't be started" });
+    throw C.httpError(502, "The call couldn't be started. Please try again in a minute.", { code: "CALL_FAILED" });
+  }
+  await Enquiry.updateOne({ _id: enquiry._id }, { $set: { lastActivityAt: new Date() } });
+  await C.logEvent(enquiry._id, "call_started", C.adminActor(admin), {
+    note: r.status === "mock" ? "Calling isn't connected yet — the call was recorded, not placed" : "Ringing the admin, then the customer",
+  });
+  return { status: r.status };
+};
+
+// ============================================
+// 🤖 AI DRAFT — a suggested reply for the admin to edit (never sent by itself)
+// ============================================
+const aiDraft = async (id, admin) => {
+  const enquiry = await loadEnquiry(id);
+  const settings = await sla.getSettings();
+  if (!settings.aiDrafts) throw C.httpError(409, "AI drafts are switched off. A super admin can turn them on in Desk settings.", { code: "AI_OFF" });
+  if (["closed", "spam"].includes(enquiry.status)) throw C.httpError(409, "Reopen this enquiry first");
+  if (enquiry.assignedTo && !C.isSuper(admin) && !C.sameId(enquiry.assignedTo, admin._id)) await assertCanWork(enquiry, admin);
+  const [messages, readyReplies] = await Promise.all([
+    EnquiryMessage.find({ enquiry: enquiry._id }).sort({ createdAt: 1 }).select("kind body").lean(),
+    EnquiryTemplate.find({ isActive: true, category: { $in: ["", enquiry.category || "general"] } }).select("title body").limit(20).lean(),
+  ]);
+  const draft = await ai.draftReply({ enquiry, messages, readyReplies, programName: PROGRAM_NAMES[enquiry.source] || "Zealtho" });
+  await C.logEvent(enquiry._id, "ai_draft", C.adminActor(admin), { note: "Asked the AI for a draft reply" });
+  return { draft };
+};
+
+// ============================================
+// 🧩 REPORTED ISSUE → ticket (new reports, and "Move to Enquiry Desk")
+// ============================================
+const createFromIssue = async (issue) => {
+  const IssueReport = require("../models/IssueReport");
+  const User = require("../models/User");
+  if (issue.enquiry) return Enquiry.findById(issue.enquiry).lean();
+  const user = await User.findById(issue.user).select("fullName nickName email phone countryCode whatsapp").lean();
+  if (!user) throw C.httpError(404, "The customer who reported this no longer exists");
+  const CATEGORY = { appointment: "booking", payment: "payment", account: "login", videos: "technical", other: "technical" };
+  const phone = normalizePhone(user.whatsapp) || (user.phone ? normalizePhone(`${user.countryCode || ""}${user.phone}`) : null);
+  const enquiry = await Enquiry.create({
+    name: (user.fullName || user.nickName || "Customer").slice(0, 60).padEnd(2, "."),
+    email: user.email || "",
+    phone: phone || "",
+    message: `${issue.subject}\n\n${issue.description}`.slice(0, 1200),
+    source: issue.platform || "zealtho",
+    type: "issue",
+    user: issue.user,
+    category: CATEGORY[issue.category] || "technical",
+    issueReport: issue._id,
+  });
+  await IssueReport.updateOne({ _id: issue._id }, { $set: { enquiry: enquiry._id } });
+  await onEnquiryCreated(enquiry);
+  // an issue already resolved before it moved → the ticket starts resolved too
+  if (issue.status === "resolved") {
+    await Enquiry.updateOne({ _id: enquiry._id }, { $set: { status: "resolved", resolvedAt: issue.resolvedAt || new Date(), resolvedBy: issue.resolvedBy || null } });
+  }
+  return Enquiry.findById(enquiry._id).lean();
 };
 
 // ============================================
@@ -698,6 +831,10 @@ module.exports = {
   customerThread,
   customerReply,
   customerRate,
+  applyCustomerMessage,
+  callCustomer,
+  aiDraft,
+  createFromIssue,
   releaseAllFor,
   autoCloseResolved: sla.autoCloseResolved,
   replyLink: C.replyLink, // for tests

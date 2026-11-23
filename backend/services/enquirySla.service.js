@@ -57,6 +57,7 @@ const plain = (doc) => ({
   autoCloseDays: doc?.autoCloseDays || DEFAULTS.autoCloseDays,
   digestEnabled: doc?.digestEnabled ?? DEFAULTS.digestEnabled,
   digestHour: Number.isInteger(doc?.digestHour) ? doc.digestHour : DEFAULTS.digestHour,
+  aiDrafts: doc?.aiDrafts === true,
   lastDigestDate: doc?.lastDigestDate || "",
   updatedAt: doc?.updatedAt || null,
 });
@@ -123,6 +124,9 @@ const validateSettings = (input = {}) => {
   }
   if (typeof input.digestEnabled !== "boolean") return { error: "Daily digest must be on or off" };
   v.digestEnabled = input.digestEnabled;
+  // older settings forms don't send it → keep it off
+  if (input.aiDrafts !== undefined && typeof input.aiDrafts !== "boolean") return { error: "AI drafts must be on or off" };
+  v.aiDrafts = input.aiDrafts === true;
   return { value: v };
 };
 
@@ -196,7 +200,8 @@ const dueDates = (start, priority, settings, { first = true, resolve = true } = 
 // sort + time limits for a just-created enquiry
 const triageNew = async (enquiry) => {
   const settings = await getSettings();
-  const category = categorize(enquiry);
+  // tickets made from a Reported Issue keep the issue's own category
+  const category = enquiry.type === "issue" && enquiry.category && enquiry.category !== "general" ? enquiry.category : categorize(enquiry);
   const { priority, reason } = await prioritize(enquiry, category);
   const set = {
     category,
@@ -444,7 +449,7 @@ const waitingSweep = async (now = new Date()) => {
     if (!claim.modifiedCount) continue;
     try {
       await C.ensureTicketNo(e);
-      await C.sendEmail(nudgeEmail({ source: e.source, name: e.name, ticketNo: e.ticketNo, link: C.replyLink(e), autoCloseDays: settings.autoCloseDays }), e.email);
+      await C.sendEmail({ ...nudgeEmail({ source: e.source, name: e.name, ticketNo: e.ticketNo, link: C.replyLink(e), autoCloseDays: settings.autoCloseDays }), replyTo: C.inboundAddress(e) }, e.email);
       await C.logEvent(e._id, "nudged", C.SYSTEM, { note: `No answer for ${settings.nudgeAfterHours} hours — reminder emailed` });
       nudged++;
     } catch (err) {
@@ -461,6 +466,7 @@ const waitingSweep = async (now = new Date()) => {
     if (!res.modifiedCount) continue;
     resolved++;
     await C.logEvent(e._id, "auto_resolved", C.SYSTEM, { from: C.STATUS_LABELS.waiting, to: C.STATUS_LABELS.resolved, note: "No answer from the customer after the reminder" });
+    await C.syncIssue(e._id);
   }
   return { nudged, resolved };
 };
