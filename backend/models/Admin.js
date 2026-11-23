@@ -99,6 +99,11 @@ const adminSchema = new mongoose.Schema(
             match: [/^\+?[0-9\s-]{7,20}$/, "Please provide a valid mobile number"],
         },
 
+        // 🌍 Country the admin works from (portal admins can be anywhere).
+        // Empty on accounts created before this field existed.
+        country: { type: String, trim: true, default: "" },
+        countryIso: { type: String, trim: true, uppercase: true, default: "" },
+
         // 👤 ADMIN: Which super admin created this account (audit trail)
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,

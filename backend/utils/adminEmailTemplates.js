@@ -264,6 +264,7 @@ const createdEmail = ({ admin, createdByName, password, includePassword, panelUr
         ["Name", esc(admin.fullName)],
         ["Login email", esc(admin.email)],
         ["Mobile", esc(admin.phone || "—")],
+        ...(admin.country ? [["Country", esc(admin.country)]] : []),
         ["Role", "Portal Admin"],
         ["Created", esc(formatWhen(at))],
       ]) + extra,

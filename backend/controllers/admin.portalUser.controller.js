@@ -37,7 +37,7 @@ const {
 
 // Fields returned to the client (password / lock fields are select:false)
 const PUBLIC_FIELDS =
-  "fullName email phone role isActive lastLogin createdAt updatedAt";
+  "fullName email phone country countryIso role isActive lastLogin createdAt updatedAt";
 
 const STAFF_ROLE = "staff_admin";
 
@@ -72,6 +72,17 @@ const diffProfile = (current, next) => {
       label: "Login email",
       from: current.email,
       to: next.email,
+    });
+  }
+
+  if (next.countryIso !== undefined && next.countryIso !== (current.countryIso || "")) {
+    changes.push({
+      field: "country",
+      key: "countryIso",
+      label: "Country",
+      from: current.country || "",
+      to: next.country,
+      also: { country: next.country }, // saved together with the code
     });
   }
 
@@ -147,7 +158,7 @@ const listPortalUsers = async (req, res) => {
 // ============================================
 const createPortalUser = async (req, res) => {
   try {
-    const { fullName, email, phone, password, emailCredentials } = req.body;
+    const { fullName, email, phone, country, countryIso, password, emailCredentials } = req.body;
 
     const existing = await Admin.exists({ email });
     if (existing) {
@@ -161,6 +172,8 @@ const createPortalUser = async (req, res) => {
       fullName,
       email,
       phone,
+      country,
+      countryIso,
       password, // hashed by the Admin pre-save hook
       role: STAFF_ROLE, // 🔒 always set by the server
       permissions: [],
@@ -244,7 +257,12 @@ const updatePortalUser = async (req, res) => {
 
     const update = {};
     changes.forEach((c) => {
-      update[c.key] = c.to;
+      if (c.field === "country") {
+        update.countryIso = req.body.countryIso;
+        Object.assign(update, c.also);
+      } else {
+        update[c.key] = c.to;
+      }
     });
 
     const admin = await Admin.findOneAndUpdate(
