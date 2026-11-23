@@ -34,6 +34,7 @@ const {
   notifyPortalAdminStatusChanged,
   notifyPortalAdminPasswordReset,
 } = require("../services/adminNotification.service");
+const { releaseAllFor } = require("../services/enquiryDesk.service");
 
 // Fields returned to the client (password / lock fields are select:false)
 const PUBLIC_FIELDS =
@@ -350,6 +351,9 @@ const setPortalUserStatus = async (req, res) => {
     if (!admin) return notFound(res);
 
     audit(req, `${isActive ? "activated" : "deactivated"} portal user ${admin.email}`);
+
+    // 🎫 a deactivated admin's open enquiries go back to the queue
+    if (!isActive) await releaseAllFor(admin._id, req.admin, "Admin was deactivated");
 
     // 📧 + 📱 tell the admin (never throws)
     const notifications = await notifyPortalAdminStatusChanged({

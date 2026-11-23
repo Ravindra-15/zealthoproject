@@ -66,6 +66,8 @@ import EditUser from "./pages/Admin/Users/EditUser";
 import AppointmentLog from "./pages/Admin/Appointments/AppointmentLog";
 
 import Enquiries from "./pages/Admin/Enquiries/Enquiries";
+import EnquiryDetail from "./pages/Admin/Enquiries/EnquiryDetail";
+import SupportEnquiry from "./pages/Customer/Support/SupportEnquiry";
 import ReportedIssues from "./pages/Admin/Issues/ReportedIssues";
 import Messages from "./pages/Admin/Messages/Messages";
 import FinancialReports from "./pages/Admin/FinancialReports/FinancialReports";
@@ -120,6 +122,8 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-use" element={<TermsOfUse />} />
         <Route path="/about" element={<About />} />
+        {/* 🔗 customer's private enquiry link (from the email, no login) */}
+        <Route path="/support/enquiry/:ticketNo" element={<SupportEnquiry />} />
         <Route
           path="/refer-and-earn"
           element={
@@ -273,6 +277,7 @@ function App() {
             }
           />
           <Route path="enquiries" element={<Enquiries />} />
+          <Route path="enquiries/:id" element={<EnquiryDetail />} />
           <Route path="messages" element={<Messages />} />
           <Route path="issues" element={<ReportedIssues />} />
           <Route

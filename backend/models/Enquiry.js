@@ -63,17 +63,47 @@ const enquirySchema = new mongoose.Schema(
       index: true,
     },
 
+    // 🎫 Enquiry desk status
+    //  new         → nobody owns it yet (in the queue)
+    //  assigned    → an admin owns it, no reply sent yet
+    //  in_progress → being worked on (replied, or customer answered back)
+    //  waiting     → waiting on the customer's answer
+    //  resolved    → answered; closes by itself after 3 quiet days
+    //  closed      → finished (customer can't reply any more)
+    //  spam        → marked spam by a super admin (kept, never deleted)
+    //  contacted   → legacy value from before the desk (shown as in progress)
     status: {
       type: String,
-      enum: ["new", "contacted", "resolved"],
+      enum: ["new", "assigned", "in_progress", "waiting", "resolved", "closed", "spam", "contacted"],
       default: "new",
       index: true,
     },
+
+    // 🎫 Ticket number shown everywhere as "ENQ-<n>" (set on creation;
+    // older enquiries get one when first opened, or via the backfill script)
+    ticketNo: { type: Number, unique: true, sparse: true },
+
+    // 👤 Owner — one admin at a time
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null, index: true },
+    assignedAt: { type: Date, default: null },
+
+    // ⏱️ Timings (for tracking how fast enquiries are handled)
+    firstResponseAt: { type: Date, default: null },
+    resolvedAt: { type: Date, default: null },
+    resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+    closedAt: { type: Date, default: null },
+    reopenCount: { type: Number, default: 0 },
+    lastActivityAt: { type: Date, default: null },
+    lastCustomerMessageAt: { type: Date, default: null },
+
+    // 🔐 Bumping this invalidates every reply link already emailed
+    replyLinkVersion: { type: Number, default: 1 },
   },
   { timestamps: true }
 );
 
 enquirySchema.index({ createdAt: -1 });
+enquirySchema.index({ status: 1, assignedTo: 1, createdAt: 1 });
 enquirySchema.index({ name: "text", phone: "text" });
 
 module.exports = mongoose.model("Enquiry", enquirySchema);

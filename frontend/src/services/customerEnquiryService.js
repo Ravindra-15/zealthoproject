@@ -30,3 +30,20 @@ export const submitEnquiry = async (payload) => {
   const response = await publicApi.post("/customer/enquiries", payload);
   return response.data;
 };
+// ============================================
+// 🔗 PRIVATE ENQUIRY LINK (from the customer's email, no login)
+// ============================================
+export const fetchEnquiryThread = async (ticketNo, token) => {
+  const response = await publicApi.get(`/customer/enquiries/thread/${encodeURIComponent(ticketNo)}`, {
+    params: { t: token },
+  });
+  return response.data.data;
+};
+
+export const replyToEnquiryThread = async (ticketNo, token, message) => {
+  const response = await publicApi.post(`/customer/enquiries/thread/${encodeURIComponent(ticketNo)}`, {
+    t: token,
+    message,
+  });
+  return response.data.data;
+};

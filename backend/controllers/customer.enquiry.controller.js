@@ -4,6 +4,8 @@
 // and one-click subscription callbacks from logged-in users.
 
 const Enquiry = require("../models/Enquiry");
+const User = require("../models/User");
+const desk = require("../services/enquiryDesk.service");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
 // ============================================
@@ -25,6 +27,15 @@ const createEnquiry = async (req, res) => {
 
     if (email && !/^\S+@\S+\.\S+$/.test(email.trim()))
       return errorResponse(res, "Invalid email format", 400);
+
+    // 📧 Email is required — it's how our team replies (enquiry desk).
+    // A logged-in customer's account email is used when the form has none.
+    let finalEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    if (!finalEmail && req.user?._id) {
+      const account = await User.findById(req.user._id).select("email").lean();
+      finalEmail = account?.email || "";
+    }
+    if (!finalEmail) return errorResponse(res, "Email address is required so we can reply to you", 400);
 
     // 📝 Message required for public (general) enquiries.
     // Subscription callbacks use an auto-message, so skip the requirement for them.
@@ -71,7 +82,7 @@ const createEnquiry = async (req, res) => {
 
     const enquiry = await Enquiry.create({
       name: name.trim(),
-      email: email ? email.trim().toLowerCase() : "",
+      email: finalEmail,
       phone: phone.trim(),
       message: message ? message.trim() : "",
       source: finalSource,
@@ -79,9 +90,15 @@ const createEnquiry = async (req, res) => {
       user: userId,
     });
 
+    // 🎫 ticket number now; history + "we got it" email + admin bell in the
+    // background (the customer isn't kept waiting on the email)
+    const plain = enquiry.toObject();
+    const ticketNo = await desk.ensureTicketNo(plain).catch(() => null);
+    desk.onEnquiryCreated(plain).catch(() => {});
+
     return successResponse(
       res,
-      { enquiry },
+      { enquiry: { _id: enquiry._id, ticketNo, status: enquiry.status, source: enquiry.source, createdAt: enquiry.createdAt } },
       "Enquiry submitted successfully",
       201
     );
@@ -137,4 +154,30 @@ const checkSubscriptionCallback = async (req, res) => {
   }
 };
 
-module.exports = { createEnquiry, checkSubscriptionCallback };
+// ============================================
+// 🔗 PRIVATE REPLY LINK (no login) — /support/enquiry/:ticketNo?t=…
+// ============================================
+const threadError = (res, err) =>
+  err?.status
+    ? res.status(err.status).json({ success: false, message: err.message, code: err.code || undefined })
+    : errorResponse(res, "Something went wrong. Please try again.", 500);
+
+const getThread = async (req, res) => {
+  try {
+    const data = await desk.customerThread(req.params.ticketNo, req.query.t);
+    return successResponse(res, data, "Enquiry fetched", 200);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
+const replyThread = async (req, res) => {
+  try {
+    const data = await desk.customerReply(req.params.ticketNo, req.body?.t, req.body?.message);
+    return successResponse(res, data, "Message sent", 201);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
+module.exports = { createEnquiry, checkSubscriptionCallback, getThread, replyThread };

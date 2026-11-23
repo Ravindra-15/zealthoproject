@@ -41,11 +41,13 @@ export const listEnquiries = async ({
   endDate = "",
   source = "",
   status = "",
+  view = "all", // queue | mine | open | done | spam | all
+  assignee = "", // super admin: an admin id or "none"
   page = 1,
   limit = 10,
 } = {}) => {
   const response = await adminApi.get("/admin/enquiries", {
-    params: { search, startDate, endDate, source, status, page, limit },
+    params: { search, startDate, endDate, source, status, view, assignee, page, limit },
   });
   return response.data.data;
 };
@@ -62,9 +64,11 @@ export const exportEnquiriesCsv = async ({
   endDate = "",
   source = "",
   status = "",
+  view = "all",
+  assignee = "",
 } = {}) => {
   const response = await adminApi.get("/admin/enquiries/export", {
-    params: { search, startDate, endDate, source, status },
+    params: { search, startDate, endDate, source, status, view, assignee },
     responseType: "blob",
   });
 
@@ -77,3 +81,39 @@ export const exportEnquiriesCsv = async ({
   link.remove();
   window.URL.revokeObjectURL(blobUrl);
 };
+// ============================================
+// 🎫 ENQUIRY DESK — one enquiry + actions
+// Each action returns the refreshed enquiry detail:
+// { enquiry, messages, events, timings, permissions }
+// ============================================
+const data = (response) => response.data.data;
+
+export const getEnquiry = async (id) => data(await adminApi.get(`/admin/enquiries/${id}`));
+
+export const takeEnquiry = async (id) => data(await adminApi.post(`/admin/enquiries/${id}/take`));
+
+// adminId = null → back to the queue (super admin only)
+export const assignEnquiry = async (id, adminId) =>
+  data(await adminApi.post(`/admin/enquiries/${id}/assign`, { adminId }));
+
+export const releaseEnquiry = async (id, reason) =>
+  data(await adminApi.post(`/admin/enquiries/${id}/release`, { reason }));
+
+// nextStatus: "in_progress" | "waiting" | "resolved"
+export const replyToEnquiry = async (id, body, nextStatus = "in_progress") => {
+  const response = await adminApi.post(`/admin/enquiries/${id}/reply`, { body, nextStatus });
+  return { ...response.data.data, message: response.data.message };
+};
+
+export const resendEnquiryReply = async (id, messageId) => {
+  const response = await adminApi.post(`/admin/enquiries/${id}/messages/${messageId}/resend`);
+  return { ...response.data.data, message: response.data.message };
+};
+
+export const addEnquiryNote = async (id, body) => data(await adminApi.post(`/admin/enquiries/${id}/notes`, { body }));
+
+// status: "in_progress" | "waiting" | "resolved" | "closed" | "spam" | "reopen"
+export const setEnquiryStatus = async (id, status) =>
+  data(await adminApi.post(`/admin/enquiries/${id}/status`, { status }));
+
+export const listEnquiryAssignees = async () => data(await adminApi.get("/admin/enquiries/assignees")).admins || [];
