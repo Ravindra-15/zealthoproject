@@ -82,6 +82,7 @@ import ClinicalVideoCMS from "./pages/Admin/ClinicalVideoCMS/ClinicalVideoCMS";
 import FreeTrialVideos from "./pages/Admin/ClinicalVideoCMS/FreeTrialVideos";
 import TrialApprovals from "./pages/Admin/TrialApprovals/TrialApprovals";
 import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
+import BodyProfileConfigurator from "./pages/Admin/BodyProfileConfigurator/BodyProfileConfigurator";
 import ReferralEngine from "./pages/Admin/Referrals/ReferralEngine";
 import PortalUsers from "./pages/Admin/PortalUsers/PortalUsers";
 import ConsultationPricing from "./pages/Admin/ConsultationPricing/ConsultationPricing";
@@ -334,6 +335,14 @@ function App() {
             element={
               <SuperAdminRoute>
                 <HabitConfigurator />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="body-profile"
+            element={
+              <SuperAdminRoute>
+                <BodyProfileConfigurator />
               </SuperAdminRoute>
             }
           />

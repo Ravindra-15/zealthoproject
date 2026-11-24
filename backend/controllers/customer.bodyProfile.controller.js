@@ -40,6 +40,10 @@ const upsertBodyProfile = async (req, res) => {
       data: { profile },
     });
   } catch (err) {
+    // an answer that doesn't fit the program's points (out of range, wrong type…)
+    if (err.status === 400) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
     if (err.name === "ValidationError") {
       const firstError = Object.values(err.errors)[0]?.message || "Invalid data";
       return res.status(400).json({ success: false, message: firstError });
@@ -66,6 +70,10 @@ const completeBodyProfile = async (req, res) => {
       data: { profile },
     });
   } catch (err) {
+    // an answer that doesn't fit the program's points (out of range, wrong type…)
+    if (err.status === 400) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
     if (err.name === "ValidationError") {
       const firstError = Object.values(err.errors)[0]?.message || "Invalid data";
       return res.status(400).json({ success: false, message: firstError });

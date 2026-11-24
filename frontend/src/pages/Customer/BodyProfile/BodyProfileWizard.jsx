@@ -5,7 +5,7 @@
  * Auth-gated. Returns to /my-appointments on success.
  */
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,9 +21,9 @@ import toast from "react-hot-toast";
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import CustomerFooter from "../../../components/customer/layout/CustomerFooter";
 
-import Step1Physical from "./components/Step1Physical";
-import Step2Lifestyle from "./components/Step2Lifestyle";
-import Step3SymptomsFamily from "./components/Step3SymptomsFamily";
+import { BodyProfileStepForm } from "../../../components/customer/BodyProfile/BodyProfileInputs";
+import { activeSteps, buildBodyProfilePayload } from "../../../utils/bodyProfileConfig";
+import { PROGRAM_ID } from "../../../utils/programConfig";
 
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
 import {
@@ -32,7 +32,8 @@ import {
 } from "../../../utils/customerAuthHelper";
 
 // ============================================
-// 📑 STEP META
+// 📑 STEP META (icons + fallback titles — the titles, sections and points
+// come from this program's body profile settings)
 // ============================================
 const STEPS = [
   {
@@ -58,13 +59,13 @@ const STEPS = [
 // ============================================
 // 🧭 STEP INDICATOR — Figma styled
 // ============================================
-const StepIndicator = ({ currentStep }) => (
+const StepIndicator = ({ currentStep, steps = STEPS }) => (
   <div className="flex items-start justify-between max-w-3xl mx-auto mb-10 relative px-2">
-    {STEPS.map((step, idx) => {
+    {steps.map((step, idx) => {
       const isCompleted = step.id < currentStep;
       const isActive = step.id === currentStep;
       const Icon = step.icon;
-      const isLast = idx === STEPS.length - 1;
+      const isLast = idx === steps.length - 1;
 
       return (
         <React.Fragment key={step.id}>
@@ -127,7 +128,7 @@ const BodyProfileWizard = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { profile, loading: profileLoading, saving, save, complete } =
+  const { profile, config: bpConfig, loading: profileLoading, saving, save, complete } =
     useMyBodyProfile();
 
   // ?step=2 → open at that step (the progress card links to the first missing one)
@@ -135,7 +136,19 @@ const BodyProfileWizard = () => {
     const n = Number(new URLSearchParams(location.search).get("step"));
     return Number.isInteger(n) && n >= 1 && n <= STEPS.length ? n : 1;
   });
-  const [formData, setFormData] = useState({});
+  // null until the saved answers are in (the inputs build on them)
+  const [formData, setFormData] = useState(null);
+  const seededRef = useRef(false);
+
+  // this program's steps (a step with nothing to fill is skipped)
+  const steps = useMemo(
+    () => activeSteps(bpConfig).map((s) => ({ ...s, icon: STEPS[s.id - 1]?.icon || Activity })),
+    [bpConfig]
+  );
+  // ?step=N may point at a skipped step → the next one that's shown
+  const stepIdx = Math.max(0, steps.findIndex((s) => s.id >= step));
+  const current = steps[stepIdx];
+  const isLastStep = stepIdx >= steps.length - 1;
 
   const isMountedRef = useRef(false);
 
@@ -151,31 +164,35 @@ const BodyProfileWizard = () => {
   // ============================================
   // 🔄 SEED FORM FROM EXISTING PROFILE
   // ============================================
+  // once, when the saved answers have loaded — not after each save (while
+  // the patient fills the form, the form is what counts)
   useEffect(() => {
     isMountedRef.current = true;
-    if (profile) {
+    if (!profileLoading && !seededRef.current) {
+      seededRef.current = true;
       setFormData({
-        metabolic: profile.metabolic || {},
-        physical: profile.physical || {},
-        lifestyle: profile.lifestyle || {},
-        symptoms: profile.symptoms || {},
-        familyHistory: profile.familyHistory || {},
+        metabolic: profile?.metabolic || {},
+        physical: profile?.physical || {},
+        lifestyle: profile?.lifestyle || {},
+        symptoms: profile?.symptoms || {},
+        familyHistory: profile?.familyHistory || {},
+        custom: profile?.custom || {},
       });
     }
     return () => {
       isMountedRef.current = false;
     };
-  }, [profile]);
+  }, [profile, profileLoading]);
 
   // ============================================
   // ⏭️ NEXT
   // ============================================
   const handleNext = async () => {
-    const result = await save(formData);
+    const result = await save(buildBodyProfilePayload(bpConfig, formData || {}, PROGRAM_ID));
     if (!result) return;
 
-    if (step < STEPS.length) {
-      setStep(step + 1);
+    if (!isLastStep) {
+      setStep(steps[stepIdx + 1].id);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -184,8 +201,8 @@ const BodyProfileWizard = () => {
   // ⏮️ BACK
   // ============================================
   const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
+    if (stepIdx > 0) {
+      setStep(steps[stepIdx - 1].id);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       navigate(-1);
@@ -196,7 +213,7 @@ const BodyProfileWizard = () => {
   // ✅ FINAL SUBMIT
   // ============================================
   const handleComplete = async () => {
-    const result = await complete(formData);
+    const result = await complete(buildBodyProfilePayload(bpConfig, formData || {}, PROGRAM_ID));
     if (!result) return;
 
   //  toast.success("Body profile completed!");
@@ -205,7 +222,7 @@ const BodyProfileWizard = () => {
     navigate(from === "checkout" ? "/checkout" : "/my-appointments");
   };
 
-  const currentMeta = STEPS[step - 1];
+  const currentMeta = current || { title: "Your Body Profile", subtitle: "" };
 
   // ============================================
   // 🎨 RENDER
@@ -238,7 +255,7 @@ const BodyProfileWizard = () => {
           </div>
 
           {/* 📊 Step indicator */}
-          <StepIndicator currentStep={step} />
+          <StepIndicator currentStep={current?.id || step} steps={steps} />
 
           {/* ============================================ */}
           {/* 📋 WIZARD CARD                                */}
@@ -261,7 +278,7 @@ const BodyProfileWizard = () => {
             </div>
 
             {/* Step content */}
-            {profileLoading ? (
+            {profileLoading || formData === null ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -271,17 +288,18 @@ const BodyProfileWizard = () => {
                 ))}
               </div>
             ) : (
-              <>
-                {step === 1 && (
-                  <Step1Physical data={formData} onChange={setFormData} />
-                )}
-                {step === 2 && (
-                  <Step2Lifestyle data={formData} onChange={setFormData} />
-                )}
-                {step === 3 && (
-                  <Step3SymptomsFamily data={formData} onChange={setFormData} />
-                )}
-              </>
+              current ? (
+                <BodyProfileStepForm
+                  key={current.id}
+                  sections={current.sections}
+                  data={formData}
+                  onChange={setFormData}
+                />
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  There's nothing to fill in right now.
+                </p>
+              )
             )}
 
             {/* ============================================ */}
@@ -306,7 +324,7 @@ const BodyProfileWizard = () => {
                 {step === 1 ? "Cancel" : "Previous"}
               </button>
 
-              {step < STEPS.length ? (
+              {!isLastStep ? (
                 <button
                   type="button"
                   onClick={handleNext}
@@ -328,7 +346,7 @@ const BodyProfileWizard = () => {
                     </>
                   ) : (
                     <>
-                      {STEPS[step].title}
+                      {steps[stepIdx + 1]?.title}
                       <ArrowRight size={14} />
                     </>
                   )}

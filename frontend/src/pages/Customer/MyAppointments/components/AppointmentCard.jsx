@@ -26,6 +26,7 @@ import DOMPurify from "dompurify";
 
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
+import ClampedRx from "../../../../components/common/ClampedRx";
 
 import toast from "react-hot-toast";
 import {
@@ -582,9 +583,11 @@ const [cancelling, setCancelling] = useState(false);
                     PDF
                   </button>
                 </div>
-                <div
+                <ClampedRx
+                  html={safePrescription}
                   className="text-sm text-gray-800 break-words leading-relaxed rx-content"
-                  dangerouslySetInnerHTML={{ __html: safePrescription }}
+                  accent="#4F46E5"
+                  fade="#F8FAFF"
                 />
               </div>
             ) : (

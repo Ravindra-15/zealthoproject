@@ -40,6 +40,7 @@ import {
   Clock,
   LifeBuoy,
   BadgeDollarSign,
+  HeartPulse,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
@@ -202,6 +203,12 @@ const AdminSidebar = ({ onNavigate }) => {
                 icon: BadgeDollarSign,
                 label: "Appointment Pricing",
                 to: "/admin/appointment-pricing",
+              },
+              // every program (Zealtho too) has its own body profile points
+              {
+                icon: HeartPulse,
+                label: "Body Profile Points",
+                to: "/admin/body-profile",
               },
             ],
           },

@@ -21,7 +21,7 @@ import { useSelectedProgram } from "../../../context/SelectedProgramContext";
 
 // Base tabs shown for every program
 const BASE_TABS = [
-  { id: "body", label: "27-Point Body Profile", icon: ClipboardList },
+  { id: "body", label: "Body Profile", icon: ClipboardList },
   { id: "consultations", label: "Consultations", icon: MessageSquare },
   { id: "history", label: "Account History", icon: History },
 ];

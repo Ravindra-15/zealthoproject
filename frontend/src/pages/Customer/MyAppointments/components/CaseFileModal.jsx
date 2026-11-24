@@ -35,6 +35,7 @@ import { fetchReportBlob } from "../../../../services/medicalReportService";
 import { buildDoctorPhotoUrl } from "../../../../services/customerDoctorService";
 import { openReportFile } from "../../../../utils/openReportFile";
 import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
+import ClampedRx from "../../../../components/common/ClampedRx";
 import {
   PROGRAM_NAMES,
   visitStatus,
@@ -42,7 +43,6 @@ import {
   isImageReport,
   reportKind,
   fmtSize,
-  sanitizeRx,
   downloadCaseFilePdf,
 } from "../../../../utils/caseFilePdf";
 
@@ -158,7 +158,11 @@ const VisitCard = ({ a, theme, open, onToggle, last }) => {
             <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-600 flex-wrap">
               <span className="inline-flex items-center gap-1"><Calendar size={11} />{formatUtcDate(a.scheduledAt)}</span>
               <span className="inline-flex items-center gap-1"><Clock size={11} />{formatUtcTime24h(a.scheduledAt)}</span>
-              {a.prescription && <span className="inline-flex items-center gap-1 text-gray-500"><Pill size={11} />Prescription</span>}
+              {a.prescription && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold" style={{ color: theme.dark, backgroundColor: theme.soft }}>
+                  <Pill size={11} />Prescription
+                </span>
+              )}
               {a.reports.length > 0 && (
                 <span className="inline-flex items-center gap-1 text-gray-500"><Paperclip size={11} />{a.reports.length} report{a.reports.length === 1 ? "" : "s"}</span>
               )}
@@ -181,23 +185,42 @@ const VisitCard = ({ a, theme, open, onToggle, last }) => {
               )}
             </div>
 
-            {/* 💊 prescription */}
-            <div
-              className="rounded-lg border p-3"
-              style={a.prescription ? { borderColor: theme.border, backgroundColor: theme.soft } : { borderColor: "#E5E7EB", backgroundColor: "rgba(249,250,251,0.6)" }}
-            >
-              <p className="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5 mb-1">
-                <Pill size={12} style={{ color: a.prescription ? theme.main : "#9CA3AF" }} /> Prescription & diet plan
-                {a.prescriptionSentAt && <span className="font-normal text-gray-400">· shared {formatUtcDate(a.prescriptionSentAt)}</span>}
-              </p>
-              {a.prescription ? (
-                <div className="text-sm text-gray-800 break-words leading-relaxed cf-rx-view" dangerouslySetInnerHTML={{ __html: sanitizeRx(a.prescription) }} />
-              ) : (
+            {/* 💊 prescription — the doctor's advice, highlighted; long ones fold (Show more) */}
+            {a.prescription ? (
+              <div
+                className="rounded-xl border-2 overflow-hidden"
+                style={{ borderColor: theme.main, backgroundColor: theme.soft, boxShadow: `0 4px 14px ${theme.main}29` }}
+              >
+                <div className="flex items-center justify-between gap-2 px-3 py-2 flex-wrap" style={{ backgroundColor: theme.main }}>
+                  <p className="text-xs font-bold text-white flex items-center gap-1.5 min-w-0">
+                    <span className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0">
+                      <Pill size={12} />
+                    </span>
+                    Prescription & diet plan
+                  </p>
+                  {a.prescriptionSentAt && (
+                    <span className="text-[10px] font-medium text-white/90">Shared {formatUtcDate(a.prescriptionSentAt)}</span>
+                  )}
+                </div>
+                <div className="px-3 py-2.5">
+                  <ClampedRx
+                    html={a.prescription}
+                    className="text-sm text-gray-800 break-words leading-relaxed cf-rx-view"
+                    accent={theme.dark}
+                    fade={theme.soft}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border p-3" style={{ borderColor: "#E5E7EB", backgroundColor: "rgba(249,250,251,0.6)" }}>
+                <p className="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5 mb-1">
+                  <Pill size={12} style={{ color: "#9CA3AF" }} /> Prescription & diet plan
+                </p>
                 <p className="text-xs text-gray-400 italic">
                   {a.isUpcoming ? "The prescription will appear here after the consultation." : "The doctor hasn't shared a prescription for this visit."}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* 📎 reports */}
             <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">

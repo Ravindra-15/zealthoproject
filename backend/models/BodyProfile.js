@@ -74,6 +74,12 @@ const bodyProfileSchema = new mongoose.Schema(
     },
 
     // ============================================
+    // ➕ POINTS ADDED BY THE SUPER ADMIN
+    // ============================================
+    // key "c_xxxx" (from BodyProfileConfig) → number (sliders) or text (options)
+    custom: { type: Map, of: mongoose.Schema.Types.Mixed, default: undefined },
+
+    // ============================================
     // 📊 SUBSCRIPTION PROGRESS (temporary placeholder until Subscription module)
     // ============================================
     weekCurrent: { type: Number, default: 0 },

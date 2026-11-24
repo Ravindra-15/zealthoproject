@@ -8,12 +8,12 @@
  */
 
 import React, { useState } from "react";
-import DOMPurify from "dompurify";
 import { FolderOpen, ChevronDown, FileText, Eye, Download, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { fetchPatientReportBlob } from "../../../../services/doctorAppointmentService";
 import { openReportFile } from "../../../../utils/openReportFile";
 import { formatUtcDate, formatUtcTime24h } from "../../../../utils/time";
+import ClampedRx from "../../../../components/common/ClampedRx";
 
 const STATUS = {
   completed: "Completed",
@@ -71,11 +71,14 @@ const Visit = ({ visit, appointmentId }) => {
             )}
           </div>
           {visit.prescription && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Prescription</p>
-              <div
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-2.5 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Prescription</p>
+              <ClampedRx
+                html={visit.prescription}
                 className="text-xs text-gray-700 break-words prose prose-sm max-w-none ql-rendered"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(visit.prescription) }}
+                maxHeight={120}
+                accent="#4F46E5"
+                fade="#F5F7FF"
               />
             </div>
           )}
