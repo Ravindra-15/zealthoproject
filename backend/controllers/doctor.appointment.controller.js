@@ -259,7 +259,7 @@ const getPatientBodyProfile = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: { profile: result.profile },
+      data: { profile: result.profile, programId: result.programId },
     });
   } catch (err) {
     console.error("[DOCTOR GET BODY PROFILE ERROR]:", err);

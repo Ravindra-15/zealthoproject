@@ -7,6 +7,7 @@
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
 const BodyProfile = require("../models/BodyProfile"); // patient 27-point profile
+const { PROGRAM_IDS } = require("../utils/bodyProfileDefaults");
 const FreeConsultCard = require("../models/FreeConsultCard");
 const googleMeetService = require("./googleMeet.service");
 const Doctor = require("../models/Doctor");
@@ -618,14 +619,16 @@ const getPatientBodyProfile = async (doctorId, appointmentId) => {
     _id: appointmentId,
     doctor: doctorId,
   })
-    .select("user")
+    .select("user platform")
     .lean();
 
   if (!appointment) return null;
 
   // fetch that patient's body profile (null if not created yet)
   const profile = await BodyProfile.findOne({ user: appointment.user }).lean();
-  return { profile: profile || null };
+  // programId → the doctor sees the points of the program this booking came from
+  const programId = PROGRAM_IDS.includes(appointment.platform) ? appointment.platform : "zealtho";
+  return { profile: profile || null, programId };
 };
 
 // ============================================

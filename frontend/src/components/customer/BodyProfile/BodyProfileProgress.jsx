@@ -29,6 +29,7 @@ import {
 import BP_THEME from "./bodyProfileTheme";
 import useMyBodyProfile from "../../../hooks/useMyBodyProfile";
 import { getBodyProfileProgress } from "../../../utils/bodyProfileProgress";
+import useBodyProfileConfig from "../../../hooks/useBodyProfileConfig";
 
 const STEP_ICONS = { 1: Activity, 2: Leaf, 3: Heart };
 
@@ -42,7 +43,7 @@ const wizardUrl = (step, from) => {
 const stepsLeftText = (p) => {
   const left = p.steps.filter((s) => !s.done).length;
   if (!p.started) return "Not started yet · takes just a few seconds";
-  if (left === 0) return "All 27 points answered";
+  if (left === 0) return `All ${p.total} points answered`;
   return `${p.filled} of ${p.total} points answered · ${left} step${left > 1 ? "s" : ""} left`;
 };
 
@@ -271,7 +272,7 @@ const DetailsModal = ({ progress, onClose, onEditStep, onComplete }) => {
           <ProgressRing percent={progress.percent} size={52} stroke={7} />
           <div className="min-w-0">
             <h2 id={titleId} className="text-base font-bold text-gray-900">
-              Your 27-point body profile
+              Your {progress.total}-point body profile
             </h2>
             <p className="text-[11px] text-gray-500">{stepsLeftText(progress)}</p>
           </div>
@@ -308,7 +309,8 @@ const DetailsModal = ({ progress, onClose, onEditStep, onComplete }) => {
 export const BodyProfileProgressCard = ({ profile }) => {
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
-  const progress = useMemo(() => getBodyProfileProgress(profile), [profile]);
+  const { config: bpConfig } = useBodyProfileConfig();
+  const progress = useMemo(() => getBodyProfileProgress(profile, bpConfig), [profile, bpConfig]);
 
   if (progress.isDone) return null;
 
@@ -337,7 +339,7 @@ export const BodyProfileProgressCard = ({ profile }) => {
           onClick={() => setShowDetails(true)}
           className={`w-full sm:w-auto px-5 py-2.5 rounded-full text-sm font-semibold ${BP_THEME.btnOutline} ${BP_THEME.focus}`}
         >
-          View all 27 points
+          View all {progress.total} points
         </button>
         <button
           type="button"
@@ -367,7 +369,8 @@ export const BodyProfileProgressCard = ({ profile }) => {
 export const BodyProfileCheckoutRow = ({ profile, loading, error }) => {
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
-  const progress = useMemo(() => getBodyProfileProgress(profile), [profile]);
+  const { config: bpConfig } = useBodyProfileConfig();
+  const progress = useMemo(() => getBodyProfileProgress(profile, bpConfig), [profile, bpConfig]);
 
   if (loading) return <div className="w-full h-[68px] rounded-2xl bg-gray-100 animate-pulse" />;
 
@@ -411,7 +414,7 @@ export const BodyProfileCheckoutRow = ({ profile, loading, error }) => {
             {progress.isDone ? "Body Profile completed" : "Complete Your Body Profile"}
           </span>
           <span className="block text-[11px] text-gray-500 mt-0.5">
-            {progress.isDone ? "View or edit your 27 points" : `${stepsLeftText(progress)} · helps your doctor`}
+            {progress.isDone ? `View or edit your ${progress.total} points` : `${stepsLeftText(progress)} · helps your doctor`}
           </span>
         </span>
         <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
@@ -454,7 +457,8 @@ export const BodyProfilePrompt = ({ appointmentId }) => {
   const { profile, loading, error } = useMyBodyProfile();
   const [open, setOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const progress = useMemo(() => getBodyProfileProgress(profile), [profile]);
+  const { config: bpConfig } = useBodyProfileConfig();
+  const progress = useMemo(() => getBodyProfileProgress(profile, bpConfig), [profile, bpConfig]);
   const titleId = `bpPrompt${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
   useEffect(() => {
@@ -483,7 +487,7 @@ export const BodyProfilePrompt = ({ appointmentId }) => {
               <ChevronLeft size={14} /> Back
             </button>
             <h2 id={titleId} className="text-base font-bold text-gray-900">
-              Your 27-point body profile
+              Your {progress.total}-point body profile
             </h2>
             <p className="text-[11px] text-gray-500">{stepsLeftText(progress)}</p>
           </div>
@@ -512,7 +516,7 @@ export const BodyProfilePrompt = ({ appointmentId }) => {
             onClick={() => setShowDetails(true)}
             className={`mt-3 text-xs font-semibold ${BP_THEME.link}`}
           >
-            See all 27 points
+            See all {progress.total} points
           </button>
           <div className="border-t border-dashed border-gray-200 my-4" />
 

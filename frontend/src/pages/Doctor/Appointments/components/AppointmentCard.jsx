@@ -45,6 +45,7 @@ import DoctorNotes from "./DoctorNotes";
 import RescheduleModal from "./RescheduleModal";
 import Modal from "../../../../components/common/Modal";
 import BodyProfileView from "../../../../components/common/BodyProfileView";
+import ClampedRx from "../../../../components/common/ClampedRx";
 
 // ============================================
 // 🛠️ HELPERS
@@ -493,10 +494,14 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
 
               {/* saved prescription preview */}
               {prescription ? (
-                <div
-                  className="text-sm text-gray-800 break-words leading-relaxed mb-3 prose prose-sm max-w-none ql-rendered"
-                  dangerouslySetInnerHTML={{ __html: prescription }}
-                />
+                <div className="mb-3">
+                  <ClampedRx
+                    html={prescription}
+                    className="text-sm text-gray-800 break-words leading-relaxed prose prose-sm max-w-none ql-rendered"
+                    accent="#4F46E5"
+                    fade="#FFFFFF"
+                  />
+                </div>
               ) : (
                 <p className="text-xs text-gray-400 italic mb-3">
                   No prescription added yet.
@@ -832,7 +837,7 @@ const AppointmentCard = ({ appointment, onUpdated }) => {
               ))}
             </div>
           ) : (
-            <BodyProfileView bodyProfile={bodyProfile} />
+            <BodyProfileView bodyProfile={bodyProfile} programId={appointment?.platform || "zealtho"} />
           )}
         </div>
       </Modal>

@@ -12,6 +12,7 @@ import {
   completeBodyProfile,
 } from "../services/customerBodyProfileService";
 import { getBodyProfileProgress } from "../utils/bodyProfileProgress";
+import useBodyProfileConfig from "./useBodyProfileConfig";
 
 const useMyBodyProfile = ({ autoLoad = true } = {}) => {
   const [profile, setProfile] = useState(null);
@@ -20,6 +21,8 @@ const useMyBodyProfile = ({ autoLoad = true } = {}) => {
   const [error, setError] = useState(null);
 
   const isMountedRef = useRef(false);
+  // this program's points (super admin settings; defaults if they can't load)
+  const { config, loading: configLoading } = useBodyProfileConfig();
 
   // ============================================
   // 📥 LOAD
@@ -95,12 +98,13 @@ const useMyBodyProfile = ({ autoLoad = true } = {}) => {
   }, [saving]);
 
   // 🔍 Derived flag — used by banner logic
-  // complete = all 27 points answered (same rule as the checkout row / progress ring)
-  const isComplete = getBodyProfileProgress(profile).isDone;
+  // complete = every point of this program answered (same rule as the checkout row / progress ring)
+  const isComplete = getBodyProfileProgress(profile, config).isDone;
 
   return {
     profile,
-    loading,
+    config,
+    loading: loading || configLoading,
     saving,
     error,
     isComplete,
