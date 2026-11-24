@@ -207,4 +207,39 @@ const replyThread = async (req, res) => {
   }
 };
 
-module.exports = { createEnquiry, checkSubscriptionCallback, getThread, replyThread, rateThread };
+// ============================================
+// 👤 MY ENQUIRIES (logged in) — /api/customer/enquiries/mine
+// ============================================
+const myEnquiries = async (req, res) => {
+  try {
+    return successResponse(res, await desk.mine(req.user.id), "Enquiries fetched", 200);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
+const myEnquiry = async (req, res) => {
+  try {
+    return successResponse(res, await desk.mineThread(req.user.id, req.params.ticketNo), "Enquiry fetched", 200);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
+const replyMyEnquiry = async (req, res) => {
+  try {
+    return successResponse(res, await desk.mineReply(req.user.id, req.params.ticketNo, req.body?.message), "Message sent", 201);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
+const rateMyEnquiry = async (req, res) => {
+  try {
+    return successResponse(res, await desk.mineRate(req.user.id, req.params.ticketNo, { score: req.body?.score, comment: req.body?.comment }), "Thanks for your rating", 200);
+  } catch (err) {
+    return threadError(res, err);
+  }
+};
+
+module.exports = { createEnquiry, checkSubscriptionCallback, getThread, replyThread, rateThread, myEnquiries, myEnquiry, replyMyEnquiry, rateMyEnquiry };

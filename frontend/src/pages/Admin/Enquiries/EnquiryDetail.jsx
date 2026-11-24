@@ -625,6 +625,7 @@ const EnquiryDetail = () => {
                           {m.via === "merge" && <span className="ml-1.5 font-normal text-gray-400">· sent the form again</span>}
                           {m.via === "email" && <span className="ml-1.5 font-normal text-gray-400">· replied by email</span>}
                           {m.via === "whatsapp" && <span className="ml-1.5 font-normal text-gray-400">· on WhatsApp</span>}
+                          {m.via === "app" && <span className="ml-1.5 font-normal text-gray-400">· in the app</span>}
                         </span>
                         <span className="text-[11px] text-gray-400">{formatUtcDateTime12h(m.createdAt)}</span>
                       </>

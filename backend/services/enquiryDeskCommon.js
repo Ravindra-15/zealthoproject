@@ -177,6 +177,47 @@ const syncIssue = async (enquiryId) => {
   }
 };
 
+// 🔔 bell notification to the CUSTOMER (their account: the enquiry's user,
+// or a verified account with the same email). Opens My Enquiries → ticket.
+// Never throws; spam tickets and guests without an account get none.
+const CUSTOMER_BELL = {
+  reply: { type: "support_reply", title: (t) => `New reply on your enquiry ${t}`, body: "Our support team replied. Tap to read it." },
+  resolved: { type: "support_resolved", title: (t) => `Your enquiry ${t} is resolved`, body: "Tap to see the answer and rate our help." },
+  reminder: { type: "support_reminder", title: (t) => `We're waiting for your answer on ${t}`, body: "Please reply so we can help you. Tap to open." },
+};
+
+const customerAccountFor = async (enquiry) => {
+  const User = require("../models/User");
+  if (enquiry.user) {
+    const u = await User.findById(enquiry.user).select("_id").lean();
+    if (u) return u._id;
+  }
+  if (!enquiry.email) return null;
+  const u = await User.findOne({ email: String(enquiry.email).toLowerCase(), isVerified: true }).select("_id").lean();
+  return u?._id || null;
+};
+
+const notifyCustomer = async (enquiry, kind, body = "") => {
+  try {
+    const cfg = CUSTOMER_BELL[kind];
+    if (!cfg || !enquiry?.ticketNo || enquiry.status === "spam") return;
+    const userId = await customerAccountFor(enquiry);
+    if (!userId) return;
+    const Notification = require("../models/Notification");
+    const text = String(body || "").replace(/\s+/g, " ").trim();
+    await Notification.create({
+      userId,
+      userType: "customer",
+      type: cfg.type,
+      title: cfg.title(ticketText(enquiry.ticketNo)),
+      body: text ? (text.length > 160 ? `${text.slice(0, 157)}…` : text) : cfg.body,
+      metadata: { enquiryTicket: enquiry.ticketNo, link: `/my-enquiries/${enquiry.ticketNo}` },
+    });
+  } catch (err) {
+    console.error("[ENQUIRY CUSTOMER NOTIFY ERROR]:", err.message);
+  }
+};
+
 const minutesBetween = (a, b) => (a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000)) : null);
 
 module.exports = {
@@ -207,5 +248,6 @@ module.exports = {
   ensureTicketNo,
   ownerName,
   syncIssue,
+  notifyCustomer,
   minutesBetween,
 };

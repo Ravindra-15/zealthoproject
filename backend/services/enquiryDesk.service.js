@@ -358,6 +358,7 @@ const reply = async (id, admin, { body, nextStatus = "in_progress", alsoWhatsApp
     });
   }
   await C.syncIssue(enquiry._id);
+  await C.notifyCustomer(enquiry, nextStatus === "resolved" ? "resolved" : "reply", text);
   return { enquiry: await Enquiry.findById(enquiry._id).lean(), emailStatus, whatsappStatus };
 };
 
@@ -444,7 +445,10 @@ const setStatus = async (id, admin, target) => {
 
   const type = target === "resolved" ? "resolved" : target === "closed" ? "closed" : target === "spam" ? "marked_spam" : "status_changed";
   await C.logEvent(enquiry._id, type, C.adminActor(admin), { from: STATUS_LABELS[from], to: STATUS_LABELS[target] });
-  if (target === "resolved") await sendResolvedEmail({ ...enquiry, ...set }, admin);
+  if (target === "resolved") {
+    await sendResolvedEmail({ ...enquiry, ...set }, admin);
+    await C.notifyCustomer({ ...enquiry, ...set }, "resolved");
+  }
   await C.syncIssue(enquiry._id);
   return Enquiry.findById(enquiry._id).lean();
 };
@@ -603,8 +607,16 @@ const customerStatus = (status) =>
 // not auto-resolved because the customer went quiet)
 const canRate = (enquiry) => ["resolved", "closed"].includes(enquiry.status) && !!enquiry.resolvedAt && !!enquiry.resolvedBy;
 
-const customerThread = async (ticketNo, token) => {
-  const enquiry = await loadForCustomer(ticketNo, token);
+// what the customer sees: their messages + our replies (never notes / names)
+const subjectOf = (enquiry) => {
+  const first = String(enquiry.message || "").split("\n").map((l) => l.trim()).find(Boolean) || "";
+  const text = first || (enquiry.type === "subscription" ? "Callback request" : "Enquiry");
+  return text.length > 90 ? `${text.slice(0, 87)}…` : text;
+};
+
+const customerThread = async (ticketNo, token) => threadView(await loadForCustomer(ticketNo, token));
+
+const threadView = async (enquiry) => {
   const messages = await EnquiryMessage.find({ enquiry: enquiry._id, kind: { $in: ["reply", "customer"] } })
     .sort({ createdAt: 1 })
     .select("kind body createdAt")
@@ -615,6 +627,8 @@ const customerThread = async (ticketNo, token) => {
     ticketNo: enquiry.ticketNo,
     name: String(enquiry.name || "").split(/\s+/)[0],
     source: enquiry.source,
+    type: enquiry.type,
+    subject: subjectOf(enquiry),
     status,
     createdAt: enquiry.createdAt,
     message: enquiry.message,
@@ -666,7 +680,7 @@ const applyCustomerMessage = async (enquiry, body, via = "link") => {
   }
   await Enquiry.updateOne({ _id: enquiry._id }, update);
 
-  await C.logEvent(enquiry._id, "customer_replied", C.CUSTOMER(enquiry), via === "email" ? { note: "Replied by email" } : via === "whatsapp" ? { note: "Replied on WhatsApp" } : {});
+  await C.logEvent(enquiry._id, "customer_replied", C.CUSTOMER(enquiry), via === "email" ? { note: "Replied by email" } : via === "whatsapp" ? { note: "Replied on WhatsApp" } : via === "app" ? { note: "Replied in the app" } : {});
   if (from === "resolved") {
     await C.logEvent(enquiry._id, "reopened", C.CUSTOMER(enquiry), { from: STATUS_LABELS.resolved, to: STATUS_LABELS[to], note: "Customer replied after it was resolved" });
   } else if (to !== from) {
@@ -685,8 +699,12 @@ const applyCustomerMessage = async (enquiry, body, via = "link") => {
 };
 
 // ⭐ customer rates the help (1–5 + optional comment); can change it until reopened
-const customerRate = async (ticketNo, token, { score, comment }) => {
-  const enquiry = await loadForCustomer(ticketNo, token);
+const customerRate = async (ticketNo, token, data) => {
+  await rateEnquiry(await loadForCustomer(ticketNo, token), data);
+  return customerThread(ticketNo, token);
+};
+
+const rateEnquiry = async (enquiry, { score, comment } = {}) => {
   const n = Number(score);
   if (!Number.isInteger(n) || n < 1 || n > 5) throw C.httpError(400, "Pick 1 to 5 stars");
   const text = String(comment || "").trim().slice(0, 1000);
@@ -704,7 +722,115 @@ const customerRate = async (ticketNo, token, { score, comment }) => {
     const who = enquiry.resolvedBy || enquiry.assignedTo;
     if (who) await C.notify({ type: "enquiry_low_rating", title: `Low rating on ${C.ticketText(enquiry.ticketNo)}`, body, enquiry, targetAdmin: who });
   }
-  return customerThread(ticketNo, token);
+};
+
+// ============================================
+// 👤 MY ENQUIRIES (customer logged in to any of the 5 apps)
+// Theirs = enquiries linked to their account, plus ones sent from the same
+// email before they had an account (only once that email is verified).
+// Spam is never shown. Old Reported Issues without a ticket are listed too
+// (status only — they have no conversation).
+// ============================================
+const MINE_LIMIT = 100;
+
+const ownerQuery = async (userId) => {
+  const User = require("../models/User");
+  const user = await User.findById(userId).select("_id email isVerified").lean();
+  if (!user) throw C.httpError(401, "Please log in again");
+  const or = [{ user: user._id }];
+  if (user.isVerified && user.email) or.push({ email: String(user.email).toLowerCase() });
+  return { user, query: { $or: or, status: { $ne: "spam" } } };
+};
+
+const loadForOwner = async (userId, ticketNo) => {
+  const n = Number(ticketNo);
+  if (!Number.isInteger(n) || n <= TICKET_BASE) throw C.httpError(404, "We couldn't find this enquiry");
+  const { user, query } = await ownerQuery(userId);
+  const enquiry = await Enquiry.findOne({ ticketNo: n, ...query }).lean();
+  if (!enquiry) throw C.httpError(404, "We couldn't find this enquiry");
+  return { user, enquiry };
+};
+
+const latest = (...dates) => dates.filter(Boolean).map((d) => new Date(d)).sort((a, b) => b - a)[0] || null;
+
+const mine = async (userId) => {
+  const IssueReport = require("../models/IssueReport");
+  const { user, query } = await ownerQuery(userId);
+  const enquiries = await Enquiry.find(query)
+    .sort({ createdAt: -1 })
+    .limit(MINE_LIMIT)
+    .select("ticketNo source type status message createdAt resolvedAt resolvedBy closedAt lastCustomerMessageAt customerSeenAt rating")
+    .lean();
+  for (const e of enquiries) if (!e.ticketNo) await C.ensureTicketNo(e); // pre-desk enquiries get a number
+  const ids = enquiries.map((e) => e._id);
+  const replies = ids.length
+    ? await EnquiryMessage.aggregate([
+        { $match: { enquiry: { $in: ids }, kind: "reply" } },
+        { $group: { _id: "$enquiry", at: { $max: "$createdAt" }, count: { $sum: 1 } } },
+      ])
+    : [];
+  const byId = new Map(replies.map((r) => [String(r._id), r]));
+  const issues = await IssueReport.find({ user: user._id, $or: [{ enquiry: null }, { enquiry: { $exists: false } }] })
+    .sort({ createdAt: -1 })
+    .limit(MINE_LIMIT)
+    .select("subject platform status createdAt updatedAt resolvedAt")
+    .lean();
+
+  const items = [
+    ...enquiries
+      .filter((e) => e.ticketNo)
+      .map((e) => {
+        const r = byId.get(String(e._id));
+        return {
+          kind: "enquiry",
+          ticketNo: e.ticketNo,
+          source: e.source,
+          type: e.type,
+          subject: subjectOf(e),
+          status: customerStatus(e.status),
+          createdAt: e.createdAt,
+          updatedAt: latest(e.createdAt, r?.at, e.lastCustomerMessageAt, e.resolvedAt, e.closedAt),
+          replies: r?.count || 0,
+          unread: !!r?.at && (!e.customerSeenAt || new Date(r.at) > new Date(e.customerSeenAt)),
+          needsRating: canRate(e) && !e.rating?.score,
+        };
+      }),
+    ...issues.map((i) => ({
+      kind: "issue",
+      id: i._id,
+      source: i.platform,
+      type: "issue",
+      subject: i.subject,
+      status: i.status === "resolved" ? "resolved" : "open",
+      createdAt: i.createdAt,
+      updatedAt: latest(i.createdAt, i.resolvedAt),
+      replies: 0,
+      unread: false,
+      needsRating: false,
+    })),
+  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+  return { items };
+};
+
+const mineThread = async (userId, ticketNo) => {
+  const { user, enquiry } = await loadForOwner(userId, ticketNo);
+  const Notification = require("../models/Notification");
+  await Enquiry.updateOne({ _id: enquiry._id }, { $set: { customerSeenAt: new Date() } });
+  await Notification.updateMany({ userId: user._id, "metadata.enquiryTicket": enquiry.ticketNo, read: false }, { $set: { read: true } }).catch(() => {});
+  return threadView(enquiry);
+};
+
+const mineReply = async (userId, ticketNo, body) => {
+  const { enquiry } = await loadForOwner(userId, ticketNo);
+  await applyCustomerMessage(enquiry, body, "app");
+  return mineThread(userId, ticketNo);
+};
+
+const mineRate = async (userId, ticketNo, data) => {
+  const { enquiry } = await loadForOwner(userId, ticketNo);
+  await rateEnquiry(enquiry, data);
+  return mineThread(userId, ticketNo);
 };
 
 // ============================================
@@ -831,6 +957,10 @@ module.exports = {
   customerThread,
   customerReply,
   customerRate,
+  mine,
+  mineThread,
+  mineReply,
+  mineRate,
   applyCustomerMessage,
   callCustomer,
   aiDraft,

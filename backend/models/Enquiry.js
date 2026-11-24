@@ -104,6 +104,8 @@ const enquirySchema = new mongoose.Schema(
     reopenCount: { type: Number, default: 0 },
     lastActivityAt: { type: Date, default: null },
     lastCustomerMessageAt: { type: Date, default: null },
+    // 👀 when the customer last opened the conversation (My Enquiries / link)
+    customerSeenAt: { type: Date, default: null },
 
     // 🧩 the Reported Issue this ticket was created from (type "issue")
     issueReport: { type: mongoose.Schema.Types.ObjectId, ref: "IssueReport", default: null },
@@ -159,6 +161,7 @@ enquirySchema.index({ createdAt: -1 });
 enquirySchema.index({ status: 1, assignedTo: 1, createdAt: 1 });
 enquirySchema.index({ status: 1, assignedTo: 1, priorityRank: 1, firstReplyDueAt: 1 });
 enquirySchema.index({ email: 1, createdAt: -1 });
+enquirySchema.index({ user: 1, createdAt: -1 });
 enquirySchema.index({ name: "text", phone: "text" });
 
 module.exports = mongoose.model("Enquiry", enquirySchema);

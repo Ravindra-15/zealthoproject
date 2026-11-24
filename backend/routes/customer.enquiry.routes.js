@@ -10,6 +10,10 @@ const {
   getThread,
   replyThread,
   rateThread,
+  myEnquiries,
+  myEnquiry,
+  replyMyEnquiry,
+  rateMyEnquiry,
 } = require("../controllers/customer.enquiry.controller");
 const { protect, protectOptional } = require("../middleware/auth.middleware");
 
@@ -29,5 +33,11 @@ const threadWriteLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, standardHead
 router.get("/thread/:ticketNo", threadReadLimiter, getThread);
 router.post("/thread/:ticketNo", threadWriteLimiter, replyThread);
 router.post("/thread/:ticketNo/rating", threadWriteLimiter, rateThread);
+
+// 👤 My Enquiries — the logged-in customer's own enquiries and issues
+router.get("/mine", protect, threadReadLimiter, myEnquiries);
+router.get("/mine/:ticketNo", protect, threadReadLimiter, myEnquiry);
+router.post("/mine/:ticketNo", protect, threadWriteLimiter, replyMyEnquiry);
+router.post("/mine/:ticketNo/rating", protect, threadWriteLimiter, rateMyEnquiry);
 
 module.exports = router;

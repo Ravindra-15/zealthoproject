@@ -451,6 +451,7 @@ const waitingSweep = async (now = new Date()) => {
       await C.ensureTicketNo(e);
       await C.sendEmail({ ...nudgeEmail({ source: e.source, name: e.name, ticketNo: e.ticketNo, link: C.replyLink(e), autoCloseDays: settings.autoCloseDays }), replyTo: C.inboundAddress(e) }, e.email);
       await C.logEvent(e._id, "nudged", C.SYSTEM, { note: `No answer for ${settings.nudgeAfterHours} hours — reminder emailed` });
+      await C.notifyCustomer(e, "reminder");
       nudged++;
     } catch (err) {
       await Enquiry.updateOne({ _id: e._id }, { $set: { nudgedAt: null } }); // try again next sweep

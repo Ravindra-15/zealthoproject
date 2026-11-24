@@ -41,7 +41,7 @@ const ReportIssueModal = ({ isOpen, onClose }) => {
     try {
       setSubmitting(true);
       await reportIssue({ subject: subject.trim(), description: description.trim(), category, platform: PLATFORM });
-      toast.success("Thanks! Your issue has been reported to our team.");
+      toast.success("Thanks! Your issue has been reported. Track it in My Enquiries.");
       setCategory("other");
       setSubject("");
       setDescription("");
