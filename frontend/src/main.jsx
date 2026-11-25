@@ -7,10 +7,12 @@ import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminAuthProvider } from "./context/AdminAuthContext";
 import AppToaster from "./components/common/AppToaster";
+import ConfirmDialogHost from "./components/common/ConfirmDialogHost";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AppToaster />
+    <ConfirmDialogHost />
     <AuthProvider>
       <AdminAuthProvider>
         <App />

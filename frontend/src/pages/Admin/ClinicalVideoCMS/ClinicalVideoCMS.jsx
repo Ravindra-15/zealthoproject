@@ -25,6 +25,7 @@ import {
 
 import VideoUploadForm from "./components/VideoUploadForm";
 import VideosList from "./components/VideosList";
+import { confirmDialog } from "../../../utils/confirmDialog";
 
 // 🗓️ Programs that use a single video stream (no yoga type)
 // (Diabmukt now has the same 3 categories as YogaT20)
@@ -113,9 +114,12 @@ const ClinicalVideoCMS = ({ isFreeTrialMode = false }) => {
 
   // 🗑️ Delete
   const handleDelete = async (video) => {
-    const ok = window.confirm(
-      `Delete "${video.title}"? This cannot be undone.`
-    );
+    const ok = await confirmDialog({
+      title: "Delete this video?",
+      message: `“${video.title}” will be deleted. This can't be undone.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
     if (!ok) return;
 
     try {

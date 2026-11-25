@@ -22,6 +22,7 @@ import {
   deleteReadyReply,
 } from "../../../services/adminEnquiryService";
 import { CATEGORIES, PRIORITY } from "./enquiryUi";
+import { confirmDialog } from "../../../utils/confirmDialog";
 
 const card = "bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)]";
 const input =
@@ -136,7 +137,13 @@ const EnquiryDeskSettings = () => {
   };
 
   const removeReply = async (t) => {
-    if (!window.confirm(`Delete the ready reply “${t.title}”?`)) return;
+    const ok = await confirmDialog({
+      title: "Delete this ready reply?",
+      message: `“${t.title}” will be removed for every admin.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await deleteReadyReply(t._id);
       setReplies((list) => list.filter((x) => x._id !== t._id));

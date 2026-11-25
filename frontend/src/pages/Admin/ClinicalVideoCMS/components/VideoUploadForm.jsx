@@ -11,6 +11,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Upload, Calendar, Clock, ChevronUp, ChevronDown, X } from "lucide-react";
+import toast from "react-hot-toast";
 
 const initialForm = {
   title: "",
@@ -182,8 +183,8 @@ const VideoUploadForm = ({
 
   const handleSubmit = async () => {
     if (submitting) return;
-    if (!form.title.trim()) return alert("Title is required");
-    if (!form.videoUrl.trim()) return alert("Video URL is required");
+    if (!form.title.trim()) return toast.error("Title is required");
+    if (!form.videoUrl.trim()) return toast.error("Video URL is required");
 
     const payload = {
       title: form.title.trim(),

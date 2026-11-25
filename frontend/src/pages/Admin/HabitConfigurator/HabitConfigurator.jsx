@@ -27,6 +27,7 @@ import {
 
 import HabitCard from "./components/HabitCard";
 import AddHabitModal from "./components/AddHabitModal";
+import { confirmDialog } from "../../../utils/confirmDialog";
 
 const HabitConfigurator = () => {
   const { selectedProgramId, selectedProgram } = useSelectedProgram();
@@ -87,9 +88,12 @@ const HabitConfigurator = () => {
 
   // 🗑️ Delete with confirmation
   const handleDelete = async (habit) => {
-    const ok = window.confirm(
-      `Delete "${habit.trackerName}"? This cannot be undone.`
-    );
+    const ok = await confirmDialog({
+      title: "Delete this habit?",
+      message: `“${habit.trackerName}” will be deleted. This can't be undone.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
     if (!ok) return;
 
     setDeletingId(habit._id);

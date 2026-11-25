@@ -37,6 +37,7 @@ import ReportIssueModal from "./components/ReportIssueModal";
 import ChangePasswordForm from "./components/ChangePasswordForm";
 import PastAppointmentCard from "./components/PastAppointmentCard";
 import { safeNextPath } from "../../../utils/profileCompletion";
+import { confirmDialog } from "../../../utils/confirmDialog";
 
 export default function MyProfile() {
   const navigate = useNavigate();
@@ -191,7 +192,13 @@ export default function MyProfile() {
 
   const handleDeletePhoto = async (e) => {
     e.stopPropagation(); // prevent triggering file picker
-    if (!window.confirm("Remove your profile photo?")) return;
+    const ok = await confirmDialog({
+      title: "Remove your profile photo?",
+      message: "You can add a new one any time.",
+      confirmLabel: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       setUploadingPhoto(true);
       const updated = await deleteProfilePhoto();
