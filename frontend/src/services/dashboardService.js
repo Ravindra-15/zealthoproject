@@ -59,3 +59,22 @@ export const fetchExpiringSubscriptions = async (
   );
   return response.data.data;
 };
+/**
+ * Users growth chart — total / new users per period.
+ * @param {object} params - { from, to, all, granularity, tz, country, status }
+ * @returns Promise<{ points, summary, countries, from, to, granularity }>
+ */
+export const fetchUsersGrowth = async (params, config = {}) => {
+  const response = await adminApi.get("/admin/dashboard/users-growth", { params, ...config });
+  return response.data.data;
+};
+
+/**
+ * Revenue analysis chart + table.
+ * @param {object} params - { from, to, all, granularity, tz, programId ("all" allowed), sources }
+ * @returns Promise<{ points, totals, summary, byProgram, from, to, granularity }>
+ */
+export const fetchRevenueTrend = async (params, config = {}) => {
+  const response = await adminApi.get("/admin/dashboard/revenue-trend", { params, ...config });
+  return response.data.data;
+};

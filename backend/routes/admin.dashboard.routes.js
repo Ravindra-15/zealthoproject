@@ -11,6 +11,8 @@ const {
   getStats,
   getUsersTrend,
   getExpiringSubscriptions,
+  getUsersGrowth,
+  getRevenueTrend,
 } = require("../controllers/admin.dashboard.controller");
 
 const {
@@ -44,6 +46,12 @@ router.get("/stats", getStats);
 
 // 📈 Users trend chart
 router.get("/users-trend", getUsersTrend);
+
+// 👥 Users growth chart (filters: range, grouping, country, status)
+router.get("/users-growth", getUsersGrowth);
+
+// 💰 Revenue analysis chart + table (filters: range, grouping, program, source)
+router.get("/revenue-trend", getRevenueTrend);
 
 // ⏳ Expiring subscriptions table
 router.get("/expiring-subscriptions", getExpiringSubscriptions);

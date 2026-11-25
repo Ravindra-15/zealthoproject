@@ -7,7 +7,7 @@ import React from "react";
 import StatCard from "./StatCard";
 import { StatCardSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 
-const SKELETON_COUNT = 6;
+const SKELETON_COUNT = 4;
 
 const StatCardsGrid = ({ stats = [], loading = false }) => {
   // ⏳ ADMIN: Show skeletons while loading
@@ -16,7 +16,7 @@ const StatCardsGrid = ({ stats = [], loading = false }) => {
       <section
         aria-label="Loading dashboard statistics"
         aria-busy="true"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5"
       >
         {[...Array(SKELETON_COUNT)].map((_, idx) => (
           <StatCardSkeleton key={idx} />
@@ -33,7 +33,7 @@ const StatCardsGrid = ({ stats = [], loading = false }) => {
   return (
     <section
       aria-label="Dashboard statistics overview"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5"
     >
       {stats.map((stat) => (
         <StatCard

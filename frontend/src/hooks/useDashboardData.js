@@ -17,7 +17,6 @@ import toast from "react-hot-toast";
 
 import {
   fetchDashboardStats,
-  fetchUsersTrend,
   fetchExpiringSubscriptions,
 } from "../services/dashboardService";
 import { useSelectedProgram } from "../context/SelectedProgramContext";
@@ -32,10 +31,6 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(null);
-
-  const [trend, setTrend] = useState(null);
-  const [trendLoading, setTrendLoading] = useState(true);
-  const [trendError, setTrendError] = useState(null);
 
   const [expiringUsers, setExpiringUsers] = useState(null);
   const [expiringLoading, setExpiringLoading] = useState(true);
@@ -71,26 +66,6 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
     }
   }, []);
 
-  const loadTrend = useCallback(async (programId) => {
-    if (!isMountedRef.current) return;
-    setTrendLoading(true);
-    setTrendError(null);
-
-    try {
-      const data = await fetchUsersTrend(30, programId);
-      if (!isMountedRef.current) return;
-      setTrend(data);
-    } catch (err) {
-      if (!isMountedRef.current) return;
-      const message =
-        err?.response?.data?.message || "Failed to load users trend";
-      setTrendError(message);
-      toast.error(message);
-    } finally {
-      if (isMountedRef.current) setTrendLoading(false);
-    }
-  }, []);
-
   const loadExpiring = useCallback(async (currentFilter, programId) => {
     if (!isMountedRef.current) return;
     setExpiringLoading(true);
@@ -121,7 +96,6 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
     // 🚀 Parallel fetch — much faster than sequential
     Promise.all([
       loadStats(selectedProgramId),
-      loadTrend(selectedProgramId),
       loadExpiring(filter, selectedProgramId),
     ]);
 
@@ -148,16 +122,15 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && isMountedRef.current) {
-        // Refresh stats and trend (but not the filtered table — user might be mid-interaction)
+        // Refresh stats (but not the filtered table — user might be mid-interaction)
         loadStats(selectedProgramId);
-        loadTrend(selectedProgramId);
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [loadStats, loadTrend, selectedProgramId]);
+  }, [loadStats, selectedProgramId]);
 
   // ============================================
   // 🔄 MANUAL REFETCH — For retry buttons
@@ -166,10 +139,6 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
     () => loadStats(selectedProgramId),
     [loadStats, selectedProgramId]
   );
-  const refetchTrend = useCallback(
-    () => loadTrend(selectedProgramId),
-    [loadTrend, selectedProgramId]
-  );
   const refetchExpiring = useCallback(
     () => loadExpiring(filter, selectedProgramId),
     [loadExpiring, filter, selectedProgramId]
@@ -177,10 +146,9 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
   const refetchAll = useCallback(() => {
     Promise.all([
       loadStats(selectedProgramId),
-      loadTrend(selectedProgramId),
       loadExpiring(filter, selectedProgramId),
     ]);
-  }, [loadStats, loadTrend, loadExpiring, filter, selectedProgramId]);
+  }, [loadStats, loadExpiring, filter, selectedProgramId]);
 
   // ============================================
   // 📦 RETURN API
@@ -188,17 +156,14 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
   return {
     // Data
     stats,
-    trend,
     expiringUsers,
 
     // Loading states
     statsLoading,
-    trendLoading,
     expiringLoading,
 
     // Error states
     statsError,
-    trendError,
     expiringError,
 
     // Filter control (for table)
@@ -207,7 +172,6 @@ const useDashboardData = (initialFilter = "expiring-soon") => {
 
     // Refetch handlers
     refetchStats,
-    refetchTrend,
     refetchExpiring,
     refetchAll,
 
