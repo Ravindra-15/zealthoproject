@@ -9,6 +9,8 @@
 import { useState } from "react";
 import { CalendarClock, CircleX, Gift, Info } from "lucide-react";
 import { formatUtcDate, formatUtcTime12h } from "../../../../utils/time";
+import useLegalContent from "../../../../hooks/useLegalContent";
+import { LegalInline } from "../../../../components/customer/legal/LegalText";
 
 const RESCHEDULE_CUTOFF_MS = 48 * 60 * 60 * 1000; // 48 hours
 
@@ -22,6 +24,9 @@ const Rule = ({ icon: Icon, iconClass, children }) => (
 const BookingRulesNote = ({ scheduledAt }) => {
   // when the checkout page was opened — enough for the "can I reschedule later" hint
   const [openedAt] = useState(() => Date.now());
+  const legal = useLegalContent();
+  const cancelRule = legal.notice("booking_cancel_rule");
+  const doctorCancelRule = legal.notice("booking_doctor_cancel_rule");
   if (!scheduledAt) return null;
 
   const start = new Date(scheduledAt).getTime();
@@ -54,14 +59,18 @@ const BookingRulesNote = ({ scheduledAt }) => {
             </span>
           </Rule>
         )}
-        <Rule icon={CircleX} iconClass="text-gray-400">
-          <strong className="font-semibold text-gray-800">Cancel:</strong> you can cancel any
-          time before the appointment starts, but the booking fee is not refunded.
-        </Rule>
-        <Rule icon={Gift} iconClass="text-gray-400">
-          <strong className="font-semibold text-gray-800">If the doctor cancels:</strong> you
-          get a free consultation credit to book another available doctor.
-        </Rule>
+        {cancelRule && (
+          <Rule icon={CircleX} iconClass="text-gray-400">
+            <strong className="font-semibold text-gray-800">Cancel:</strong>{" "}
+            <LegalInline text={cancelRule.text} brand={legal.content.brand} />
+          </Rule>
+        )}
+        {doctorCancelRule && (
+          <Rule icon={Gift} iconClass="text-gray-400">
+            <strong className="font-semibold text-gray-800">If the doctor cancels:</strong>{" "}
+            <LegalInline text={doctorCancelRule.text} brand={legal.content.brand} />
+          </Rule>
+        )}
       </ul>
     </div>
   );

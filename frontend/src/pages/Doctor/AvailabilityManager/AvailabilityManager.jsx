@@ -26,6 +26,7 @@ import SlotContextMenu from "./components/SlotContextMenu";
 import AddBreakModal from "./components/AddBreakModal";
 import OnBreakOverlay from "./components/OnBreakOverlay";
 import CalendarLegendInfo from "./components/CalendarLegendInfo";
+import { confirmDialog, promptDialog } from "../../../utils/confirmDialog";
 
 const AvailabilityManager = () => {
   const navigate = useNavigate();
@@ -156,12 +157,19 @@ const AvailabilityManager = () => {
     }
   };
 const handleCancelAppointment = async (appointmentId) => {
-  const reason = window.prompt(
-    "Please enter a reason for cancelling this appointment:",
-    ""
-  );
-  
-  // User clicked Cancel on prompt
+  const reason = await promptDialog({
+    title: "Cancel this appointment?",
+    message: "The patient will see this reason.",
+    label: "Reason for cancelling",
+    placeholder: "e.g. Personal emergency",
+    required: true,
+    multiline: true,
+    confirmLabel: "Cancel appointment",
+    cancelLabel: "Keep appointment",
+    tone: "danger",
+  });
+
+  // Closed the popup without cancelling
   if (reason === null) return;
   
   // Empty reason
@@ -187,7 +195,12 @@ const handleCancelAppointment = async (appointmentId) => {
 
   const handleEndBreak = async () => {
     if (!weekData?.onBreak?.id) return;
-    if (!window.confirm("End your break now? You'll be available again immediately.")) return;
+    const ok = await confirmDialog({
+      title: "End your break now?",
+      message: "You'll be available for bookings again right away.",
+      confirmLabel: "End break",
+    });
+    if (!ok) return;
     try {
       await deleteTimeOff(weekData.onBreak.id);
       toast.success("Break ended");

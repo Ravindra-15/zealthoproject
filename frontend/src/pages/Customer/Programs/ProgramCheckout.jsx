@@ -5,8 +5,11 @@ import toast from "react-hot-toast";
 import { subscribeToProgram } from "../../../services/programService";
 import { useCurrency } from "../../../hooks/useCurrency";
 import { useProfileGate } from "../../../hooks/useProfileGate";
+import useLegalContent from "../../../hooks/useLegalContent";
+import { LegalNotices } from "../../../components/customer/legal/LegalText";
 
 export default function ProgramCheckout() {
+  const legal = useLegalContent();
   const { id } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -246,6 +249,8 @@ export default function ProgramCheckout() {
               >
                 {loading ? "Processing..." : `Pay ${convert(price)}`}
               </button>
+
+              <LegalNotices notices={legal.noticesAt("program_checkout")} brand={legal.content.brand} className="pt-2" />
 
               {/* trust badges */}
               <div className="flex flex-wrap items-center justify-center gap-5 pt-2">

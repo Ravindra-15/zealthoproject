@@ -56,6 +56,7 @@ import {
   cleanForSave,
   pointSummary,
 } from "./configEditor";
+import { confirmDialog } from "../../../utils/confirmDialog";
 
 const copyOf = (cfg) => ({ steps: JSON.parse(JSON.stringify(cfg.steps)), sections: JSON.parse(JSON.stringify(cfg.sections)) });
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -135,6 +136,7 @@ const BodyProfileConfigurator = () => {
 
   const loadedFor = useRef(null); // program the draft belongs to
   const reqRef = useRef(0); // only the latest load counts
+  const askingRef = useRef(false); // a "discard changes?" popup is open
   const dirty = !!(loaded && draft && !same(cleanForSave(draft), cleanForSave(copyOf(loaded))));
   const dirtyRef = useRef(false);
   // kept in step for the program-switch check below (runs before it)
@@ -162,13 +164,24 @@ const BodyProfileConfigurator = () => {
 
   // program picked in the sidebar → its list (asks first if there are unsaved changes)
   useEffect(() => {
-    if (loadedFor.current === selectedProgramId) return;
+    if (loadedFor.current === selectedProgramId || askingRef.current) return;
     if (dirtyRef.current && loadedFor.current) {
-      const prevName = AVAILABLE_PROGRAMS.find((p) => p.id === loadedFor.current)?.label || "this program";
-      if (!window.confirm(`Discard your unsaved body profile changes for ${prevName}?`)) {
-        selectProgram(loadedFor.current);
-        return;
-      }
+      const prev = loadedFor.current;
+      const next = selectedProgramId;
+      const prevName = AVAILABLE_PROGRAMS.find((p) => p.id === prev)?.label || "this program";
+      askingRef.current = true;
+      confirmDialog({
+        title: "Discard unsaved changes?",
+        message: `Your body profile changes for ${prevName} aren't saved yet. Switching program will lose them.`,
+        confirmLabel: "Discard and switch",
+        cancelLabel: `Stay on ${prevName}`,
+        tone: "warning",
+      }).then((ok) => {
+        askingRef.current = false;
+        if (ok) load(next);
+        else selectProgram(prev);
+      });
+      return;
     }
     load(selectedProgramId);
   }, [selectedProgramId, load, selectProgram]);
@@ -232,13 +245,18 @@ const BodyProfileConfigurator = () => {
     setEditing(null);
   };
 
-  const deletePoint = (sectionKey, p) => {
+  const deletePoint = async (sectionKey, p) => {
     if (isBuiltInKey(p.key)) return;
     const saved = savedKeys.has(p.key);
-    const msg = saved
-      ? `Delete “${p.label}”? If patients already answered it, saving will be refused — hide it instead to keep their answers.`
-      : `Remove “${p.label}”?`;
-    if (!window.confirm(msg)) return;
+    const ok = await confirmDialog({
+      title: saved ? `Delete “${p.label}”?` : `Remove “${p.label}”?`,
+      message: saved
+        ? "If patients already answered it, saving will be refused — hide it instead to keep their answers."
+        : "It hasn't been saved yet, so nothing else is affected.",
+      confirmLabel: saved ? "Delete" : "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
     setPoints(sectionKey, (pts) => pts.filter((x) => x.key !== p.key));
   };
 
@@ -250,7 +268,17 @@ const BodyProfileConfigurator = () => {
   const doCopy = async () => {
     if (!copyFrom) return;
     const name = AVAILABLE_PROGRAMS.find((p) => p.id === copyFrom)?.label || copyFrom;
-    if (dirty && !window.confirm(`Replace your unsaved changes with ${name}'s list?`)) return;
+    if (
+      dirty &&
+      !(await confirmDialog({
+        title: `Copy from ${name}?`,
+        message: `Your unsaved changes will be replaced with ${name}'s list.`,
+        confirmLabel: "Replace and copy",
+        tone: "warning",
+      }))
+    ) {
+      return;
+    }
     try {
       const other = await getBodyProfileConfig(copyFrom);
       setDraft(copyOf(other));
@@ -261,8 +289,14 @@ const BodyProfileConfigurator = () => {
     }
   };
 
-  const doReset = () => {
-    if (!window.confirm("Go back to the original 27 points? Points you added are kept but hidden. Nothing changes until you Save changes.")) return;
+  const doReset = async () => {
+    const ok = await confirmDialog({
+      title: "Go back to the original 27 points?",
+      message: "Points you added are kept but hidden. Nothing changes for patients until you click Save changes.",
+      confirmLabel: "Reset",
+      tone: "warning",
+    });
+    if (!ok) return;
     const def = defaultBodyProfileConfig(selectedProgramId);
     const added = draft.sections.flatMap((s) => s.points).filter((p) => !isBuiltInKey(p.key)).map((p) => ({ ...p, hidden: true }));
     const sections = def.sections;
@@ -272,8 +306,14 @@ const BodyProfileConfigurator = () => {
     setDraft({ steps: def.steps, sections });
   };
 
-  const discard = () => {
-    if (!window.confirm("Discard all unsaved changes?")) return;
+  const discard = async () => {
+    const ok = await confirmDialog({
+      title: "Discard unsaved changes?",
+      message: "Everything goes back to the last saved version.",
+      confirmLabel: "Discard",
+      tone: "danger",
+    });
+    if (!ok) return;
     setDraft(copyOf(loaded));
   };
 

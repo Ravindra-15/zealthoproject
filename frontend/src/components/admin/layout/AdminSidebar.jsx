@@ -41,6 +41,7 @@ import {
   LifeBuoy,
   BadgeDollarSign,
   HeartPulse,
+  Scale,
 } from "lucide-react";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useSelectedProgram } from "../../../context/SelectedProgramContext";
@@ -209,6 +210,12 @@ const AdminSidebar = ({ onNavigate }) => {
                 icon: HeartPulse,
                 label: "Body Profile Points",
                 to: "/admin/body-profile",
+              },
+              // Privacy Policy, Terms page and every disclaimer, per program
+              {
+                icon: Scale,
+                label: "Legal & Disclaimers",
+                to: "/admin/legal",
               },
             ],
           },

@@ -5,6 +5,8 @@
 
 import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import useLegalContent from "../../../hooks/useLegalContent";
+import { LegalNotices } from "../legal/LegalText";
 
 // ============================================
 // 🎨 BRAND ICONS — dark filled style
@@ -144,6 +146,7 @@ const FooterLink = ({ link }) => {
 // 🏠 MAIN FOOTER
 // ============================================
 const CustomerFooter = () => {
+  const legal = useLegalContent();
   return (
     <footer className="bg-white border-t border-gray-100">
       <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-12 py-10 sm:py-12">
@@ -274,6 +277,21 @@ const CustomerFooter = () => {
   </Link>
 </div>
         </div>
+
+        {/* DISCLAIMERS (super admin → Legal & Disclaimers) */}
+
+        <LegalNotices
+
+          notices={legal.noticesAt("site_footer")}
+
+          brand={legal.content.brand}
+
+          variant="plain"
+
+          className="mt-10 text-xs text-gray-500 leading-relaxed max-w-4xl"
+
+        />
+
 
         {/* BOTTOM BAR */}
         <div className="mt-10 pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

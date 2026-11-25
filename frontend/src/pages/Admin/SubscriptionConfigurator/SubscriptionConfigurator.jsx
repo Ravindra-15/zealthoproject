@@ -27,6 +27,7 @@ import PlanCard from "./components/PlanCard";
 import WeeklyPlanEditor from "./components/WeeklyPlanEditor";
 import MemberPreviewModal from "./components/MemberPreviewModal";
 import { getMemberPlanView } from "./components/memberPlanView";
+import { confirmDialog } from "../../../utils/confirmDialog";
 
 // 🗓️ Programs that use weekly (slider) pricing
 const WEEKLY_PROGRAMS = ["diabmukt", "mommyfit", "slimfitter"];
@@ -89,9 +90,12 @@ const SubscriptionConfigurator = () => {
 
   // 🗑️ Delete plan (fixed plans)
   const handleDelete = async (plan) => {
-    const ok = window.confirm(
-      `Delete "${plan.planName}"? This cannot be undone.`
-    );
+    const ok = await confirmDialog({
+      title: "Delete this plan?",
+      message: `“${plan.planName}” will be deleted. This can't be undone.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
     if (!ok) return;
 
     setDeletingId(plan._id);

@@ -13,7 +13,6 @@
  *   7. Footer
  */
 
-import React from "react";
 import { ShieldCheck } from "lucide-react";
 
 // 🔁 Reuse existing landing-page sections + shared footer
@@ -22,48 +21,16 @@ import CallbackSection from "../Landing/sections/CallbackSection";
 import Footer from "../../../components/customer/layout/CustomerFooter";
 import CustomerNavbar from "../../../components/customer/layout/CustomerNavbar";
 import ReferAndEarnSection from "../Landing/sections/ReferAndEarnSection";
+import useLegalContent from "../../../hooks/useLegalContent";
+import { LegalInline, LegalParagraphs, LegalSkeleton } from "../../../components/customer/legal/LegalText";
+import { formatLegalDate } from "../../../utils/legalDefaults";
 // ============================================
 // 📚 POLICY CONTENT (matches Figma)
 // ============================================
-const POLICY_SECTIONS = [
-  {
-    title: "1. Information We Collect",
-    paragraphs: [
-      "Zealtho collects certain personal information to provide you with our medical consultation and wellness services. This includes your email address, chosen nickname, health-related information you voluntarily share with healthcare providers, payment information (processed securely via third-party payment processors), and usage data including session attendance and platform interactions.",
-      "We collect health information only when you explicitly share it with a doctor or wellness instructor during consultations or sessions. This information is encrypted and stored securely in compliance with healthcare data protection regulations.",
-    ],
-  },
-  {
-    title: "2. How We Use Your Information",
-    paragraphs: [
-      "Your information is used solely to: (a) provide and improve our services, (b) facilitate communication between you and healthcare providers, (c) process payments and manage subscriptions, (d) send service-related notifications and updates, and (e) comply with legal obligations.",
-      "We never sell your personal information to third parties. Your health data is shared only with the specific healthcare provider you choose to consult, and only for the duration necessary to provide care.",
-    ],
-  },
-  {
-    title: "3. Data Security & Encryption",
-    paragraphs: [
-      "All data transmission on Zealtho is protected using industry-standard SSL/TLS encryption. Patient health records are encrypted at rest and stored in HIPAA-compliant data centers. Access to personal information is strictly limited to authorized personnel who require it to perform their job functions.",
-      "We conduct regular security audits and maintain strict access controls to protect your information from unauthorized access, alteration, or disclosure.",
-    ],
-  },
-  {
-    title: "4. Your Rights & Choices",
-    paragraphs: [
-      "You have the right to access, correct, or delete your personal information at any time through your account settings. You may also request a complete export of your data or request account deletion by contacting our support team.",
-      "You can opt out of marketing communications while still receiving essential service notifications related to your appointments and subscriptions.",
-    ],
-  },
-  {
-    title: "5. Rescheduling & Cancellations",
-    paragraphs: [
-      "Appointments may be rescheduled up to a maximum of 5 times per booking, combined across both the customer and the doctor. As a customer, you may reschedule only if it is done at least 48 hours before your scheduled appointment time; rescheduling is not available within that 48-hour window, though your doctor may still reschedule with shorter notice if required.",
-      "Zealtho does not offer cash refunds for appointments cancelled by the customer, regardless of when the cancellation is made. If your doctor cancels an appointment, you will instead receive a free consultation credit to book another available doctor at no additional cost.",
-    ],
-  },
-];
 
 const TermsOfUse = () => {
+  const { content, loading } = useLegalContent();
+  const page = content.terms;
   return (
     <div className="bg-white">
         <CustomerNavbar />
@@ -74,48 +41,50 @@ const TermsOfUse = () => {
         <div className="max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-16 py-12 sm:py-16 lg:py-20">
 
           {/* ---------- Page header ---------- */}
+          {loading ? (
+            <LegalSkeleton sections={4} />
+          ) : (
+          <>
           <div className="text-center mb-10 sm:mb-12">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-              <span className="text-teal-700">Trust &amp; </span>
-              <span className="text-orange-500">Transparency Center</span>
+              <span className="text-teal-700">{page.title}{page.titleAccent ? " " : ""}</span>
+              {page.titleAccent && <span className="text-orange-500">{page.titleAccent}</span>}
             </h1>
-            <p className="mt-4 text-sm sm:text-base text-gray-500 max-w-2xl mx-auto leading-relaxed">
-              Everything you need to know about how we protect your data
-              and manage your health journey.
-            </p>
+            {page.subtitle && (
+              <p className="mt-4 text-sm sm:text-base text-gray-500 max-w-2xl mx-auto leading-relaxed">
+                <LegalInline text={page.subtitle} brand={content.brand} />
+              </p>
+            )}
           </div>
 
           {/* ---------- Identity Protected callout ---------- */}
+          {(page.highlightTitle || page.highlightText) && (
           <div className="max-w-3xl mx-auto mb-12 sm:mb-16 text-center">
             <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 mb-3">
               <ShieldCheck size={20} className="text-orange-500" />
             </div>
-            <p className="text-sm sm:text-base font-semibold text-orange-500 mb-2">
-              Your Identity is 100% Protected
-            </p>
-            <p className="text-sm sm:text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
-              To ensure your absolute privacy, your real name and phone number
-              are strictly masked from all instructors and doctors. You will be
-              identified on the platform only by your chosen Nickname.
-            </p>
+            {page.highlightTitle && (
+              <p className="text-sm sm:text-base font-semibold text-orange-500 mb-2">
+                {page.highlightTitle}
+              </p>
+            )}
+            {page.highlightText && (
+              <p className="text-sm sm:text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                <LegalInline text={page.highlightText} brand={content.brand} />
+              </p>
+            )}
           </div>
+          )}
 
           {/* ---------- Policy sections ---------- */}
           <div className="max-w-4xl mx-auto space-y-10 sm:space-y-14">
-            {POLICY_SECTIONS.map((section) => (
-              <div key={section.title} className="text-center">
+            {page.sections.map((section, si) => (
+              <div key={si} className="text-center">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-5">
-                  {section.title}
+                  {section.heading}
                 </h2>
                 <div className="space-y-4">
-                  {section.paragraphs.map((para, idx) => (
-                    <p
-                      key={idx}
-                      className="text-sm sm:text-base text-gray-600 leading-relaxed"
-                    >
-                      {para}
-                    </p>
-                  ))}
+                  <LegalParagraphs text={section.body} brand={content.brand} className="text-sm sm:text-base text-gray-600 leading-relaxed" />
                 </div>
               </div>
             ))}
@@ -123,8 +92,10 @@ const TermsOfUse = () => {
 
           {/* ---------- Last updated stamp ---------- */}
           <p className="text-center text-xs text-gray-400 italic mt-14 sm:mt-16">
-            Last updated: February 22, 2026
+            Last updated: {formatLegalDate(page.lastUpdated)}
           </p>
+          </>
+          )}
 
         </div>
       </section>
