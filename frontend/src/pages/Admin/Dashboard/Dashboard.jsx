@@ -9,12 +9,12 @@
  * Access: Super Admin only (wrapped in ProtectedAdminRoute)
  */
 
-import React from "react";
-import { Users, DollarSign, Stethoscope, UserCog } from "lucide-react";
+import { Users, DollarSign, Stethoscope } from "lucide-react";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import StatCardsGrid from "./components/StatCardsGrid";
-import UsersChart from "./components/UsersChart";
+import UsersGrowthPanel from "./analytics/UsersGrowthPanel";
+import RevenuePanel from "./analytics/RevenuePanel";
 import RemindUsersTable from "./components/RemindUsersTable";
 
 import useDashboardData from "../../../hooks/useDashboardData";
@@ -25,10 +25,8 @@ const Dashboard = () => {
   // ============================================
   const {
     stats,
-    trend,
     expiringUsers,
     statsLoading,
-    trendLoading,
     expiringLoading,
     filter,
     setFilter,
@@ -76,22 +74,6 @@ const Dashboard = () => {
         iconBg: "bg-blue-50",
         iconColor: "text-blue-500",
       },
-      {
-        id: "active-users",
-        label: "Active Users",
-        value: formatNumber(stats.activeUsers),
-        icon: UserCog,
-        iconBg: "bg-orange-50",
-        iconColor: "text-orange-500",
-      },
-      {
-        id: "revenue-month",
-        label: "Revenue This Month",
-        value: formatRevenue(stats.revenueThisMonth),
-        icon: DollarSign,
-        iconBg: "bg-emerald-50",
-        iconColor: "text-emerald-500",
-      },
     ];
   };
 
@@ -109,7 +91,11 @@ const Dashboard = () => {
 
       <StatCardsGrid stats={buildStatCards()} loading={statsLoading} />
 
-      <UsersChart data={trend} loading={trendLoading} />
+      {/* 👥 Users growth — filters, auto-scaling axis, "View more" */}
+      <UsersGrowthPanel />
+
+      {/* 💰 Revenue analysis — chart + table; resets to the sidebar program on switch */}
+      <RevenuePanel key={selectedProgramId} defaultProgramId={selectedProgramId} />
 
       {selectedProgramId !== "zealtho" && (
         <RemindUsersTable
@@ -136,17 +122,5 @@ const formatNumber = (num) => {
   return Number(num).toLocaleString("en-IN");
 };
 
-/**
- * Format revenue values:
- *  - >= 100,000 → "47.9K"
- *  - <  100,000 → "$1,247"
- */
-const formatRevenue = (num) => {
-  if (num === null || num === undefined || num === 0) return "0";
-  if (num >= 100000) {
-    return `${(num / 1000).toFixed(1)}K`;
-  }
-  return Number(num).toLocaleString("en-IN");
-};
 
 export default Dashboard;

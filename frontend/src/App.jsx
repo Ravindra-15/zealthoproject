@@ -55,6 +55,7 @@ import About from "./pages/Customer/About/About";
 // 🔐 ADMIN PAGES & GUARDS
 import AdminLayout from "./components/admin/layout/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
+import AnalyticsFullView from "./pages/Admin/Analytics/AnalyticsFullView";
 import AdminLogin from "./pages/Admin/Login/AdminLogin";
 import ProtectedAdminRoute from "./components/admin/auth/ProtectedAdminRoute";
 import DoctorDirectory from "./pages/Admin/Doctors/DoctorDirectory";
@@ -283,6 +284,14 @@ function App() {
             element={
               <SuperAdminRoute>
                 <Dashboard />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="analytics/:kind"
+            element={
+              <SuperAdminRoute>
+                <AnalyticsFullView />
               </SuperAdminRoute>
             }
           />
