@@ -39,12 +39,31 @@ const emailError = (email) => {
   return null;
 };
 
+// 📱 Stored as "+<dial code> <number>", e.g. "+91 9876543210". The exact
+// per-country length/format is checked in the form (same country list as
+// signup); here: the shape + a real E.164 length.
+const PHONE_WITH_CODE_REGEX = /^\+\d{1,4} \d{4,14}$/;
+
 const phoneError = (phone) => {
   if (!phone) return "Mobile number is required";
+  if (!PHONE_WITH_CODE_REGEX.test(phone)) {
+    return "Enter the mobile number with its country code, e.g. +91 9876543210";
+  }
   if (!PHONE_REGEX.test(phone)) return "Please enter a valid mobile number";
   // a real phone number (E.164) has 7–15 digits, whatever separators are used
   const digits = phone.replace(/\D/g, "").length;
   if (digits < 7 || digits > 15) return "Mobile number must have 7 to 15 digits";
+  return null;
+};
+
+// 🌍 Country — ISO2 code + name
+const readCountry = (body) => ({
+  countryIso: typeof body.countryIso === "string" ? body.countryIso.trim().toUpperCase() : "",
+  country: typeof body.country === "string" ? body.country.replace(/\s+/g, " ").trim().slice(0, 80) : "",
+});
+const countryError = ({ countryIso, country }) => {
+  if (!countryIso) return "Country is required";
+  if (!/^[A-Z]{2}$/.test(countryIso) || !country) return "Please choose a valid country";
   return null;
 };
 
@@ -76,13 +95,15 @@ const validateCreatePortalUser = (req, res, next) => {
   const fullName = cleanName(body.fullName);
   const email =
     typeof body.email === "string" ? body.email.toLowerCase().trim() : "";
-  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  const phone = typeof body.phone === "string" ? body.phone.trim().replace(/\s+/g, " ") : "";
   const password = body.password;
+  const location = readCountry(body);
 
   const flag = readFlag(body.emailCredentials, true);
 
   const error =
     nameError(fullName) ||
+    countryError(location) ||
     emailError(email) ||
     phoneError(phone) ||
     passwordError(password) ||
@@ -91,7 +112,7 @@ const validateCreatePortalUser = (req, res, next) => {
   if (error) return fail(res, error);
 
   // emailCredentials → also email the password to the new admin (default: yes)
-  req.body = { fullName, email, phone, password, emailCredentials: flag.value };
+  req.body = { fullName, email, phone, ...location, password, emailCredentials: flag.value };
   next();
 };
 
@@ -115,14 +136,21 @@ const validateUpdatePortalUser = (req, res, next) => {
     if (error) return fail(res, error);
   }
 
+  if (body.countryIso !== undefined || body.country !== undefined) {
+    const location = readCountry(body);
+    const error = countryError(location);
+    if (error) return fail(res, error);
+    Object.assign(clean, location);
+  }
+
   if (body.phone !== undefined) {
-    clean.phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    clean.phone = typeof body.phone === "string" ? body.phone.trim().replace(/\s+/g, " ") : "";
     const error = phoneError(clean.phone);
     if (error) return fail(res, error);
   }
 
   if (Object.keys(clean).length === 0) {
-    return fail(res, "Provide a name, email or mobile number to update");
+    return fail(res, "Provide a name, country, email or mobile number to update");
   }
 
   req.body = clean;

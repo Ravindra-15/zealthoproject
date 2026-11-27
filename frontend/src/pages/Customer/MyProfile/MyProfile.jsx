@@ -492,15 +492,24 @@ export default function MyProfile() {
           <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-gray-800">Facing a problem?</p>
-              <p className="text-xs text-gray-500">Tell us and our team will look into it.</p>
+              <p className="text-xs text-gray-500">Tell us and our team will look into it. Replies show up in My Enquiries.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setReportOpen(true)}
-              className="w-full sm:w-auto border border-gray-200 hover:bg-gray-50 text-orange-500 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors"
-            >
-              Report an Issue
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => navigate("/my-enquiries")}
+                className="w-full sm:w-auto border border-gray-200 hover:bg-gray-50 text-orange-500 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors"
+              >
+                My Enquiries
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportOpen(true)}
+                className="w-full sm:w-auto border border-gray-200 hover:bg-gray-50 text-orange-500 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors"
+              >
+                Report an Issue
+              </button>
+            </div>
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-100">

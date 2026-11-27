@@ -2,10 +2,10 @@
  * ============================================================
  * ADMIN MODULE — Portal Users: Add / Edit Admin modal
  * ============================================================
- * CREATE mode → name, mobile, email, password (+ "email the login details")
+ * CREATE mode → name, country, mobile, email, password (+ "email the login details")
  *               On success the modal turns into a credentials panel
  *               (email + password with copy buttons + email delivery status).
- * EDIT mode   → name, mobile and login email. The admin is notified of the
+ * EDIT mode   → name, country, mobile and login email. The admin is notified of the
  *               change by email + WhatsApp (handled by the API).
  *
  * Layout: wide (max-w-2xl) two-column form on desktop, single column on
@@ -14,17 +14,22 @@
  * Mount it only while open ({open && <PortalUserFormModal .../>}) —
  * every open is a fresh mount, so the form always starts clean.
  *
+ * Mobile: dial-code picker (follows the chosen country until changed by
+ * hand) + the national number, checked with that country's rules — the
+ * same country list as customer signup. Saved as "+<dial> <number>".
+ *
  * Validation mirrors the backend; the API is the final authority.
  * ============================================================
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   UserPlus,
   Pencil,
   User,
   Mail,
-  Phone,
+  Globe,
+  ChevronDown,
   Loader2,
   Info,
 } from "lucide-react";
@@ -33,6 +38,9 @@ import toast from "react-hot-toast";
 import ModalShell from "./ModalShell";
 import PasswordField from "./PasswordField";
 import CredentialsPanel from "./CredentialsPanel";
+import CountryCodeSelect from "../../../../components/common/CountryCodeSelect";
+import { COUNTRIES, DEFAULT_COUNTRY } from "../../../../data/countries";
+import { parseStoredPhone, getNationalPhoneError, formatPhone } from "../../../../utils/phone";
 import {
   createPortalUser,
   updatePortalUser,
@@ -40,24 +48,29 @@ import {
 import {
   getNameError,
   getEmailError,
-  getPhoneError,
   getPasswordError,
   squashPhone,
 } from "../passwordRules";
 
-const EMPTY_FORM = { fullName: "", email: "", phone: "", password: "" };
+const EMPTY_FORM = { fullName: "", email: "", countryIso: "", phone: "", password: "" };
 
 const cleanName = (value) => value.replace(/\s+/g, " ").trim();
+const countryByIso = (iso) => COUNTRIES.find((c) => c.iso2 === iso) || null;
 
-const buildInitialForm = (isEdit, admin) =>
-  isEdit && admin
-    ? {
-        fullName: admin.fullName || "",
-        email: admin.email || "",
-        phone: admin.phone || "",
-        password: "",
-      }
-    : EMPTY_FORM;
+// Edit: split the saved "+91 9876543210" into dial country + number. An
+// admin saved before countries existed gets the country of their dial code.
+const buildInitial = (isEdit, admin) => {
+  if (!(isEdit && admin)) return { form: EMPTY_FORM, dial: DEFAULT_COUNTRY, dialTouched: false };
+  const { country: dial, number } = parseStoredPhone(admin.phone, { preferIso: admin.countryIso });
+  const countryIso = countryByIso(admin.countryIso) ? admin.countryIso : number ? dial.iso2 : "";
+  return {
+    form: { fullName: admin.fullName || "", email: admin.email || "", countryIso, phone: number, password: "" },
+    dial,
+    dialTouched: !!countryIso && dial.iso2 !== countryIso,
+  };
+};
+
+const SORTED_COUNTRIES = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name));
 
 // 🧩 Labelled text input with a leading icon
 const TextField = ({
@@ -116,7 +129,11 @@ const PortalUserFormModal = ({
 }) => {
   const isEdit = mode === "edit";
 
-  const [form, setForm] = useState(() => buildInitialForm(isEdit, admin));
+  const initial = useMemo(() => buildInitial(isEdit, admin), [isEdit, admin]);
+  const [form, setForm] = useState(initial.form);
+  // 📱 dial code — follows the country until the admin picks one by hand
+  const [dial, setDial] = useState(initial.dial);
+  const [dialTouched, setDialTouched] = useState(initial.dialTouched);
   const [emailCredentials, setEmailCredentials] = useState(true);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -128,6 +145,26 @@ const PortalUserFormModal = ({
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const selectedCountry = countryByIso(form.countryIso);
+
+  const handleCountry = (iso) => {
+    setField("countryIso", iso);
+    const c = countryByIso(iso);
+    if (c && !dialTouched) {
+      setDial(c);
+      setForm((prev) => ({ ...prev, phone: prev.phone.slice(0, c.max) }));
+    }
+  };
+
+  const handleDial = (c) => {
+    setDial(c);
+    setDialTouched(true);
+    setForm((prev) => ({ ...prev, phone: prev.phone.slice(0, c.max) }));
+    if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
+  };
+
+  const fullPhone = form.phone ? formatPhone(dial, form.phone) : "";
+
   // 🔎 Edit mode: which fields differ from the saved admin?
   const normalizedEmail = form.email.trim().toLowerCase();
   const emailChanged = isEdit && admin && normalizedEmail !== admin.email;
@@ -136,14 +173,16 @@ const PortalUserFormModal = ({
     admin &&
     cleanName(form.fullName) === admin.fullName &&
     !emailChanged &&
-    squashPhone(form.phone) === squashPhone(admin.phone);
+    form.countryIso === (admin.countryIso || "") &&
+    squashPhone(fullPhone) === squashPhone(admin.phone);
 
   // ✅ Client-side validation
   const validate = () => {
     const next = {
       fullName: getNameError(cleanName(form.fullName)),
       email: getEmailError(normalizedEmail),
-      phone: getPhoneError(form.phone.trim()),
+      countryIso: selectedCountry ? "" : "Country is required",
+      phone: getNationalPhoneError(dial, form.phone),
     };
     if (!isEdit) next.password = getPasswordError(form.password);
     setErrors(next);
@@ -162,7 +201,8 @@ const PortalUserFormModal = ({
     }
 
     const fullName = cleanName(form.fullName);
-    const phone = form.phone.trim();
+    const phone = fullPhone;
+    const location = { countryIso: selectedCountry.iso2, country: selectedCountry.name };
 
     try {
       setSubmitting(true);
@@ -170,7 +210,7 @@ const PortalUserFormModal = ({
       if (isEdit) {
         const { admin: updated, notifications } = await updatePortalUser(
           admin._id,
-          { fullName, email: normalizedEmail, phone }
+          { fullName, email: normalizedEmail, phone, ...location }
         );
 
         const emailResult = notifications?.email?.status;
@@ -193,6 +233,7 @@ const PortalUserFormModal = ({
           fullName,
           email: normalizedEmail,
           phone,
+          ...location,
           password: form.password,
           emailCredentials,
         });
@@ -256,7 +297,7 @@ const PortalUserFormModal = ({
             </h2>
             <p className="text-sm text-gray-500">
               {isEdit
-                ? "Update this admin's name, login email or mobile number."
+                ? "Update this admin's name, country, login email or mobile number."
                 : "Create a login for a new portal admin."}
             </p>
           </div>
@@ -278,22 +319,89 @@ const PortalUserFormModal = ({
                 error={errors.fullName}
               />
 
-              <TextField
-                id="pu-phone"
-                label="Mobile Number"
-                icon={Phone}
-                type="tel"
-                inputMode="tel"
-                value={form.phone}
-                onChange={(e) => setField("phone", e.target.value)}
-                placeholder="+91 98765 43210"
-                autoComplete="off"
-                maxLength={20}
-                disabled={submitting}
-                error={errors.phone}
-              />
+              {/* 🌍 Country */}
+              <div>
+                <label
+                  htmlFor="pu-country"
+                  className="block text-xs font-semibold tracking-wider text-gray-500 uppercase mb-2"
+                >
+                  Country
+                </label>
+                <div className="relative">
+                  <Globe size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <select
+                    id="pu-country"
+                    value={form.countryIso}
+                    onChange={(e) => handleCountry(e.target.value)}
+                    disabled={submitting}
+                    className={`
+                      w-full pl-10 pr-10 py-3 appearance-none
+                      bg-white border rounded-xl
+                      text-sm ${form.countryIso ? "text-gray-900" : "text-gray-400"}
+                      focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
+                      disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
+                      transition-colors
+                      ${errors.countryIso ? "border-red-300" : "border-gray-200"}
+                    `}
+                  >
+                    <option value="">Select country</option>
+                    {SORTED_COUNTRIES.map((c) => (
+                      <option key={c.iso2} value={c.iso2} className="text-gray-900">
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+                {errors.countryIso && <p className="text-xs text-red-500 mt-1.5">{errors.countryIso}</p>}
+              </div>
 
-              <div className="sm:col-span-2">
+              {/* 📱 Mobile — dial code + national number */}
+              <div>
+                <label
+                  htmlFor="pu-phone"
+                  className="block text-xs font-semibold tracking-wider text-gray-500 uppercase mb-2"
+                >
+                  Mobile Number
+                </label>
+                <div className="flex items-stretch gap-2">
+                  <CountryCodeSelect
+                    value={dial}
+                    onChange={handleDial}
+                    buttonClassName={`h-full px-3 border rounded-xl bg-white flex items-center gap-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors ${
+                      errors.phone ? "border-red-300" : "border-gray-200"
+                    }`}
+                  />
+                  <input
+                    id="pu-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={form.phone}
+                    onChange={(e) => setField("phone", e.target.value.replace(/\D/g, "").slice(0, dial.max))}
+                    placeholder={dial.min === dial.max ? `${dial.min} digits` : `${dial.min}–${dial.max} digits`}
+                    disabled={submitting}
+                    className={`
+                      flex-1 min-w-0 px-4 py-3
+                      bg-white border rounded-xl
+                      text-sm text-gray-900 placeholder-gray-400
+                      focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
+                      disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
+                      transition-colors
+                      ${errors.phone ? "border-red-300" : "border-gray-200"}
+                    `}
+                  />
+                </div>
+                {errors.phone ? (
+                  <p className="text-xs text-red-500 mt-1.5">{errors.phone}</p>
+                ) : selectedCountry && dial.iso2 !== selectedCountry.iso2 ? (
+                  <p className="text-xs text-amber-600 mt-1.5">
+                    Using a {dial.name} number (+{dial.dialCode}) for an admin in {selectedCountry.name}.
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
                 <TextField
                   id="pu-email"
                   label="Email Address"

@@ -12,9 +12,11 @@
 
 const AdminNotification = require("../models/AdminNotification");
 
-// Mongo `$in: [null]` also matches documents where the field is missing.
-const audienceFilter = (role) => ({
+// Mongo `$in: [null]` / `: null` also match documents where the field is missing.
+// A notification with a `targetAdmin` is only for that one admin.
+const audienceFilter = (role, adminId) => ({
   audience: { $in: [null, "all", role === "super_admin" ? "super_admin" : "staff_admin"] },
+  $or: [{ targetAdmin: null }, ...(adminId ? [{ targetAdmin: adminId }] : [])],
 });
 
 // ============================================
@@ -30,7 +32,7 @@ const notifyAllAdmins = async ({ type, title, body, metadata = {}, audience = "a
 const listForAdmin = async (adminId, { page = 1, limit = 20, role } = {}) => {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
-  const filter = audienceFilter(role);
+  const filter = audienceFilter(role, adminId);
 
   const [total, docs] = await Promise.all([
     AdminNotification.countDocuments(filter),
@@ -68,7 +70,7 @@ const listForAdmin = async (adminId, { page = 1, limit = 20, role } = {}) => {
 // ============================================
 const getUnreadCount = async (adminId, role) => {
   return AdminNotification.countDocuments({
-    ...audienceFilter(role),
+    ...audienceFilter(role, adminId),
     "readBy.admin": { $ne: adminId },
   });
 };
@@ -88,7 +90,7 @@ const markRead = async (notificationId, adminId) => {
 // ============================================
 const markAllRead = async (adminId, role) => {
   return AdminNotification.updateMany(
-    { ...audienceFilter(role), "readBy.admin": { $ne: adminId } },
+    { ...audienceFilter(role, adminId), "readBy.admin": { $ne: adminId } },
     { $push: { readBy: { admin: adminId, readAt: new Date() } } }
   );
 };

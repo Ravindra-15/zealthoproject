@@ -28,6 +28,12 @@ export const listIssues = async ({ search = "", status = "", platform = "", page
   return response.data.data;
 };
 
+// 🎫 move an older issue into the Enquiry Desk → { enquiry: { _id, ticketNo, status } }
+export const moveIssueToDesk = async (id) => {
+  const response = await adminApi.post(`/admin/issues/${id}/to-desk`);
+  return { ...response.data.data, message: response.data.message };
+};
+
 export const updateIssueStatus = async (id, status) => {
   const response = await adminApi.patch(`/admin/issues/${id}/status`, { status });
   return response.data.data.issue;

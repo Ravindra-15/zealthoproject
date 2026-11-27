@@ -264,6 +264,7 @@ const createdEmail = ({ admin, createdByName, password, includePassword, panelUr
         ["Name", esc(admin.fullName)],
         ["Login email", esc(admin.email)],
         ["Mobile", esc(admin.phone || "—")],
+        ...(admin.country ? [["Country", esc(admin.country)]] : []),
         ["Role", "Portal Admin"],
         ["Created", esc(formatWhen(at))],
       ]) + extra,
@@ -567,7 +568,69 @@ const doctorCredentialsEmail = ({ doctor, username, password, loginUrl, byName, 
   return { subject, html, text };
 };
 
+// ============================================
+// 📬 ENQUIRY DESK — daily digest for super admins
+// ============================================
+const fmtMins = (m) => {
+  if (m === null || m === undefined) return "—";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} h ${m % 60 ? `${m % 60} min` : ""}`.trim() : `${Math.floor(h / 24)} d ${h % 24} h`;
+};
+const fmtPct = (v) => (v === null || v === undefined ? "—" : `${v}%`);
+
+const enquiryDigestEmail = ({ day, received, team, open, queue, late, oldest = [], people = [], panelUrl }) => {
+  const subject = `Enquiry desk · ${day}: ${received} new, ${team.resolved} resolved, ${late} late`;
+  const peopleRows = people.length
+    ? people.map((p) => [esc(p.fullName), `${p.resolved} resolved · ${p.firstReplies} first replies · avg first reply ${fmtMins(p.avgFirstReplyMinutes)}`])
+    : [["Team", "No replies or resolutions yesterday"]];
+  const oldestRows = oldest.length
+    ? oldest.map((e) => [`ENQ-${e.ticketNo || "—"}`, `${esc(e.name)} · ${esc(e.owner)} · since ${esc(formatWhen(e.createdAt))}`])
+    : [["—", "No open enquiries"]];
+
+  const html = layout({
+    preheader: subject,
+    icon: "📬",
+    tone: late ? "warning" : "primary",
+    badge: "Daily digest",
+    heading: `Enquiry desk — ${day}`,
+    intro: `Yesterday the team received <strong>${received}</strong> enquiries and resolved <strong>${team.resolved}</strong>. Right now <strong>${open}</strong> are open, <strong>${queue}</strong> in the queue and <strong>${late}</strong> late.`,
+    body:
+      detailsCard("Yesterday", [
+        ["New enquiries", String(received)],
+        ["Resolved", String(team.resolved)],
+        ["Average first reply", fmtMins(team.avgFirstReplyMinutes)],
+        ["First reply on time", fmtPct(team.firstReplyOnTimePct)],
+        ["Average time to resolve", fmtMins(team.avgResolveMinutes)],
+        ["Customer rating", team.avgRating ? `${team.avgRating} / 5 (${team.ratings})` : "—"],
+      ]) +
+      detailsCard("Right now", [
+        ["Open", String(open)],
+        ["In the queue", String(queue)],
+        ["Late", String(late)],
+      ]) +
+      detailsCard("By admin (yesterday)", peopleRows) +
+      detailsCard("Oldest open enquiries", oldestRows),
+    cta: { label: "Open the enquiry board", url: panelUrl },
+    source: "Zealtho Enquiry Desk",
+  });
+
+  const text = [
+    `Enquiry desk — ${day}`,
+    "",
+    `Yesterday: ${received} new, ${team.resolved} resolved, avg first reply ${fmtMins(team.avgFirstReplyMinutes)}, first reply on time ${fmtPct(team.firstReplyOnTimePct)}.`,
+    `Right now: ${open} open, ${queue} in the queue, ${late} late.`,
+    "",
+    ...people.map((p) => `${p.fullName}: ${p.resolved} resolved, ${p.firstReplies} first replies`),
+    "",
+    `Board: ${panelUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+};
+
 module.exports = {
+  enquiryDigestEmail,
   doctorCredentialsEmail,
   createdEmail,
   updatedEmail,

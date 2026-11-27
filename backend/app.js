@@ -59,6 +59,7 @@ const doctorFeedbackRoutes = require("./routes/doctor.feedback.routes");
 const adminFinancialReportRoutes = require("./routes/admin.financialReport.routes");
 const adminEnquiryRoutes = require("./routes/admin.enquiry.routes");
 const adminIssueReportRoutes = require("./routes/admin.issueReport.routes");
+const enquiryWebhookRoutes = require("./routes/webhook.enquiry.routes");
 const customerIssueReportRoutes = require("./routes/customer.issueReport.routes");
 const customerMedicalReportRoutes = require("./routes/customer.medicalReport.routes");
 const customerCaseRoutes = require("./routes/customer.case.routes");
@@ -194,6 +195,8 @@ app.use("/api/admin/appointments", adminAppointmentRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/enquiries", adminEnquiryRoutes);
 app.use("/api/admin/issues", adminIssueReportRoutes);
+// 📥 customer replies by email / WhatsApp (mail & WhatsApp providers post here)
+app.use("/api/webhooks/enquiries", enquiryWebhookRoutes);
 app.use("/api/admin/financial-reports", adminFinancialReportRoutes);
 app.use("/api/admin/billing", adminBillingRoutes);
 app.use("/api/admin/clinical-videos", adminClinicalVideoRoutes);

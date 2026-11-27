@@ -56,6 +56,9 @@ const issueReportSchema = new mongoose.Schema(
 
     resolvedAt: { type: Date, default: null },
     resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+
+    // 🎫 the Enquiry Desk ticket handling this issue (status follows the ticket)
+    enquiry: { type: mongoose.Schema.Types.ObjectId, ref: "Enquiry", default: null },
   },
   { timestamps: true }
 );

@@ -31,7 +31,12 @@ export default function CallbackSection() {
       toast.error("Please enter a valid mobile number.");
       return;
     }
-    if (form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+    // 📧 required — our team replies to enquiries by email
+    if (!form.email.trim()) {
+      toast.error("Email address is required so we can reply to you.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       toast.error("Please enter a valid email address.");
       return;
     }
@@ -49,7 +54,7 @@ export default function CallbackSection() {
         message: form.message.trim(),
         source: "zealtho",
       });
-      toast.success("We'll call you back within 12 hours!");
+      toast.success("Thanks! We've emailed you your enquiry number — our team will get back to you soon.");
       setForm(initialForm);
     } catch (err) {
       toast.error(
@@ -96,7 +101,7 @@ export default function CallbackSection() {
               name="email"
               value={form.email}
               onChange={handle}
-              placeholder="Email Address"
+              placeholder="Email Address *"
               type="email"
               className={inputClass}
             />

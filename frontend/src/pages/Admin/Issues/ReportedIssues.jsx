@@ -1,15 +1,18 @@
 /**
  * ADMIN MODULE — Reported Issues
  * Issues customers report from their profile page ("Report an Issue"),
- * across all programs. Admins can mark them resolved or reopen them.
+ * across all programs. New reports are also Enquiry Desk tickets — they're
+ * answered and resolved there, and the status here follows the ticket.
+ * Older reports can be moved into the desk, or resolved here as before.
  * Portal admins see masked contact details (super admin sees everything).
  */
 
 import React, { useEffect, useState } from "react";
-import { Search, Loader2, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, LifeBuoy } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, Loader2, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, LifeBuoy, Inbox } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
-import { listIssues, updateIssueStatus } from "../../../services/adminIssueReportService";
+import { listIssues, updateIssueStatus, moveIssueToDesk } from "../../../services/adminIssueReportService";
 import { formatUtcDate, formatUtcTime12h } from "../../../utils/time";
 
 const PROGRAMS = [
@@ -84,6 +87,19 @@ const ReportedIssues = () => {
       active = false;
     };
   }, [search, status, platform, pagination.page]);
+
+  const handleMove = async (issue) => {
+    try {
+      setUpdatingId(issue._id);
+      const r = await moveIssueToDesk(issue._id);
+      toast.success(r.message || "Moved to the Enquiry Desk");
+      setIssues((list) => list.map((i) => (i._id === issue._id ? { ...i, enquiry: r.enquiry } : i)));
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Couldn't move the issue");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const handleStatus = async (issue, next) => {
     try {
@@ -201,6 +217,28 @@ const ReportedIssues = () => {
                     </p>
                   </div>
 
+                  {issue.enquiry ? (
+                    <div className="self-start flex flex-col items-start sm:items-end gap-1">
+                      <Link
+                        to={`/admin/enquiries/${issue.enquiry._id}`}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 whitespace-nowrap"
+                      >
+                        <Inbox size={13} /> Open ENQ-{issue.enquiry.ticketNo}
+                      </Link>
+                      <span className="text-[11px] text-gray-400">
+                        {issue.enquiry.assignedTo?.fullName ? `Owner: ${issue.enquiry.assignedTo.fullName}` : "Handled in the Enquiry Desk"}
+                      </span>
+                    </div>
+                  ) : (
+                  <div className="self-start flex flex-col sm:items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleMove(issue)}
+                    disabled={updatingId === issue._id}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <Inbox size={13} /> Move to Enquiry Desk
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleStatus(issue, resolved ? "open" : "resolved")}
@@ -220,6 +258,8 @@ const ReportedIssues = () => {
                     )}
                     {resolved ? "Reopen" : "Mark Resolved"}
                   </button>
+                  </div>
+                  )}
                 </div>
               </div>
             );

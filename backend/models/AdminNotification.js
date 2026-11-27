@@ -22,6 +22,13 @@ const adminNotificationSchema = new mongoose.Schema(
         "payment_refunded",
         "payment_action_required",
         "issue_reported",
+        "enquiry_new",
+        "enquiry_assigned",
+        "enquiry_customer_reply",
+        "enquiry_returned",
+        "enquiry_sla_warning",
+        "enquiry_sla_breached",
+        "enquiry_low_rating",
       ],
       required: true,
     },
@@ -29,6 +36,15 @@ const adminNotificationSchema = new mongoose.Schema(
     // Who sees it. Missing/"all" = every admin (all older notifications).
     // Payment events are sent as a "super_admin" copy (with amounts) and a
     // "staff_admin" copy (without), since staff admins never see financials.
+    // Only this admin sees it (e.g. "enquiry assigned to you"). Missing/null
+    // = everyone in `audience`.
+    targetAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+      index: true,
+    },
+
     audience: {
       type: String,
       enum: ["all", "super_admin", "staff_admin"],

@@ -42,6 +42,8 @@ import ProtectedProgramRoute from "./components/common/ProtectedProgramRoute";
 
 import MyProfile from "./pages/Customer/MyProfile/MyProfile";
 import CustomerNotifications from "./pages/Customer/Notifications/Notifications";
+import MyEnquiries from "./pages/Customer/MyEnquiries/MyEnquiries";
+import MyEnquiryDetail from "./pages/Customer/MyEnquiries/MyEnquiryDetail";
 import MyPlansAndBillings from "./pages/Customer/MyPlansAndBillings/MyPlansAndBillings";
 import Receipt from "./pages/Customer/Receipt/Receipt";
 
@@ -67,6 +69,10 @@ import EditUser from "./pages/Admin/Users/EditUser";
 import AppointmentLog from "./pages/Admin/Appointments/AppointmentLog";
 
 import Enquiries from "./pages/Admin/Enquiries/Enquiries";
+import EnquiryDetail from "./pages/Admin/Enquiries/EnquiryDetail";
+import EnquiryBoard from "./pages/Admin/Enquiries/EnquiryBoard";
+import EnquiryDeskSettings from "./pages/Admin/Enquiries/EnquiryDeskSettings";
+import SupportEnquiry from "./pages/Customer/Support/SupportEnquiry";
 import ReportedIssues from "./pages/Admin/Issues/ReportedIssues";
 import Messages from "./pages/Admin/Messages/Messages";
 import FinancialReports from "./pages/Admin/FinancialReports/FinancialReports";
@@ -123,6 +129,8 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-use" element={<TermsOfUse />} />
         <Route path="/about" element={<About />} />
+        {/* 🔗 customer's private enquiry link (from the email, no login) */}
+        <Route path="/support/enquiry/:ticketNo" element={<SupportEnquiry />} />
         <Route
           path="/refer-and-earn"
           element={
@@ -197,6 +205,24 @@ function App() {
           element={
             <ProtectedRoute>
               <CustomerNotifications />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 👤 My Enquiries — the customer's enquiries, issues and our replies */}
+        <Route
+          path="/my-enquiries"
+          element={
+            <ProtectedRoute>
+              <MyEnquiries />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-enquiries/:ticketNo"
+          element={
+            <ProtectedRoute>
+              <MyEnquiryDetail />
             </ProtectedRoute>
           }
         />
@@ -284,6 +310,23 @@ function App() {
             }
           />
           <Route path="enquiries" element={<Enquiries />} />
+          <Route
+            path="enquiries/board"
+            element={
+              <SuperAdminRoute>
+                <EnquiryBoard />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="enquiries/settings"
+            element={
+              <SuperAdminRoute>
+                <EnquiryDeskSettings />
+              </SuperAdminRoute>
+            }
+          />
+          <Route path="enquiries/:id" element={<EnquiryDetail />} />
           <Route path="messages" element={<Messages />} />
           <Route path="issues" element={<ReportedIssues />} />
           <Route

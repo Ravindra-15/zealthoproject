@@ -12,6 +12,26 @@ import { UserCog, Pencil, KeyRound, Power } from "lucide-react";
 
 import { TableSkeleton } from "../../../../components/admin/common/AdminSkeleton";
 import { formatUtcDate, formatUtcDateTime12h } from "../../../../utils/time";
+import { flagUrl } from "../../../../data/countries";
+
+// 🌍 Region — the admin's country with its flag ("Not set" for admins
+// created before countries were added; set it via Edit)
+const Region = ({ admin, compact = false }) =>
+  admin.countryIso && admin.country ? (
+    <span className={`inline-flex items-center gap-2 min-w-0 ${compact ? "text-xs text-gray-500" : "text-sm text-gray-700"}`}>
+      <img
+        src={flagUrl(admin.countryIso)}
+        alt=""
+        className="w-5 h-[15px] object-cover rounded-[2px] flex-shrink-0 ring-1 ring-gray-200"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+      <span className="truncate">{admin.country}</span>
+    </span>
+  ) : (
+    <span className={`${compact ? "text-xs" : "text-sm"} text-gray-400 italic`}>Not set</span>
+  );
 
 // ============================================
 // 🟢 STATUS PILL
@@ -67,7 +87,7 @@ const RowActions = ({ admin, onEdit, onResetPassword, onToggleStatus }) => (
       onClick={() => onEdit(admin)}
       className={`${iconButton} hover:text-indigo-600 hover:bg-indigo-50`}
       aria-label={`Edit ${admin.fullName}`}
-      title="Edit name / mobile"
+      title="Edit name, country, email or mobile"
     >
       <Pencil size={15} />
     </button>
@@ -161,6 +181,7 @@ const PortalUserTable = ({
               {[
                 ["Admin", "text-left"],
                 ["Mobile", "text-left"],
+                ["Region", "text-left"],
                 ["Status", "text-center"],
                 ["Last Login", "text-left"],
                 ["Created", "text-left"],
@@ -202,9 +223,14 @@ const PortalUserTable = ({
 
                 {/* 📱 Mobile */}
                 <td className="px-6 py-4">
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 whitespace-nowrap">
                     {admin.phone || "—"}
                   </span>
+                </td>
+
+                {/* 🌍 Region */}
+                <td className="px-6 py-4 max-w-[200px]">
+                  <Region admin={admin} />
                 </td>
 
                 {/* 🟢 Status */}
@@ -258,6 +284,10 @@ const PortalUserTable = ({
                 <p className="text-xs text-gray-500 truncate">{admin.email}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {admin.phone || "—"}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 min-w-0">
+                  <span className="text-xs text-gray-400">Region:</span>
+                  <Region admin={admin} compact />
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                   Last login:{" "}

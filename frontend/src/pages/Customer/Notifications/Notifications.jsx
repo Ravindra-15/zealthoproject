@@ -61,6 +61,10 @@ export default function Notifications() {
         // soft fail
       }
     }
+
+    // 🔗 open what it's about (only links inside this app)
+    const link = notification?.metadata?.link;
+    if (typeof link === "string" && link.startsWith("/") && !link.startsWith("//")) navigate(link);
   };
 
   return (
