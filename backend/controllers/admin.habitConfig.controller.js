@@ -17,6 +17,7 @@
 const fs = require("fs");
 const path = require("path");
 const HabitConfig = require("../models/HabitConfig");
+const { notifyHabitChangeLater } = require("../services/habitNotification.service");
 
 const ALLOWED_PROGRAMS = ["yogat20", "diabmukt", "mommyfit", "slimfitter"];
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
@@ -157,6 +158,9 @@ const createHabit = async (req, res) => {
       isActive: true,
     });
 
+    // 🔔 members of this program: "new habit to track" (in-app)
+    notifyHabitChangeLater({ habit: newHabit.toObject(), kind: "added" });
+
     return res.status(201).json({
       success: true,
       data: { habit: newHabit },
@@ -203,6 +207,16 @@ const updateHabit = async (req, res) => {
         message: "Habit not found",
       });
     }
+
+    // what members saw before (for the "habit updated" notice)
+    const before = {
+      trackerName: habit.trackerName,
+      unit: habit.unit,
+      minThreshold: habit.minThreshold,
+      averageGoal: habit.averageGoal,
+      maxThreshold: habit.maxThreshold,
+      isActive: habit.isActive,
+    };
 
     // Partial updates
     if (trackerName !== undefined) {
@@ -271,6 +285,11 @@ const updateHabit = async (req, res) => {
       await habit.save();
     }
 
+    // 🔔 switched back on → "habit is back"; edited while on → "habit updated"
+    if (habit.isActive) {
+      notifyHabitChangeLater({ habit: habit.toObject(), kind: before.isActive ? "updated" : "enabled", before });
+    }
+
     return res.status(200).json({
       success: true,
       data: { habit },
@@ -307,6 +326,8 @@ const toggleHabit = async (req, res) => {
     }
     habit.isActive = !habit.isActive;
     await habit.save();
+    // 🔔 switched on → members are told (switching off stays silent)
+    if (habit.isActive) notifyHabitChangeLater({ habit: habit.toObject(), kind: "enabled" });
     return res.status(200).json({
       success: true,
       data: { habit },

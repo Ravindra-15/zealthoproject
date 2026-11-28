@@ -35,6 +35,8 @@ const notificationSchema = new mongoose.Schema(
         "support_reply",
         "support_resolved",
         "support_reminder",
+        "habit_reminder", // 8 PM "log today's habits" (habitNotification.service)
+        "habit_update", // admin added / switched on / edited a habit
         "general",
       ],
       required: true,

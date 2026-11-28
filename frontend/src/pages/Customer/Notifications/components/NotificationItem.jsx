@@ -2,7 +2,7 @@
 // Single notification row — icon-coded by type, shows time-ago, dimmed when read
 // Used inside Notifications page list
 
-import { CheckCircle2, CreditCard, AlertCircle, Bell, MessageSquare, Calendar, Sparkles } from "lucide-react";
+import { CheckCircle2, CreditCard, AlertCircle, Bell, MessageSquare, Calendar, Sparkles, ListChecks, Activity } from "lucide-react";
 import { formatUtcDate } from "../../../../utils/time";
 
 const typeMeta = {
@@ -50,6 +50,16 @@ const typeMeta = {
     icon: MessageSquare,
     bg: "bg-amber-50",
     color: "text-amber-500",
+  },
+  habit_reminder: {
+    icon: ListChecks,
+    bg: "bg-orange-50",
+    color: "text-orange-500",
+  },
+  habit_update: {
+    icon: Activity,
+    bg: "bg-purple-50",
+    color: "text-purple-500",
   },
   general: {
     icon: Bell,

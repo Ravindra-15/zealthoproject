@@ -22,6 +22,7 @@ const {
     sendTrialExpiryReminder,
 } = require("./email.service");
 const { buildProgressExportCsvs } = require("./progressCsvExport.service");
+const { sendHabitReminders } = require("./habitNotification.service");
 
 const programDisplayNames = {
     yogat20: "Yoga T20",
@@ -456,6 +457,13 @@ const startReminderCron = () => {
         await sendProgressReportExports();
         await sendBirthdayWishes();
         await processFreeConsultCards();
+        // 🌙 8 PM (member's timezone) "log today's habits" — in-app only
+        try {
+            const { sent } = await sendHabitReminders();
+            if (sent) console.log(`[HABIT REMINDER] sent ${sent}`);
+        } catch (err) {
+            console.error("[HABIT REMINDER ERROR]:", err.message);
+        }
     });
 
     console.log("✅ Reminder cron scheduled (every 15 mins)");
