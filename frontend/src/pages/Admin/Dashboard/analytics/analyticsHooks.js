@@ -18,7 +18,7 @@ import {
 const PRESET_IDS = RANGE_PRESETS.map((p) => p.id);
 
 export const useRangeFilters = (initial = {}) => {
-  const [preset, setPresetState] = useState(PRESET_IDS.includes(initial.preset) ? initial.preset : "30d");
+  const [preset, setPresetState] = useState(PRESET_IDS.includes(initial.preset) ? initial.preset : "12m");
   const [custom, setCustom] = useState({
     from: isDateStr(initial.from) ? initial.from : "",
     to: isDateStr(initial.to) ? initial.to : "",
@@ -35,7 +35,7 @@ export const useRangeFilters = (initial = {}) => {
   const group = useMemo(() => {
     if (chosenGroup && allowed.includes(chosenGroup)) return chosenGroup;
     if (presetGroup && allowed.includes(presetGroup)) return presetGroup;
-    if (!valid) return "day";
+    if (!valid) return "month";
     const auto = autoGrouping(range);
     return allowed.includes(auto) ? auto : allowed[allowed.length - 1];
   }, [chosenGroup, presetGroup, allowed, valid, range]);
