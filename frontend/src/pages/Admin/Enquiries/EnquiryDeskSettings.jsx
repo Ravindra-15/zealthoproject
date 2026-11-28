@@ -379,7 +379,8 @@ const EnquiryDeskSettings = () => {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
-                ["WhatsApp messages", connections.whatsapp, "Replies marked “Also send on WhatsApp” are recorded until a WhatsApp provider is connected."],
+                // WhatsApp only listed when it's switched on for enquiries
+                ...("whatsapp" in connections ? [["WhatsApp messages", connections.whatsapp, "Replies marked “Also send on WhatsApp” are recorded until a WhatsApp provider is connected."]] : []),
                 ["Customers reply by email", connections.replyByEmail, "Until connected, customers answer through the private link in our emails."],
                 ["Masked calling", connections.calls, "“Call customer” is recorded but not placed until a calling provider is connected."],
                 ["AI drafts", connections.ai, "Needs an AI key on the server."],

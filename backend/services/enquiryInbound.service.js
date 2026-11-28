@@ -87,6 +87,7 @@ const handleInboundEmail = async (payload, applyCustomerMessage) => {
 };
 
 const handleInboundWhatsApp = async (payload, applyCustomerMessage) => {
+  if (!C.whatsappOn()) return { accepted: false, reason: "whatsapp_off" }; // WhatsApp off for enquiries
   const phone = normalizePhone(pick(payload, ["from", "From", "phone", "wa_id"]));
   const text = String(pick(payload, ["text", "body", "Body", "message"]) || "").trim().slice(0, MAX_TEXT);
   if (!phone) return { accepted: false, reason: "no_number" };

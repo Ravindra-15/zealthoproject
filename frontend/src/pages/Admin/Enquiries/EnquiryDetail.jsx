@@ -357,7 +357,7 @@ const EnquiryDetail = () => {
       if (r) setText("");
       return;
     }
-    const whatsappOnly = !data.enquiry.hasEmail;
+    const whatsappOnly = !data.enquiry.hasEmail && !!data.features?.whatsapp?.canSend;
     const r = await run(`reply-${nextStatus}`, () => replyToEnquiry(id, body, nextStatus, whatsappOnly || alsoWhatsApp));
     if (r) {
       setText("");
@@ -448,7 +448,9 @@ const EnquiryDetail = () => {
   const features = data.features || {};
   const whatsappOnly = !enquiry.hasEmail && !!features.whatsapp?.canSend;
   const replyBlock = !enquiry.hasEmail && !features.whatsapp?.canSend
-    ? "This enquiry has no email address or usable mobile number, so it can't be answered here."
+    ? features.whatsapp?.enabled
+      ? "This enquiry has no email address or usable mobile number, so it can't be answered here."
+      : "This enquiry has no email address, so it can't be answered here."
     : ["closed", "spam"].includes(enquiry.status)
       ? isSuperAdmin
         ? "This enquiry is closed. Reopen it to reply."
@@ -676,17 +678,17 @@ const EnquiryDetail = () => {
                           </span>
                         )}
                         {m.emailStatus === "pending" && <span className="text-gray-500">Sending…</span>}
-                        {m.whatsappStatus === "sent" && (
+                        {features.whatsapp?.enabled && m.whatsappStatus === "sent" && (
                           <span className="inline-flex items-center gap-1 text-emerald-700">
                             <MessageCircle size={11} /> Sent on WhatsApp
                           </span>
                         )}
-                        {m.whatsappStatus === "mock" && (
+                        {features.whatsapp?.enabled && m.whatsappStatus === "mock" && (
                           <span className="inline-flex items-center gap-1 text-amber-700">
                             <MessageCircle size={11} /> WhatsApp not connected — recorded only
                           </span>
                         )}
-                        {m.whatsappStatus === "failed" && (
+                        {features.whatsapp?.enabled && m.whatsappStatus === "failed" && (
                           <span className="inline-flex items-center gap-1 text-red-600">
                             <MessageCircle size={11} /> WhatsApp failed
                           </span>

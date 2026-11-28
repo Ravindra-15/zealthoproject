@@ -395,7 +395,7 @@ const connections = () => {
   const { isCallsLive } = require("../services/callBridge.service");
   const ai = require("../services/enquiryAi.service");
   return {
-    whatsapp: isWhatsAppLive(),
+    ...(C.whatsappOn() ? { whatsapp: isWhatsAppLive() } : {}), // hidden while WhatsApp is off for enquiries
     replyByEmail: !!process.env.INBOUND_EMAIL_DOMAIN && !!process.env.INBOUND_WEBHOOK_SECRET,
     calls: isCallsLive(),
     ai: ai.isConfigured(),
