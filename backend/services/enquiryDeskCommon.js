@@ -28,6 +28,11 @@ const PRIORITY_RANK = { high: 0, normal: 1, low: 2 };
 const advancedOn = () => /^(1|true|on|yes)$/i.test(String(process.env.ENQUIRY_ADVANCED || "").trim());
 const featureFlags = () => ({ advanced: advancedOn() });
 
+// 💬 WhatsApp for enquiries (send replies / receive answers) — OFF unless
+// ENQUIRY_WHATSAPP=on. Off: replies go by email only, nothing is sent on
+// WhatsApp and incoming WhatsApp messages are ignored.
+const whatsappOn = () => /^(1|true|on|yes)$/i.test(String(process.env.ENQUIRY_WHATSAPP || "").trim());
+
 const STATUS_LABELS = {
   new: "New",
   assigned: "Assigned",
@@ -230,6 +235,7 @@ const minutesBetween = (a, b) => (a && b ? Math.max(0, Math.round((new Date(b) -
 module.exports = {
   advancedOn,
   featureFlags,
+  whatsappOn,
   TICKET_BASE,
   OPEN_STATUSES,
   DONE_STATUSES,

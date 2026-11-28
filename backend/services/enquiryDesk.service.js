@@ -310,6 +310,7 @@ const reply = async (id, admin, { body, nextStatus = "in_progress", alsoWhatsApp
   if (["closed", "spam"].includes(enquiry.status)) {
     throw C.httpError(409, C.isSuper(admin) ? "Reopen this enquiry before replying" : "This enquiry is closed. Ask a super admin to reopen it.");
   }
+  if (!C.whatsappOn()) alsoWhatsApp = false; // WhatsApp switched off for enquiries
   const canWhatsApp = !!normalizePhone(enquiry.phone);
   if (alsoWhatsApp && !canWhatsApp) throw C.httpError(409, "This enquiry has no usable mobile number for WhatsApp.", { code: "NO_PHONE" });
   if (!enquiry.email && !alsoWhatsApp) {
@@ -534,7 +535,7 @@ const detail = async (id, admin) => {
       canTake: !enquiry.assignedTo && !DONE_STATUSES.includes(enquiry.status),
       canWork: C.isSuper(admin) || C.sameId(enquiry.assignedTo, admin._id),
       canReply:
-        (!!enquiry.email || !!normalizePhone(enquiry.phone)) &&
+        (!!enquiry.email || (C.whatsappOn() && !!normalizePhone(enquiry.phone))) &&
         !["closed", "spam"].includes(enquiry.status) &&
         (C.isSuper(admin) || !enquiry.assignedTo || C.sameId(enquiry.assignedTo, admin._id)),
       canRelease: C.sameId(enquiry.assignedTo, admin._id),
@@ -545,7 +546,7 @@ const detail = async (id, admin) => {
     },
     features: {
       ...C.featureFlags(),
-      whatsapp: { canSend: !!normalizePhone(enquiry.phone), live: isWhatsAppLive() },
+      whatsapp: { enabled: C.whatsappOn(), canSend: C.whatsappOn() && !!normalizePhone(enquiry.phone), live: isWhatsAppLive() },
       replyByEmail: replyByEmail(enquiry),
       calls: { live: isCallsLive() },
       aiDrafts: settings.aiDrafts && ai.isConfigured(),
