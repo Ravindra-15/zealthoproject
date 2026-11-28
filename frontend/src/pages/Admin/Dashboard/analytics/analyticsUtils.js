@@ -30,12 +30,12 @@ export const isDateStr = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || "") && !Number.i
 export const spanDays = (from, to) => Math.round((new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000) + 1;
 
 export const RANGE_PRESETS = [
-  { id: "7d", label: "Last 7 days", group: "day" },
-  { id: "30d", label: "Last 30 days", group: "day" },
-  { id: "90d", label: "Last 90 days", group: "week" },
-  { id: "thisMonth", label: "This month", group: "day" },
-  { id: "lastMonth", label: "Last month", group: "day" },
-  { id: "thisQuarter", label: "This quarter", group: "week" },
+  { id: "7d", label: "Last 7 days", group: "month" },
+  { id: "30d", label: "Last 30 days", group: "month" },
+  { id: "90d", label: "Last 90 days", group: "month" },
+  { id: "thisMonth", label: "This month", group: "month" },
+  { id: "lastMonth", label: "Last month", group: "month" },
+  { id: "thisQuarter", label: "This quarter", group: "month" },
   { id: "thisYear", label: "This year", group: "month" },
   { id: "12m", label: "Last 12 months", group: "month" },
   { id: "all", label: "All time", group: "month" },
@@ -74,37 +74,26 @@ export const presetRange = (preset, custom = {}) => {
 // ============================================
 // 🧮 GROUPING
 // ============================================
+// Monthly / Quarterly / Yearly only (no daily or weekly view)
 export const GROUPINGS = [
-  { id: "day", label: "Daily", short: "D" },
-  { id: "week", label: "Weekly", short: "W" },
   { id: "month", label: "Monthly", short: "M" },
   { id: "quarter", label: "Quarterly", short: "Q" },
   { id: "year", label: "Yearly", short: "Y" },
 ];
 
-const GROUP_NAMES = { day: "daily", week: "weekly", month: "monthly", quarter: "quarterly", year: "yearly" };
+const GROUP_NAMES = { month: "monthly", quarter: "quarterly", year: "yearly" };
 export const groupName = (g) => GROUP_NAMES[g] || g;
-export const periodWord = (g) => ({ day: "day", week: "week", month: "month", quarter: "quarter", year: "year" })[g] || "period";
+export const periodWord = (g) => ({ month: "month", quarter: "quarter", year: "year" })[g] || "period";
 
-/** groupings that keep the chart under the server's 400-point limit */
-export const allowedGroupings = (range) => {
-  if (range.all || !isDateStr(range.from) || !isDateStr(range.to)) return GROUPINGS.map((g) => g.id);
-  const days = spanDays(range.from, range.to);
-  return GROUPINGS.map((g) => g.id).filter((g) => {
-    if (g === "day") return days <= 400;
-    if (g === "week") return days <= 2700;
-    return true;
-  });
-};
+/** groupings that fit the range — monthly and wider always stay under the
+ *  server's 400-point limit (ranges are capped at 25 years) */
+// eslint-disable-next-line no-unused-vars
+export const allowedGroupings = (range) => GROUPINGS.map((g) => g.id);
 
 /** sensible grouping for a custom range */
 export const autoGrouping = (range) => {
   if (range.all) return "month";
-  const days = spanDays(range.from, range.to);
-  if (days <= 62) return "day";
-  if (days <= 200) return "week";
-  if (days <= 1100) return "month";
-  return "quarter";
+  return spanDays(range.from, range.to) <= 1100 ? "month" : "quarter";
 };
 
 // ============================================

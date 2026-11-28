@@ -1,7 +1,7 @@
 /**
  * ADMIN MODULE — Filter controls shared by the dashboard analytics panels
  *  - RangeFilter    → preset dropdown (+ from/to dates for "Custom range")
- *  - GroupingTabs   → Daily / Weekly / Monthly / Quarterly / Yearly
+ *  - GroupingTabs   → Monthly / Quarterly / Yearly
  *  - SelectFilter   → small labelled dropdown
  *  - Segmented      → two/three-way toggle
  *  - MiniStat       → summary number with optional change badge
