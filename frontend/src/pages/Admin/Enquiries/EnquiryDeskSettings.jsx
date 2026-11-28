@@ -68,13 +68,15 @@ const EnquiryDeskSettings = () => {
   const [editing, setEditing] = useState(null); // { _id?, title, body, category, isActive }
   const [savingReply, setSavingReply] = useState(false);
   const [connections, setConnections] = useState(null);
+  const [advanced, setAdvanced] = useState(false); // priorities + time limits switched on (server)
 
   const dayLen = form ? Math.max(60, hm(form.workEnd) - hm(form.workStart)) : 600;
 
   useEffect(() => {
     getEnquiryDeskSetup()
-      .then(({ settings: s, connections: c }) => {
+      .then(({ settings: s, connections: c, features: f }) => {
         setConnections(c || null);
+        setAdvanced(f?.advanced === true);
         setForm(s);
         const len = Math.max(60, hm(s.workEnd) - hm(s.workStart));
         setLimits(
@@ -169,10 +171,16 @@ const EnquiryDeskSettings = () => {
       </Link>
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Enquiry desk settings</h1>
-        <p className="text-sm text-gray-500">Working hours, time limits, the queue and automatic emails. Changes apply to new enquiries; enquiries already open keep their deadlines.</p>
+        <p className="text-sm text-gray-500">
+          {advanced
+            ? "Working hours, time limits, the queue and automatic emails. Changes apply to new enquiries; enquiries already open keep their deadlines."
+            : "The queue, automatic emails, AI drafts and ready replies."}
+        </p>
       </div>
 
-      {/* WORKING HOURS */}
+      {/* WORKING HOURS + TIME LIMITS (only with priorities / time limits switched on) */}
+      {advanced && (
+      <>
       <div className={`${card} p-5 space-y-4`}>
         <h2 className="text-sm font-bold text-gray-900">Working hours</h2>
         <p className="text-xs text-gray-500 -mt-2">Time limits only count time inside these hours — an enquiry sent at night isn't late by morning.</p>
@@ -284,6 +292,8 @@ const EnquiryDeskSettings = () => {
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {/* QUEUE */}
       <div className={`${card} p-5 space-y-4`}>
@@ -301,9 +311,11 @@ const EnquiryDeskSettings = () => {
           <Field label="Most open enquiries per admin" hint="Admins at this number can't take more until they resolve some.">
             <input type="number" min="1" max="500" aria-label="Most open enquiries per admin" value={form.maxOpenPerAdmin} onChange={(e) => set("maxOpenPerAdmin", e.target.value)} className={input} />
           </Field>
-          <Field label="Warn the owner at (% of the time limit)" hint="e.g. 75 → a 4-hour limit warns after 3 working hours.">
-            <input type="number" min="10" max="95" aria-label="Warning point percent" value={form.warnAtPercent} onChange={(e) => set("warnAtPercent", e.target.value)} className={input} />
-          </Field>
+          {advanced && (
+            <Field label="Warn the owner at (% of the time limit)" hint="e.g. 75 → a 4-hour limit warns after 3 working hours.">
+              <input type="number" min="10" max="95" aria-label="Warning point percent" value={form.warnAtPercent} onChange={(e) => set("warnAtPercent", e.target.value)} className={input} />
+            </Field>
+          )}
         </div>
       </div>
 
@@ -318,6 +330,7 @@ const EnquiryDeskSettings = () => {
             <input type="number" min="1" max="60" aria-label="Auto close days" value={form.autoCloseDays} onChange={(e) => set("autoCloseDays", e.target.value)} className={input} />
           </Field>
         </div>
+        {advanced && (
         <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer">
           <input type="checkbox" checked={form.digestEnabled} onChange={(e) => set("digestEnabled", e.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-600" />
           <span className="text-sm text-gray-800 flex-1">
@@ -338,6 +351,7 @@ const EnquiryDeskSettings = () => {
             ))}
           </select>
         </label>
+        )}
       </div>
 
       {/* AI + CONNECTIONS */}
