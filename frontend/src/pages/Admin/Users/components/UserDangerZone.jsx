@@ -2,20 +2,44 @@
  * ADMIN MODULE — User Danger Zone
  *
  * Bottom card on Edit User page.
- * Activate/Deactivate toggle with confirmation.
- * No hard delete by design (preserves audit trail).
+ * Activate/Deactivate toggle with confirmation, and Move to Trash
+ * (deleted after 30 days unless restored — see the Trash page).
  */
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { AlertTriangle, Power, Loader2 } from "lucide-react";
+import { AlertTriangle, Power, Loader2, Trash2 } from "lucide-react";
 
 import { toggleUserStatus } from "../../../../services/userService";
 import UserStatusModal from "./UserStatusModal";
+import TrashUserModal from "./TrashUserModal";
+import { moveUserToTrash } from "../../../../services/userService";
 
 const UserDangerZone = ({ user, onUserUpdated }) => {
   const [toggling, setToggling] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashing, setTrashing] = useState(false);
+  const navigate = useNavigate();
+
+  const handleTrash = async (reason) => {
+    if (trashing) return;
+    try {
+      setTrashing(true);
+      const r = await moveUserToTrash(user._id, reason);
+      toast.success(r.message || "Moved to Trash");
+      setTrashOpen(false);
+      navigate("/admin/users/trash", { replace: true });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Couldn't move the user to Trash");
+    } finally {
+      setTrashing(false);
+    }
+  };
+
+  // in Trash: the banner at the top has Restore / Delete; nothing else here
+  if (user?.trashedAt) return null;
 
   const handleConfirm = async (flagInfo) => {
     if (toggling) return;
@@ -99,6 +123,29 @@ const UserDangerZone = ({ user, onUserUpdated }) => {
           {user.isActive ? "Deactivate" : "Activate"}
         </button>
       </div>
+
+      {/* Move to Trash */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5 pt-5 border-t border-red-50">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-900">Move to Trash</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Signs them out and blocks their email and mobile. Deleted automatically after 30 days unless you restore it.
+            Payments and appointments are kept.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setTrashOpen(true)}
+          disabled={trashing}
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex-shrink-0"
+        >
+          <Trash2 size={14} /> Move to Trash
+        </button>
+      </div>
+
+      {trashOpen && (
+        <TrashUserModal isOpen user={user} loading={trashing} onConfirm={handleTrash} onClose={() => !trashing && setTrashOpen(false)} />
+      )}
 
       <UserStatusModal
         isOpen={modalOpen}

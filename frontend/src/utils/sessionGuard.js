@@ -70,14 +70,19 @@ const isRejectedCustomerToken = (error) => {
   return !!token && sent === `Bearer ${token}`;
 };
 
+// the account was moved to Trash by an admin (protect middleware, 401 + code)
+const isRemovedAccount = (error) =>
+  error?.response?.status === 401 && error.response.data?.code === "ACCOUNT_REMOVED";
+
 const guard = (instance) => {
   instance.interceptors.response.use(
     (res) => res,
     (error) => {
-      if (!handling && isRejectedCustomerToken(error)) {
+      const removed = isRemovedAccount(error);
+      if (!handling && (removed || isRejectedCustomerToken(error))) {
         handling = true;
         clearCustomerSession();
-        toast.error("Your session has expired. Please log in again.");
+        toast.error(removed ? error.response.data.message : "Your session has expired. Please log in again.");
         setTimeout(() => {
           window.location.href = "/login";
         }, 1200);

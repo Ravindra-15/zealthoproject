@@ -126,3 +126,32 @@ export const buildUserDisplayId = (mongoId) => {
   const tail = mongoId.toString().slice(-4).toUpperCase();
   return `US${tail}`;
 };
+// ============================================
+// 🗑️ TRASH (super admin)
+// ============================================
+// { users: [...with daysLeft, trashedByName], pagination }
+export const listTrashedUsers = async ({ search = "", page = 1, limit = 20 } = {}) => {
+  const response = await adminApi.get("/admin/users/trash", { params: { search, page, limit } });
+  return response.data.data;
+};
+
+// { canTrash, alreadyInTrash, upcomingAppointments: [...], warnings: [...], trashDays }
+export const getTrashCheck = async (userId) => {
+  const response = await adminApi.get(`/admin/users/${userId}/trash-check`);
+  return response.data.data;
+};
+
+export const moveUserToTrash = async (userId, reason = "") => {
+  const response = await adminApi.post(`/admin/users/${userId}/trash`, { reason });
+  return { ...response.data.data, message: response.data.message };
+};
+
+export const restoreUserFromTrash = async (userId) => {
+  const response = await adminApi.post(`/admin/users/${userId}/restore`);
+  return response.data.data;
+};
+
+export const deleteUserPermanently = async (userId) => {
+  const response = await adminApi.delete(`/admin/users/${userId}`);
+  return response.data;
+};

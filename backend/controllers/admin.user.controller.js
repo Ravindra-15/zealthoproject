@@ -6,6 +6,7 @@
  */
 
 const userService = require("../services/admin.user.service");
+const trash = require("../services/userTrash.service");
 const {
   notifyUserStatusChanged,
   notifyUserEmailChanged,
@@ -37,6 +38,8 @@ const listUsers = async (req, res) => {
     // 🔒 Portal admins only see masked patient contact details
     if (!superAdmin) {
       result.users = result.users.map(maskUserContact);
+    } else {
+      result.trashCount = await trash.trashCount();
     }
 
     return res.status(200).json({
@@ -125,7 +128,7 @@ const getUser = async (req, res) => {
   try {
     const data = await userService.getUserDetails(req.params.id);
 
-    if (!data) {
+    if (!data || (data.user.trashedAt && !isSuperAdmin(req.admin))) {
       return res.status(404).json({
         success: false,
         message: "User not found",
@@ -156,8 +159,23 @@ const getUser = async (req, res) => {
 // ============================================
 // ✏️ UPDATE USER
 // ============================================
+// 🗑️ a user in Trash (or deleted) can't be edited — restore them first
+const blockIfRemoved = async (req, res) => {
+  const state = await trash.stateOf(req.params.id);
+  if (state === "trashed") {
+    res.status(409).json({ success: false, message: "This user is in Trash. Restore them first." });
+    return true;
+  }
+  if (state === "deleted" || state === null) {
+    res.status(404).json({ success: false, message: "User not found" });
+    return true;
+  }
+  return false;
+};
+
 const updateUser = async (req, res) => {
   try {
+    if (await blockIfRemoved(req, res)) return undefined;
     const updated = await userService.updateUser(req.params.id, req.body);
 
     if (!updated) {
@@ -192,6 +210,7 @@ const EMAIL_TAKEN_MESSAGE = "This email is already used by another account";
 
 const updateUserEmail = async (req, res) => {
   try {
+    if (await blockIfRemoved(req, res)) return undefined;
     const result = await userService.changeUserEmail(req.params.id, req.body.email);
 
     if (!result) {
@@ -255,6 +274,7 @@ const updateUserEmail = async (req, res) => {
 // ============================================
 const toggleStatus = async (req, res) => {
   try {
+    if (await blockIfRemoved(req, res)) return undefined;
     const { isActive, reasonCode, description } = req.body;
 
     if (isActive === false) {
@@ -323,7 +343,79 @@ const toggleStatus = async (req, res) => {
   }
 };
 
+// ============================================
+// 🗑️ TRASH (super admin only — enforced on the routes)
+// ============================================
+const sendTrashError = (res, err, fallback) => {
+  if (err?.status) {
+    return res.status(err.status).json({
+      success: false,
+      message: err.message,
+      ...(err.code ? { code: err.code } : {}),
+      ...(err.upcomingAppointments ? { data: { upcomingAppointments: err.upcomingAppointments } } : {}),
+    });
+  }
+  console.error(`[ADMIN USER TRASH] ${fallback}:`, err);
+  return res.status(500).json({ success: false, message: fallback });
+};
+
+const listTrash = async (req, res) => {
+  try {
+    const { search, page, limit } = req.query;
+    return res.status(200).json({ success: true, data: await trash.listTrash({ search, page, limit }) });
+  } catch (err) {
+    return sendTrashError(res, err, "Failed to load the Trash");
+  }
+};
+
+const trashCheck = async (req, res) => {
+  try {
+    return res.status(200).json({ success: true, data: await trash.trashCheck(req.params.id) });
+  } catch (err) {
+    return sendTrashError(res, err, "Failed to check this user");
+  }
+};
+
+const moveToTrash = async (req, res) => {
+  try {
+    const { user, warnings } = await trash.trashUser(req.params.id, req.admin, { reason: req.body?.reason });
+    console.log(`[ADMIN AUDIT] ${req.admin?.email} moved user ${user._id} to Trash`);
+    return res.status(200).json({
+      success: true,
+      message: `Moved to Trash. Deleted automatically in ${trash.TRASH_DAYS} days unless restored.`,
+      data: { user, warnings },
+    });
+  } catch (err) {
+    return sendTrashError(res, err, "Failed to move the user to Trash");
+  }
+};
+
+const restoreFromTrash = async (req, res) => {
+  try {
+    const { user } = await trash.restoreUser(req.params.id, req.admin);
+    console.log(`[ADMIN AUDIT] ${req.admin?.email} restored user ${user._id} from Trash`);
+    return res.status(200).json({ success: true, message: "User restored", data: { user } });
+  } catch (err) {
+    return sendTrashError(res, err, "Failed to restore the user");
+  }
+};
+
+const deletePermanently = async (req, res) => {
+  try {
+    await trash.purgeUser(req.params.id, req.admin);
+    console.log(`[ADMIN AUDIT] ${req.admin?.email} permanently deleted user ${req.params.id}`);
+    return res.status(200).json({ success: true, message: "User deleted permanently" });
+  } catch (err) {
+    return sendTrashError(res, err, "Failed to delete the user");
+  }
+};
+
 module.exports = {
+  listTrash,
+  trashCheck,
+  moveToTrash,
+  restoreFromTrash,
+  deletePermanently,
   listUsers,
   exportUsersCsv,
   getUser,

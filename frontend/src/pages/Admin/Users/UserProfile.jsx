@@ -12,6 +12,7 @@ import { ArrowLeft, ClipboardList, MessageSquare, LineChart, History } from "luc
 
 import { getUserDetails } from "../../../services/userService";
 import UserProfileHeader from "./components/UserProfileHeader";
+import TrashBanner from "./components/TrashBanner";
 import BodyProfileTab from "./components/BodyProfileTab";
 import ConsultationsTab from "./components/ConsultationsTab";
 import ReportsTab from "./components/ReportsTab";
@@ -157,6 +158,9 @@ const UserProfile = () => {
         <ArrowLeft size={16} />
         Back to Patient Directory
       </button>
+
+      {/* 🗑️ In Trash (super admin) */}
+      <TrashBanner user={user} onRestored={handleUserUpdated} />
 
       {/* 🏷️ Header card */}
       <UserProfileHeader

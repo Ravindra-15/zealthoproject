@@ -6,14 +6,24 @@
  * deactivate modal plus any description).
  */
 
-import { History, ShieldOff, ShieldCheck } from "lucide-react";
+import { History, ShieldOff, ShieldCheck, Trash2, RotateCcw, UserX } from "lucide-react";
 import { formatUtcDateTime12h, formatZoneAbbr } from "../../../../utils/time";
 
 const ROLE_LABELS = { super_admin: "Super Admin", staff_admin: "Admin" };
 
+// how each kind of change looks (Trash entries added with the Trash feature)
+const ACTIONS = {
+  deactivated: { label: "Deactivated", Icon: ShieldOff, bad: true },
+  reactivated: { label: "Reactivated", Icon: ShieldCheck, bad: false },
+  trashed: { label: "Moved to Trash", Icon: Trash2, bad: true },
+  restored: { label: "Restored from Trash", Icon: RotateCcw, bad: false },
+  deleted: { label: "Deleted permanently", Icon: UserX, bad: true },
+};
+
 const HistoryRow = ({ entry }) => {
-  const deactivated = entry.action === "deactivated";
-  const Icon = deactivated ? ShieldOff : ShieldCheck;
+  const meta = ACTIONS[entry.action] || ACTIONS.reactivated;
+  const deactivated = meta.bad;
+  const Icon = meta.Icon;
   const role = ROLE_LABELS[entry.byRole] || "";
 
   return (
@@ -34,7 +44,7 @@ const HistoryRow = ({ entry }) => {
               deactivated ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
             }`}
           >
-            {deactivated ? "Deactivated" : "Reactivated"}
+            {meta.label}
           </span>
           <span className="text-xs font-semibold text-gray-700">
             {formatUtcDateTime12h(entry.at)} {entry.at ? formatZoneAbbr(entry.at) : ""}
@@ -43,11 +53,15 @@ const HistoryRow = ({ entry }) => {
 
         <p className="text-xs text-gray-500 mt-1.5">
           By{" "}
-          <span className="font-semibold text-gray-700">{entry.byName || "Unknown admin"}</span>
+          <span className="font-semibold text-gray-700">{entry.byName || (entry.byRole === "system" ? "System (30 days in Trash)" : "Unknown admin")}</span>
           {role && <span className="text-gray-400"> · {role}</span>}
         </p>
 
-        {deactivated && (
+        {entry.action === "trashed" && entry.description && (
+          <p className="text-xs text-gray-700 mt-2 whitespace-pre-line break-words">Reason: {entry.description}</p>
+        )}
+
+        {entry.action === "deactivated" && (
           <div className="mt-2 rounded-xl bg-gray-50 border border-gray-100 px-3.5 py-2.5">
             <p className="text-xs text-gray-500">
               Reason:{" "}

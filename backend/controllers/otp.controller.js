@@ -42,6 +42,11 @@ exports.verifyOtp = async (req, res) => {
       return errorResponse(res, "User not found", 404);
     }
 
+    // 🗑️ moved to Trash while signing up
+    if (user.trashedAt || user.deletedAt) {
+      return errorResponse(res, "This account has been removed. Please contact support.", 403);
+    }
+
     // // Mark verified
     // user.isVerified = true;
     // await user.save();

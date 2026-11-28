@@ -743,7 +743,7 @@ const ownerQuery = async (userId) => {
   if (!user) throw C.httpError(401, "Please log in again");
   const or = [{ user: user._id }];
   if (user.isVerified && user.email) or.push({ email: String(user.email).toLowerCase() });
-  return { user, query: { $or: or, status: { $ne: "spam" } } };
+  return { user, query: { $or: or, status: { $ne: "spam" }, ownerErasedAt: null } };
 };
 
 const loadForOwner = async (userId, ticketNo) => {

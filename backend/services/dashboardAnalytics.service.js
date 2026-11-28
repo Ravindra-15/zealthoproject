@@ -191,7 +191,7 @@ const getUsersGrowth = async (query = {}) => {
   const country = typeof query.country === "string" && /^[A-Z]{2}$/.test(query.country) ? query.country : "";
   const status = ["active", "deactivated"].includes(query.status) ? query.status : "all";
 
-  const base = { isVerified: true };
+  const base = { isVerified: true, trashedAt: null }; // Trash isn't counted (deleted users are unverified)
   if (country) base.countryIso = country;
   if (status === "active") base.isActive = { $ne: false };
   if (status === "deactivated") base.isActive = false;
@@ -211,7 +211,7 @@ const getUsersGrowth = async (query = {}) => {
     User.countDocuments({ ...base, createdAt: { $lt: range.startUtc } }),
     dailyTotals(User, { ...base, createdAt: { $gte: range.startUtc, $lt: range.endUtc } }, "createdAt", tz),
     User.aggregate([
-      { $match: { isVerified: true, countryIso: { $type: "string", $ne: "" } } },
+      { $match: { isVerified: true, trashedAt: null, countryIso: { $type: "string", $ne: "" } } },
       { $group: { _id: "$countryIso", name: { $first: "$country" }, count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 250 },

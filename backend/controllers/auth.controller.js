@@ -16,6 +16,14 @@ const {
 } = require("../utils/referralCode");
 
 // 🔗 Create a pending referral if a valid ref code was used (best-effort, never blocks signup)
+const { accountBlock, phoneHeldByTrashed } = require("../services/userTrash.service");
+
+// 🗑️ an email / mobile held by an account in Trash can't sign up
+const TRASHED_EMAIL_MESSAGE =
+  "An account with this email was recently removed. Please contact support to get it back.";
+const TRASHED_PHONE_MESSAGE =
+  "This mobile number belongs to an account that was recently removed. Please contact support.";
+
 const attachReferral = async (newUser, refCode) => {
   try {
     const code = (refCode || "").trim();
@@ -23,8 +31,9 @@ const attachReferral = async (newUser, refCode) => {
     if (newUser.referredBy) return; // already attached
 
     const referrer = await User.findOne({ referralCode: code });
-    // ignore invalid codes or self-referral
+    // ignore invalid codes or self-referral (and accounts in Trash / deleted)
     if (!referrer || String(referrer._id) === String(newUser._id)) return;
+    if (referrer.trashedAt || referrer.deletedAt) return;
 
     // 🚫 referrer already earned the max rewards — no reward possible, don't attach
     if (await hasReachedReferralLimit(referrer._id)) return;
@@ -63,6 +72,10 @@ exports.signup = async (req, res) => {
 
     // 🔍 Check existing user
     let user = await User.findOne({ email });
+
+    // 🗑️ email or mobile held by an account in Trash
+    if (user?.trashedAt) return errorResponse(res, TRASHED_EMAIL_MESSAGE, 403);
+    if (await phoneHeldByTrashed(phone, countryCode)) return errorResponse(res, TRASHED_PHONE_MESSAGE, 403);
 
     if (user && user.isVerified) {
       // 🚫 Deactivated accounts can't re-signup their way back in
@@ -144,6 +157,9 @@ exports.resendOtp = async (req, res) => {
       return errorResponse(res, "User not found", 404);
     }
 
+    const blocked = accountBlock(user);
+    if (blocked) return errorResponse(res, blocked.status === 403 ? TRASHED_EMAIL_MESSAGE : blocked.message, blocked.status);
+
     if (user.isVerified) {
       return errorResponse(res, "User already verified", 400);
     }
@@ -186,6 +202,11 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
     if (!user || !user.isVerified) {
       return errorResponse(res, "Invalid email or password", 401);
+    }
+
+    // 🗑️ in Trash
+    if (user.trashedAt) {
+      return errorResponse(res, "This account has been removed. Please contact support.", 403);
     }
 
     // 🚫 Block deactivated accounts (mirrors the Google-login check below)
@@ -231,8 +252,8 @@ exports.forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
 
-    // Don't reveal whether the email exists
-    if (!user || !user.isVerified) {
+    // Don't reveal whether the email exists (accounts in Trash get no OTP either)
+    if (!user || !user.isVerified || accountBlock(user)) {
       return successResponse(
         res,
         { email },
@@ -289,6 +310,8 @@ exports.verifyResetOtp = async (req, res) => {
     if (!user) {
       return errorResponse(res, "User not found", 404);
     }
+    const blocked = accountBlock(user);
+    if (blocked) return errorResponse(res, blocked.message, blocked.status);
 
     // OTP consumed
     await Otp.deleteOne({ _id: record._id });
@@ -331,6 +354,8 @@ exports.resetPassword = async (req, res) => {
     if (!user) {
       return errorResponse(res, "User not found", 404);
     }
+    const blocked = accountBlock(user);
+    if (blocked) return errorResponse(res, blocked.message, blocked.status);
 
     // 🚫 New password cannot be the same as the old one
     const isSame = await bcrypt.compare(password, user.password);
@@ -409,6 +434,11 @@ exports.googleAuth = async (req, res) => {
     }
 
     if (user) {
+      // 🗑️ in Trash (deleted accounts never match: their email + Google id are gone)
+      if (user.trashedAt) {
+        return errorResponse(res, mode === "signup" ? TRASHED_EMAIL_MESSAGE : "This account has been removed. Please contact support.", 403);
+      }
+
       // 🚫 Block deactivated accounts
       if (user.isActive === false) {
         return errorResponse(res, "Account is deactivated", 403);

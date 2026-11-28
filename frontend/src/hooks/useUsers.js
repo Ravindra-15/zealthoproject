@@ -27,6 +27,7 @@ const useUsers = ({ initialLimit = 50 } = {}) => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [trashCount, setTrashCount] = useState(null); // super admin only
   const [error, setError] = useState(null);
 
   // 🔍 Filter state
@@ -77,6 +78,7 @@ const useUsers = ({ initialLimit = 50 } = {}) => {
       if (!isMountedRef.current) return;
 
       setUsers(data.users || []);
+      setTrashCount(typeof data.trashCount === "number" ? data.trashCount : null);
       setPagination(data.pagination || pagination);
     } catch (err) {
       if (!isMountedRef.current) return;
@@ -137,6 +139,7 @@ const useUsers = ({ initialLimit = 50 } = {}) => {
     // Data
     users,
     pagination,
+    trashCount,
     loading,
     error,
 

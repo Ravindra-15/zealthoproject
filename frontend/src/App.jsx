@@ -85,6 +85,7 @@ import TrialApprovals from "./pages/Admin/TrialApprovals/TrialApprovals";
 import HabitConfigurator from "./pages/Admin/HabitConfigurator/HabitConfigurator";
 import BodyProfileConfigurator from "./pages/Admin/BodyProfileConfigurator/BodyProfileConfigurator";
 import LegalContentEditor from "./pages/Admin/LegalContent/LegalContentEditor";
+import UserTrash from "./pages/Admin/Users/UserTrash";
 import ReferralEngine from "./pages/Admin/Referrals/ReferralEngine";
 import PortalUsers from "./pages/Admin/PortalUsers/PortalUsers";
 import ConsultationPricing from "./pages/Admin/ConsultationPricing/ConsultationPricing";
@@ -414,6 +415,14 @@ function App() {
 
           {/* 👥 USERS */}
           <Route path="users" element={<UserDirectory />} />
+          <Route
+            path="users/trash"
+            element={
+              <SuperAdminRoute>
+                <UserTrash />
+              </SuperAdminRoute>
+            }
+          />
           <Route path="users/:id/edit" element={<EditUser />} />
           <Route path="users/:id" element={<UserProfile />} />
 

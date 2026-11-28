@@ -29,7 +29,8 @@ const listUsers = async ({
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
   const safeSearch = typeof search === "string" ? search.trim() : "";
 
-  const query = {};
+  // 🗑️ users in Trash have their own page; deleted users are gone
+  const query = { trashedAt: null, deletedAt: null };
 
   if (status === "active") query.isActive = true;
   if (status === "inactive") query.isActive = false;
@@ -78,7 +79,8 @@ const listUsersForExport = async ({
   includeContactSearch = true,
 } = {}) => {
   const safeSearch = typeof search === "string" ? search.trim() : "";
-  const query = {};
+  // 🗑️ users in Trash have their own page; deleted users are gone
+  const query = { trashedAt: null, deletedAt: null };
 
   if (status === "active") query.isActive = true;
   if (status === "inactive") query.isActive = false;
@@ -104,7 +106,12 @@ const listUsersForExport = async ({
 // ============================================
 const getUserDetails = async (userId) => {
   const user = await User.findById(userId).select("-password").lean();
-  if (!user) return null;
+  if (!user || user.deletedAt) return null; // deleted permanently
+
+  // 🗑️ in Trash: who moved them (shown on the banner)
+  if (user.trashedAt && user.trashedBy) {
+    user.trashedByName = (await Admin.findById(user.trashedBy).select("fullName").lean())?.fullName || "";
+  }
 
   const [bodyProfile, consultations, statusHistory] = await Promise.all([
     BodyProfile.findOne({ user: userId }).lean(),
