@@ -104,6 +104,9 @@ const enquirySchema = new mongoose.Schema(
     reopenCount: { type: Number, default: 0 },
     lastActivityAt: { type: Date, default: null },
     lastCustomerMessageAt: { type: Date, default: null },
+    // 🗑️ the customer's account was deleted permanently — the enquiry stays
+    // for the team but never shows in anyone's "My Enquiries" again
+    ownerErasedAt: { type: Date, default: null },
     // 👀 when the customer last opened the conversation (My Enquiries / link)
     customerSeenAt: { type: Date, default: null },
 

@@ -21,7 +21,7 @@ const accountStatusLogSchema = new mongoose.Schema(
 
     action: {
       type: String,
-      enum: ["deactivated", "reactivated"],
+      enum: ["deactivated", "reactivated", "trashed", "restored", "deleted"],
       required: true,
     },
 

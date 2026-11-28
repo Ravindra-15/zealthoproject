@@ -48,7 +48,7 @@ const resolveRecipients = async ({ audienceType, programId }) => {
     programId,
     customer: { $ne: null },
   });
-  const users = await User.find({ _id: { $in: customerIds } })
+  const users = await User.find({ _id: { $in: customerIds }, trashedAt: null, deletedAt: null })
     .select("email whatsapp phone countryCode")
     .lean();
   // 📱 WhatsApp number if they gave one, else their mobile with its dial code

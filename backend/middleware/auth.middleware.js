@@ -23,9 +23,19 @@ exports.protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id).select("_id isActive");
-    if (!user) {
+    const user = await User.findById(decoded.id).select("_id isActive trashedAt deletedAt");
+    if (!user || user.deletedAt) {
       return errorResponse(res, "Not authorized, user not found", 401);
+    }
+
+    // 🗑️ moved to Trash by a super admin → signed out everywhere (401 makes
+    // every app drop its token)
+    if (user.trashedAt) {
+      return res.status(401).json({
+        success: false,
+        message: "This account has been removed. Please contact support.",
+        code: "ACCOUNT_REMOVED",
+      });
     }
 
     if (user.isActive === false) {

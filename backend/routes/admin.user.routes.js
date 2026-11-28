@@ -16,6 +16,11 @@ const {
   updateUser,
   updateUserEmail,
   toggleStatus,
+  listTrash,
+  trashCheck,
+  moveToTrash,
+  restoreFromTrash,
+  deletePermanently,
 } = require("../controllers/admin.user.controller");
 
 const {
@@ -72,6 +77,13 @@ router.get("/", userReadLimiter, validateListQuery, listUsers);
 // 📤 Export users to CSV (same filters, no pagination) — defined before
 // "/:id" so Express never mistakes "export" for a user id.
 router.get("/export", userReadLimiter, validateListQuery, exportUsersCsv);
+
+// 🗑️ Trash (super admin only) — before "/:id" so "trash" isn't read as an id
+router.get("/trash", userReadLimiter, requireSuperAdmin, listTrash);
+router.get("/:id/trash-check", userReadLimiter, requireSuperAdmin, validateUserId, trashCheck);
+router.post("/:id/trash", userWriteLimiter, requireSuperAdmin, validateUserId, moveToTrash);
+router.post("/:id/restore", userWriteLimiter, requireSuperAdmin, validateUserId, restoreFromTrash);
+router.delete("/:id", userWriteLimiter, requireSuperAdmin, validateUserId, deletePermanently);
 
 // 👁️ Get user with body profile + consultations
 router.get("/:id", userReadLimiter, validateUserId, getUser);

@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from "react";
-import { Search, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Download, Loader2, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
@@ -27,6 +28,7 @@ const UserDirectory = () => {
   const {
     users,
     pagination,
+    trashCount,
     loading,
     search,
     setSearch,
@@ -58,6 +60,20 @@ const UserDirectory = () => {
         title="Patient Directory"
         subtitle="Managing users on the system"
         action={
+          <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && (
+            <Link
+              to="/admin/users/trash"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <Trash2 size={15} /> Trash
+              {trashCount > 0 && (
+                <span className="min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full text-[10px] font-bold bg-red-50 text-red-600">
+                  {trashCount}
+                </span>
+              )}
+            </Link>
+          )}
           <button
             type="button"
             onClick={handleExport}
@@ -79,6 +95,7 @@ const UserDirectory = () => {
             )}
             {exporting ? "Exporting..." : "Export CSV"}
           </button>
+          </div>
         }
       />
 

@@ -47,12 +47,12 @@ const getDashboardStats = async (programId = "zealtho") => {
     totalDoctors,
     activeUsers,
   ] = await Promise.all([
-    User.countDocuments({ isVerified: true }),
+    User.countDocuments({ isVerified: true, trashedAt: null }),
     getActiveSubscriptionsCount(safeProgramId),
     getExpiredSubscriptionsCount(safeProgramId),
     getRevenueThisMonth(safeProgramId),
     Doctor.countDocuments({ isActive: true }),
-    User.countDocuments({ isVerified: true, isActive: true }),
+    User.countDocuments({ isVerified: true, isActive: true, trashedAt: null }),
   ]);
 
   const stats = {
@@ -196,6 +196,7 @@ const getUsersTrend = async (days = 30) => {
 
   const baselineCount = await User.countDocuments({
     isVerified: true,
+    trashedAt: null,
     createdAt: { $lt: startDate },
   });
 
@@ -203,6 +204,7 @@ const getUsersTrend = async (days = 30) => {
     {
       $match: {
         isVerified: true,
+        trashedAt: null,
         createdAt: { $gte: startDate, $lte: endDate },
       },
     },

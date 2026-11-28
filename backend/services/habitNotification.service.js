@@ -53,7 +53,7 @@ const activeMemberIds = async (programId, now = new Date()) => {
     customer: { $ne: null },
   });
   if (!ids.length) return [];
-  return User.distinct("_id", { _id: { $in: ids }, isActive: { $ne: false } });
+  return User.distinct("_id", { _id: { $in: ids }, isActive: { $ne: false }, trashedAt: null, deletedAt: null });
 };
 
 // ============================================
@@ -79,6 +79,8 @@ const sendHabitReminders = async (now = new Date()) => {
   const users = await User.find({
     _id: { $in: [...new Set(subs.map((s) => String(s.customer)))] },
     isActive: { $ne: false },
+    trashedAt: null,
+    deletedAt: null,
   })
     .select("timezone")
     .lean();

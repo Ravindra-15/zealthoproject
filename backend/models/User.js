@@ -235,6 +235,18 @@ const userSchema = new mongoose.Schema(
       ref: "Admin",
       default: null,
     },
+
+    // 🗑️ Trash (super admin) — see services/userTrash.service.js.
+    // In Trash: blocked everywhere, email + mobile reserved, deleted
+    // automatically at trashPurgeAt (30 days) unless restored first.
+    trashedAt: { type: Date, default: null, index: true },
+    trashPurgeAt: { type: Date, default: null, index: true },
+    trashedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+    trashReason: { type: String, trim: true, maxlength: 500, default: "" },
+    // ❌ Deleted permanently: personal details wiped, shown as "Deleted user";
+    // payments / appointments still point at this record.
+    deletedAt: { type: Date, default: null, index: true },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
   },
   { timestamps: true }
 );

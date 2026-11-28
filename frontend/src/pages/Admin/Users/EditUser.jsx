@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 
 import AdminPageHeader from "../../../components/admin/common/AdminPageHeader";
 import UserDangerZone from "./components/UserDangerZone";
+import TrashBanner from "./components/TrashBanner";
 import ChangeEmailModal from "./components/ChangeEmailModal";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import {
@@ -239,6 +240,9 @@ const EditUser = () => {
         <ArrowLeft size={16} />
         Back to User Profile
       </button>
+
+      {/* 🗑️ In Trash → restore before editing */}
+      <TrashBanner user={user} onRestored={handleUserUpdated} />
 
       <AdminPageHeader
         title="Edit User"

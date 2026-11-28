@@ -23,6 +23,10 @@ const {
 } = require("./email.service");
 const { buildProgressExportCsvs } = require("./progressCsvExport.service");
 const { sendHabitReminders } = require("./habitNotification.service");
+const { purgeExpired } = require("./userTrash.service");
+
+// 🗑️ users in Trash or deleted get no reminders / wishes / reports
+const isRemovedUser = (u) => !!(u && (u.trashedAt || u.deletedAt));
 
 const programDisplayNames = {
     yogat20: "Yoga T20",
@@ -53,12 +57,12 @@ const send24hReminders = async () => {
     for (const apt of appointments) {
         try {
             const [user, doctor] = await Promise.all([
-                User.findById(apt.user).select("email fullName nickName timezone").lean(),
+                User.findById(apt.user).select("email fullName nickName timezone trashedAt deletedAt").lean(),
                 Doctor.findById(apt.doctor).select("personalEmail fullName timezone").lean(),
             ]);
 
             // 📧 Send to user (rendered in their own zone)
-            if (user?.email) {
+            if (user?.email && !isRemovedUser(user)) {
                 await sendAppointmentReminder24h({
                     to: user.email,
                     recipientName: user.fullName || user.nickName || "there",
@@ -116,11 +120,11 @@ const send1hReminders = async () => {
         // console.log("[DEBUG] Processing appointment:", apt._id, "scheduledAt:", apt.scheduledAt);
         try {
             const [user, doctor] = await Promise.all([
-                User.findById(apt.user).select("email fullName nickName timezone").lean(),
+                User.findById(apt.user).select("email fullName nickName timezone trashedAt deletedAt").lean(),
                 Doctor.findById(apt.doctor).select("personalEmail fullName timezone").lean(),
             ]);
 
-            if (user?.email) {
+            if (user?.email && !isRemovedUser(user)) {
                 await sendAppointmentReminder1h({
                     to: user.email,
                     recipientName: user.fullName || user.nickName || "there",
@@ -172,9 +176,9 @@ const sendPlanExpiryReminders = async () => {
             if (sub.lastExpiryNotifiedOn === todayKey) continue;
 
             const user = await User.findById(sub.customer)
-                .select("email fullName nickName timezone")
+                .select("email fullName nickName timezone trashedAt deletedAt")
                 .lean();
-            if (!user) continue;
+            if (!user || isRemovedUser(user)) continue;
 
             const msLeft = new Date(sub.endDate).getTime() - now.getTime();
             const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
@@ -236,9 +240,9 @@ const sendTrialExpiryReminders = async () => {
             if (sub.lastExpiryNotifiedOn === todayKey) continue;
 
             const user = await User.findById(sub.customer)
-                .select("email fullName nickName")
+                .select("email fullName nickName trashedAt deletedAt")
                 .lean();
-            if (!user) continue;
+            if (!user || isRemovedUser(user)) continue;
 
             const msLeft = new Date(sub.endDate).getTime() - now.getTime();
             const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
@@ -292,11 +296,12 @@ const sendProgressReportExports = async () => {
     for (const sub of subs) {
         try {
             const user = await User.findById(sub.customer)
-                .select("email fullName nickName")
+                .select("email fullName nickName trashedAt deletedAt")
                 .lean();
 
-            // No email to send to — still mark it done so we don't retry forever.
-            if (!user?.email) {
+            // No email to send to (or the account is in Trash / deleted) —
+            // still mark it done so we don't retry forever.
+            if (!user?.email || isRemovedUser(user)) {
                 await ProgramSubscription.findByIdAndUpdate(sub._id, {
                     progressCsvSentAt: new Date(),
                 });
@@ -346,6 +351,8 @@ const sendBirthdayWishes = async () => {
     // Customers with a date of birth set, not yet wished this year
     const users = await User.find({
         dob: { $ne: null },
+        trashedAt: null,
+        deletedAt: null,
         $or: [
             { lastBirthdayWishOn: { $ne: yearKey } },
             { lastBirthdayWishOn: null },
@@ -457,6 +464,13 @@ const startReminderCron = () => {
         await sendProgressReportExports();
         await sendBirthdayWishes();
         await processFreeConsultCards();
+        // 🗑️ users in Trash for 30 days → deleted permanently (personal details only)
+        try {
+            const purged = await purgeExpired();
+            if (purged) console.log(`[USER TRASH] deleted ${purged} user(s) after 30 days in Trash`);
+        } catch (err) {
+            console.error("[USER TRASH PURGE ERROR]:", err.message);
+        }
         // 🌙 8 PM (member's timezone) "log today's habits" — in-app only
         try {
             const { sent } = await sendHabitReminders();
