@@ -149,6 +149,9 @@ const describe = (e) => {
   }
 };
 
+// history lines about priorities / time limits (hidden while those are switched off)
+const ADVANCED_EVENTS = new Set(["priority_changed", "sla_warning", "sla_breached"]);
+
 // these events' notes only repeat the sentence above them
 const QUIET_NOTE = new Set(["acknowledged", "replied", "reply_resent", "reply_failed", "sla_warning", "sla_breached", "nudged", "auto_resolved", "merged", "resolved_email", "auto_assigned", "ai_draft"]);
 
@@ -472,9 +475,11 @@ const EnquiryDetail = () => {
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="text-sm font-bold text-indigo-700 tabular-nums">{ticketLabel(enquiry)}</span>
               <StatusPill status={enquiry.status} />
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ring-1 ring-inset ${(PRIORITY[enquiry.priority] || PRIORITY.normal).cls}`}>
-                {(PRIORITY[enquiry.priority] || PRIORITY.normal).label} priority
-              </span>
+              {features.advanced && (
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ring-1 ring-inset ${(PRIORITY[enquiry.priority] || PRIORITY.normal).cls}`}>
+                  {(PRIORITY[enquiry.priority] || PRIORITY.normal).label} priority
+                </span>
+              )}
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{PROGRAMS[enquiry.source] || enquiry.source}</span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{CATEGORIES[enquiry.category] || "General"}</span>
               {enquiry.type === "issue" && (
@@ -868,6 +873,7 @@ const EnquiryDetail = () => {
                 </span>
               </Row>
               <Row label="Program">{PROGRAMS[enquiry.source] || enquiry.source}</Row>
+              {features.advanced && (
               <Row label="Priority">
                 {perms.canTriage ? (
                   <select
@@ -888,6 +894,7 @@ const EnquiryDetail = () => {
                 )}
                 {enquiry.priorityReason && <span className="block text-[11px] text-gray-400">{enquiry.priorityReason}</span>}
               </Row>
+              )}
               <Row label="Category">
                 {perms.canTriage ? (
                   <select
@@ -964,7 +971,7 @@ const EnquiryDetail = () => {
           <div className={`${card} p-5`}>
             <h2 className="text-sm font-bold text-gray-900 mb-3">History</h2>
             <ol className="relative border-l border-gray-100 ml-1.5 space-y-4">
-              {(data.events || []).map((e) => (
+              {(data.events || []).filter((e) => features.advanced || !ADVANCED_EVENTS.has(e.type)).map((e) => (
                 <li key={e._id} className="pl-4 relative">
                   <span className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${DOT[e.type] || "bg-gray-300"}`} />
                   <p className="text-xs text-gray-800 leading-relaxed">{describe(e)}</p>

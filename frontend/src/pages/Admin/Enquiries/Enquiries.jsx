@@ -1,9 +1,11 @@
 /**
  * ADMIN MODULE — Enquiries (enquiry desk)
  *
- * Every enquiry is a ticket (ENQ-1042) with a priority and time limits.
+ * Every enquiry is a ticket (ENQ-1042). Priorities, time limits and the
+ * Board only show when the server switch is on (desk.features.advanced).
  * Tabs:
- *  - Queue        → nobody owns it yet (priority → nearest deadline → oldest)
+ *  - Queue        → nobody owns it yet (oldest first; with priorities on:
+ *                   priority → nearest deadline → oldest)
  *  - My enquiries → open enquiries I own, same order
  *  - All open / Resolved & closed / All
  * "Take next" claims the next enquiry in the queue; "Take" claims one row.
@@ -254,6 +256,9 @@ const Enquiries = () => {
   const myId = String(me?._id || me?.id || "");
   const atCap = desk?.cap && desk.openCount >= desk.cap;
   const away = desk?.deskStatus === "away";
+  // priorities / time limits / Board — hidden unless switched on on the server
+  const advanced = desk?.features?.advanced === true;
+  const COLUMNS = ["Ticket", "Customer", ...(advanced ? ["Priority"] : []), "Status", "Owner", ...(advanced ? ["Due"] : []), "Received"];
 
   const OwnerCell = ({ enq }) =>
     enq.assignedTo ? (
@@ -294,9 +299,11 @@ const Enquiries = () => {
           <div className="flex flex-wrap items-center gap-2">
             {isSuperAdmin && (
               <>
-                <Link to="/admin/enquiries/board" className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50">
-                  <BarChart3 size={15} /> Board
-                </Link>
+                {advanced && (
+                  <Link to="/admin/enquiries/board" className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50">
+                    <BarChart3 size={15} /> Board
+                  </Link>
+                )}
                 <Link to="/admin/enquiries/settings" className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50">
                   <Settings2 size={15} /> Desk settings
                 </Link>
@@ -364,7 +371,7 @@ const Enquiries = () => {
           <div className="flex flex-wrap gap-x-6 gap-y-2 lg:ml-auto lg:pr-5 lg:border-r lg:border-gray-100" title="Your last 7 days">
             <Stat label="Resolved (7 days)" value={myStats.resolved} />
             <Stat label="Avg first reply" value={myStats.avgFirstReplyMinutes === null ? "—" : formatDuration(myStats.avgFirstReplyMinutes)} />
-            <Stat label="Replied on time" value={myStats.firstReplyOnTimePct === null ? "—" : `${myStats.firstReplyOnTimePct}%`} />
+            {advanced && <Stat label="Replied on time" value={myStats.firstReplyOnTimePct === null ? "—" : `${myStats.firstReplyOnTimePct}%`} />}
             <Stat label="Rating" value={myStats.avgRating ? `${myStats.avgRating} / 5` : "—"} />
           </div>
         )}
@@ -375,7 +382,7 @@ const Enquiries = () => {
             type="button"
             onClick={handleTakeNext}
             disabled={takingNext || !!atCap || counts.queue === 0}
-            title={counts.queue === 0 ? "The queue is empty" : "Take the most urgent enquiry in the queue"}
+            title={counts.queue === 0 ? "The queue is empty" : advanced ? "Take the most urgent enquiry in the queue" : "Take the oldest enquiry in the queue"}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors whitespace-nowrap"
           >
             {takingNext ? <Loader2 size={15} className="animate-spin" /> : <SkipForward size={15} />}
@@ -481,7 +488,7 @@ const Enquiries = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/40">
-                {["Ticket", "Customer", "Priority", "Status", "Owner", "Due", "Received"].map((h) => (
+                {COLUMNS.map((h) => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -491,13 +498,13 @@ const Enquiries = () => {
             <tbody>
               {loading && enquiries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-sm text-gray-400">
                     Loading enquiries...
                   </td>
                 </tr>
               ) : enquiries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-14 text-center">
+                  <td colSpan={COLUMNS.length} className="px-6 py-14 text-center">
                     <Inbox size={22} className="mx-auto text-gray-300 mb-2" />
                     <p className="text-sm text-gray-500">{emptyText}</p>
                   </td>
@@ -513,18 +520,22 @@ const Enquiries = () => {
                         {enq.message ? ` · ${enq.message}` : ""}
                       </p>
                     </td>
-                    <td className="px-4 py-4">
-                      <PriorityPill priority={enq.priority} />
-                    </td>
+                    {advanced && (
+                      <td className="px-4 py-4">
+                        <PriorityPill priority={enq.priority} />
+                      </td>
+                    )}
                     <td className="px-4 py-4">
                       <StatusPill status={enq.status} />
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <OwnerCell enq={enq} />
                     </td>
-                    <td className="px-4 py-4">
-                      <DueCell enq={enq} />
-                    </td>
+                    {advanced && (
+                      <td className="px-4 py-4">
+                        <DueCell enq={enq} />
+                      </td>
+                    )}
                     <td className="px-4 py-4 text-xs text-gray-600 whitespace-nowrap">{formatDateTime(enq.createdAt)}</td>
                   </tr>
                 ))
@@ -559,13 +570,19 @@ const Enquiries = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <StatusPill status={enq.status} />
-                    <PriorityPill priority={enq.priority} />
+                    {advanced && <PriorityPill priority={enq.priority} />}
                   </div>
                 </div>
                 {enq.message && <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{enq.message}</p>}
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <span className="text-[11px] text-gray-400 min-w-0 truncate">
-                    {PROGRAMS[enq.source] || enq.source} · <DueCell enq={enq} />
+                    {PROGRAMS[enq.source] || enq.source}
+                    {advanced && (
+                      <>
+                        {" · "}
+                        <DueCell enq={enq} />
+                      </>
+                    )}
                   </span>
                   <OwnerCell enq={enq} />
                 </div>

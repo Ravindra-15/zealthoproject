@@ -11,6 +11,7 @@ const { toCsv } = require("../utils/csv.util");
 const { isSuperAdmin, maskEmail, maskPhone } = require("../utils/adminAccess");
 const desk = require("../services/enquiryDesk.service");
 const sla = require("../services/enquirySla.service");
+const C = require("../services/enquiryDeskCommon");
 const stats = require("../services/enquiryStats.service");
 const EnquiryTemplate = require("../models/EnquiryTemplate");
 const { CATEGORIES } = require("../models/EnquiryTemplate");
@@ -98,7 +99,7 @@ const buildEnquiryQuery = ({ search, startDate, endDate, source, status, view, a
 
 // queue / my / open → priority, then nearest deadline, then oldest;
 // everything else newest first
-const sortFor = (view) => (view === "queue" || view === "mine" || view === "open" ? sla.QUEUE_SORT : { createdAt: -1 });
+const sortFor = (view) => (view === "queue" || view === "mine" || view === "open" ? sla.queueSort() : { createdAt: -1 });
 
 const listEnquiries = async (req, res) => {
   try {
@@ -203,7 +204,13 @@ const exportEnquiriesCsv = async (req, res) => {
       e.rating?.comment || "",
     ]);
 
-    const csv = toCsv(headers, rows);
+    // priorities / time limits switched off → leave those columns out
+    const HIDDEN = new Set(["Priority", "First Reply Due", "First Reply On Time", "Resolve Due", "Resolved On Time"]);
+    const keep = headers.map((h) => C.advancedOn() || !HIDDEN.has(h));
+    const csv = toCsv(
+      headers.filter((_, i) => keep[i]),
+      rows.map((r) => r.filter((_, i) => keep[i]))
+    );
     const filename = `zealtho-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
 
     res.status(200);
@@ -375,6 +382,7 @@ const getMyStats = async (req, res) => {
 
 const getBoard = async (req, res) => {
   try {
+    if (!C.advancedOn()) return res.status(404).json({ success: false, message: "The board is turned off" });
     return successResponse(res, await stats.board({ days: req.query.days }), "Board fetched", 200);
   } catch (err) {
     return fail(res, err, "Failed to load the board");
@@ -398,7 +406,7 @@ const getDeskSettings = async (req, res) => {
   try {
     const s = await sla.getSettings({ fresh: true });
     const { lastDigestDate, ...settings } = s;
-    return successResponse(res, { settings, connections: connections() }, "Settings fetched", 200);
+    return successResponse(res, { settings, connections: connections(), features: C.featureFlags() }, "Settings fetched", 200);
   } catch (err) {
     return fail(res, err, "Failed to load settings");
   }

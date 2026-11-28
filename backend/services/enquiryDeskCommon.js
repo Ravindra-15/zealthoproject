@@ -21,6 +21,13 @@ const OPEN_STATUSES = ["new", "assigned", "in_progress", "waiting", "contacted"]
 const DONE_STATUSES = ["resolved", "closed", "spam"];
 const PRIORITY_RANK = { high: 0, normal: 1, low: 2 };
 
+// 🎚️ Priorities, time limits (+ their alerts and the daily digest) and the
+// Board are switched OFF unless ENQUIRY_ADVANCED=on. Off: every enquiry is
+// Normal with no time limits and the queue is oldest first. The data model
+// stays the same, so switching on later needs no migration.
+const advancedOn = () => /^(1|true|on|yes)$/i.test(String(process.env.ENQUIRY_ADVANCED || "").trim());
+const featureFlags = () => ({ advanced: advancedOn() });
+
 const STATUS_LABELS = {
   new: "New",
   assigned: "Assigned",
@@ -221,6 +228,8 @@ const notifyCustomer = async (enquiry, kind, body = "") => {
 const minutesBetween = (a, b) => (a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000)) : null);
 
 module.exports = {
+  advancedOn,
+  featureFlags,
   TICKET_BASE,
   OPEN_STATUSES,
   DONE_STATUSES,

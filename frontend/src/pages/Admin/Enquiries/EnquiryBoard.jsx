@@ -64,11 +64,16 @@ const EnquiryBoard = () => {
     try {
       setData(await getEnquiryBoard(days));
     } catch (err) {
+      // the Board is switched off on the server → back to the enquiry list
+      if (err?.response?.status === 404) {
+        navigate("/admin/enquiries", { replace: true });
+        return;
+      }
       toast.error(err?.response?.data?.message || "Failed to load the board");
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [days, navigate]);
 
   useEffect(() => {
     load();

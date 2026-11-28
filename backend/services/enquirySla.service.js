@@ -202,13 +202,14 @@ const triageNew = async (enquiry) => {
   const settings = await getSettings();
   // tickets made from a Reported Issue keep the issue's own category
   const category = enquiry.type === "issue" && enquiry.category && enquiry.category !== "general" ? enquiry.category : categorize(enquiry);
-  const { priority, reason } = await prioritize(enquiry, category);
+  // switched off: every enquiry is Normal, with no time limits
+  const { priority, reason } = C.advancedOn() ? await prioritize(enquiry, category) : { priority: "normal", reason: "" };
   const set = {
     category,
     priority,
     priorityRank: C.PRIORITY_RANK[priority],
     priorityReason: reason,
-    ...dueDates(enquiry.createdAt || new Date(), priority, settings),
+    ...(C.advancedOn() ? dueDates(enquiry.createdAt || new Date(), priority, settings) : {}),
   };
   await Enquiry.updateOne({ _id: enquiry._id }, { $set: set });
   Object.assign(enquiry, set);
@@ -220,7 +221,7 @@ const retriage = async (enquiry, { priority, category }) => {
   const settings = await getSettings();
   const set = {};
   if (category) set.category = category;
-  if (priority && priority !== enquiry.priority) {
+  if (priority && priority !== enquiry.priority && C.advancedOn()) {
     set.priority = priority;
     set.priorityRank = C.PRIORITY_RANK[priority];
     set.priorityReason = "Set by an admin";
@@ -269,7 +270,7 @@ const transitionSet = async (enquiry, to, now = new Date()) => {
     set.nudgedAt = null;
     // a rating already given stays (it counts in the stats); the customer
     // can change it after the next resolution
-    if (enquiry.resolveDueAt) {
+    if (enquiry.resolveDueAt && C.advancedOn()) {
       Object.assign(set, dueDates(now, enquiry.priority || "normal", settings, { first: false }));
       set["slaFlags.resolveWarned"] = false;
       set["slaFlags.resolveBreached"] = false;
@@ -338,7 +339,9 @@ const assertUnderCap = async (admin) => {
 };
 
 // queue order: priority, then the nearest first-reply deadline, then oldest
+// (priorities switched off → simply oldest first)
 const QUEUE_SORT = { priorityRank: 1, firstReplyDueAt: 1, createdAt: 1 };
+const queueSort = () => (C.advancedOn() ? QUEUE_SORT : { createdAt: 1 });
 const queueFilter = () => ({ assignedTo: null, status: { $in: C.OPEN_STATUSES } });
 
 // auto-assign: available staff admins under the cap, fewest open first
@@ -353,7 +356,7 @@ const drainQueue = async () => {
     const staff = await Admin.find({ role: "staff_admin", isActive: true, deskStatus: { $ne: "away" } }).select("fullName").lean();
     if (!staff.length) return 0;
     const counts = await openCountsByAdmin();
-    const queue = await Enquiry.find(queueFilter()).sort(QUEUE_SORT).limit(100).lean();
+    const queue = await Enquiry.find(queueFilter()).sort(queueSort()).limit(100).lean();
     for (const enquiry of queue) {
       const pick = staff
         .map((a) => ({ a, n: counts.get(String(a._id)) || 0 }))
@@ -395,6 +398,7 @@ const flagOnce = (id, flag, extraFilter = {}) =>
 const ownerTarget = (e) => (e.assignedTo ? { targetAdmin: e.assignedTo } : { audience: "all" });
 
 const slaSweep = async (now = new Date()) => {
+  if (!C.advancedOn()) return 0; // time limits switched off → no warnings / escalations
   let n = 0;
   // first reply
   const noReply = { status: { $in: ["new", "assigned", "in_progress", "contacted"] }, firstResponseAt: null };
@@ -490,6 +494,7 @@ const autoCloseResolved = async (now = new Date()) => {
 // 📬 DAILY DIGEST (super admins, once a day at digestHour)
 // ============================================
 const sendDigestIfDue = async (now = new Date()) => {
+  if (!C.advancedOn()) return false; // the digest is about time limits + the Board
   const settings = await getSettings({ fresh: true });
   if (!settings.digestEnabled) return false;
   const today = getZonedDateStr(now, settings.timezone);
@@ -552,6 +557,7 @@ module.exports = {
   openCountFor,
   assertUnderCap,
   QUEUE_SORT,
+  queueSort,
   queueFilter,
   drainQueue,
   slaSweep,

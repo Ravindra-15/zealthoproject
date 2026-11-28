@@ -166,7 +166,7 @@ const take = async (id, admin, { skipCap = false } = {}) => {
 const takeNext = async (admin) => {
   await sla.assertUnderCap(admin);
   for (let attempt = 0; attempt < 5; attempt++) {
-    const candidates = await Enquiry.find(sla.queueFilter()).sort(sla.QUEUE_SORT).limit(10).select("_id").lean();
+    const candidates = await Enquiry.find(sla.queueFilter()).sort(sla.queueSort()).limit(10).select("_id").lean();
     if (!candidates.length) throw C.httpError(404, "The queue is empty — nothing to take right now.", { code: "QUEUE_EMPTY" });
     for (const c of candidates) {
       try {
@@ -458,6 +458,7 @@ const setStatus = async (id, admin, target) => {
 // ============================================
 const triage = async (id, admin, { priority, category }) => {
   const enquiry = await loadEnquiry(id);
+  if (priority !== undefined && !C.advancedOn()) priority = undefined; // priorities switched off
   if (priority !== undefined && !["high", "normal", "low"].includes(priority)) throw C.httpError(400, "Priority must be High, Normal or Low");
   if (category !== undefined && !CATEGORIES.includes(category)) throw C.httpError(400, "Choose a valid category");
   if (priority === undefined && category === undefined) throw C.httpError(400, "Nothing to change");
@@ -519,7 +520,7 @@ const detail = async (id, admin) => {
       resolveMinutes: C.minutesBetween(enquiry.createdAt, enquiry.resolvedAt || enquiry.closedAt),
       firstResponseWorkingMinutes: enquiry.firstResponseAt ? sla.workingMinutesBetween(enquiry.createdAt, enquiry.firstResponseAt, settings) : null,
     },
-    sla: {
+    sla: !C.advancedOn() ? {} : {
       tracked: !!(enquiry.firstReplyDueAt || enquiry.resolveDueAt),
       firstReplyDueAt: enquiry.firstReplyDueAt,
       firstReplyMet: enquiry.firstResponseAt && enquiry.firstReplyDueAt ? enquiry.firstResponseAt <= enquiry.firstReplyDueAt : null,
@@ -543,6 +544,7 @@ const detail = async (id, admin) => {
       canCall: !!normalizePhone(enquiry.phone) && !["closed", "spam"].includes(enquiry.status) && (C.isSuper(admin) || C.sameId(enquiry.assignedTo, admin._id)),
     },
     features: {
+      ...C.featureFlags(),
       whatsapp: { canSend: !!normalizePhone(enquiry.phone), live: isWhatsAppLive() },
       replyByEmail: replyByEmail(enquiry),
       calls: { live: isCallsLive() },
@@ -586,6 +588,7 @@ const myDesk = async (admin) => {
     openCount: open,
     cap: C.isSuper(admin) ? null : settings.maxOpenPerAdmin,
     autoAssign: settings.autoAssign,
+    features: C.featureFlags(),
   };
 };
 
